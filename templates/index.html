@@ -273,6 +273,7 @@
             document.getElementById('user-input').placeholder = placeholders[mode] || 'Message Shanvika...';
         }
 
+        // 🔥 FIXED: Isme change kiya hai (Welcome Screen Re-create logic added)
         async function createNewChat() {
             console.log("Creating new chat...");
             
@@ -283,13 +284,19 @@
                 const data = await res.json();
                 currentSessionId = data.session_id;
                 
-                // Clear UI
-                document.getElementById('chat-box').innerHTML = '';
-                document.getElementById('welcome-screen').style.display = 'flex';
+                // --- FIX STARTS HERE ---
+                // Hum pura box clear kar rahe hain, isliye Welcome Screen ko DOBARA banana padega
+                const chatBox = document.getElementById('chat-box');
+                chatBox.innerHTML = `
+                    <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-60 text-center">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl mb-4 shadow-2xl">🌸</div>
+                        <h2 class="text-2xl font-bold">Namaste!</h2>
+                        <p>Select a mode below to start.</p>
+                    </div>
+                `;
+                // --- FIX ENDS HERE ---
                 
                 console.log("New session ID:", currentSessionId);
-                
-                // Reload history to show new chat
                 await loadHistory();
                 
             } catch(e) { 
@@ -299,26 +306,16 @@
         }
 
         async function sendMessage() {
-            console.log("Send Message Triggered");
             const input = document.getElementById('user-input');
             const msg = input.value.trim();
             
-            if(!msg) {
-                console.log("Empty message, not sending");
-                return;
-            }
+            if(!msg) return;
             
-            // Generate Session if not exists
             if(!currentSessionId) {
-                console.log("No session ID, creating new chat...");
                 await createNewChat();
-                // Small delay to ensure session is ready
                 await new Promise(r => setTimeout(r, 200)); 
             }
 
-            console.log("Sending message with session ID:", currentSessionId);
-            
-            // UI Update
             appendMessage(msg, 'user');
             input.value = '';
 
@@ -333,15 +330,11 @@
                     })
                 });
                 
-                if (!res.ok) {
-                    throw new Error(`Server error: ${res.status}`);
-                }
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
                 
                 const data = await res.json();
-                console.log("Got response:", data);
-                
                 appendMessage(data.reply, 'ai');
-                loadHistory(); // Update Sidebar Title
+                loadHistory(); 
                 
             } catch(e) { 
                 console.error("Send message error:", e);
@@ -350,7 +343,10 @@
         }
 
         function appendMessage(text, role) {
-            document.getElementById('welcome-screen').style.display = 'none';
+            // Safe check for welcome screen
+            const welcome = document.getElementById('welcome-screen');
+            if(welcome) welcome.style.display = 'none';
+
             const box = document.getElementById('chat-box');
             const div = document.createElement('div');
             div.className = `flex gap-4 mb-4 ${role === 'user' ? 'flex-row-reverse' : ''}`;
@@ -358,7 +354,6 @@
                 '<div class="w-8 h-8 rounded-full bg-pink-600 flex items-center justify-center text-xs text-white">🌸</div>' : 
                 '<div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white">U</div>';
             
-            // Format HTML in AI response (for images etc)
             div.innerHTML = `${avatar}<div class="${role === 'ai' ? 'msg-ai' : 'msg-user'} p-3 px-4 max-w-[85%] text-sm leading-relaxed shadow-md">${text}</div>`;
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
@@ -404,8 +399,8 @@
                 const res = await fetch(`/api/chat/${sid}`);
                 const data = await res.json();
                 
+                // Clear Box - Hum Welcome Screen nahi banayenge yaha kyunki messages load hone wale hain
                 document.getElementById('chat-box').innerHTML = '';
-                document.getElementById('welcome-screen').style.display = 'none';
                 
                 data.messages.forEach(m => {
                     appendMessage(m.content, m.role === 'user' ? 'user' : 'ai');
@@ -447,7 +442,8 @@
                     if(currentSessionId === sid) {
                         currentSessionId = null;
                         document.getElementById('chat-box').innerHTML = '';
-                        document.getElementById('welcome-screen').style.display = 'flex';
+                        // Re-add welcome screen if deleted
+                        createNewChat();
                     }
                     loadHistory(); 
                 }
