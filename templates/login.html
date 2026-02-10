@@ -24,13 +24,14 @@
             position: relative; /* Important for Vanta */
         }
 
-        /* UIVERSE CARD CSS */
+        /* UIVERSE CARD CSS - MODIFIED FOR TRANSPARENCY */
         .form {
             display: flex;
             flex-direction: column;
             gap: 10px;
             padding: 2em;
-            background-color: #171717;
+            /* CHANGE: Background removed here so card2 controls transparency */
+            background-color: transparent; 
             border-radius: 25px;
             transition: 0.4s ease-in-out;
             align-items: center;
@@ -49,13 +50,18 @@
         .card2 {
             border-radius: 20px;
             transition: all 0.2s;
-            background-color: #171717;
-            padding: 2px; /* Added slight padding fix */
+            /* CHANGE: 0.75 opacity for transparency */
+            background-color: rgba(23, 23, 23, 0.75); 
+            /* CHANGE: Blur effect for Glassmorphism */
+            backdrop-filter: blur(10px); 
+            padding: 2px; 
         }
 
         .card2:hover {
             transform: scale(0.98);
             border-radius: 20px;
+            /* Optional: Make it slightly clearer on hover */
+            background-color: rgba(23, 23, 23, 0.85);
         }
 
         .card:hover {
@@ -91,7 +97,7 @@
             margin-top: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            box-sizing: border-box; /* Fix for padding issues */
+            box-sizing: border-box; 
         }
 
         .google-btn:hover {
@@ -106,7 +112,7 @@
         }
 
         .footer-text {
-            color: #666;
+            color: #ccc; /* Slightly lighter for better contrast on transparent bg */
             font-size: 0.8rem;
             text-align: center;
         }
@@ -148,9 +154,9 @@
             minHeight: 200.00,
             minWidth: 200.00,
             highlightColor: 0x706f6c,
-            midtoneColor: 0x090706, /* Fixed hex format */
+            midtoneColor: 0x090706,
             lowlightColor: 0x848484,
-            baseColor: 0xffebeb, /* Light Fog base from your screenshot */
+            baseColor: 0xffebeb,
             blurFactor: 0.60,
             speed: 1.00,
             zoom: 1.00
