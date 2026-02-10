@@ -10,19 +10,18 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 import uuid
 import os
-import httpx # Async requests ke liye
-import base64 # Image/Video data handling ke liye
+import httpx 
+import base64 
 from groq import Groq
 from duckduckgo_search import DDGS
 import google.generativeai as genai
 import io
 import PyPDF2
 from docx import Document
-import PIL.Image # For Gemini Vision
+import PIL.Image 
 
 app = FastAPI()
 
-# 👇 HTTPS LOOP FIX
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
     if request.headers.get("x-forwarded-proto") == "https":
@@ -30,27 +29,21 @@ async def fix_google_oauth_redirect(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# ==========================================
-# 🔑 KEYS & CONFIG
-# ==========================================
+# CONFIG
 ADMIN_EMAIL = "shantanupathak94@gmail.com"
-
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-HF_TOKEN = os.getenv("HF_TOKEN") # Hugging Face Token Zaroori hai
+HF_TOKEN = os.getenv("HF_TOKEN")
 MONGO_URL = os.getenv("MONGO_URL")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# Session Middleware
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
 
-# Google OAuth
 oauth = OAuth()
 oauth.register(
     name='google',
@@ -60,41 +53,30 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# MongoDB
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
 
-# Setup
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- HELPER FUNCTIONS ---
+# HELPERS
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 async def get_current_user(request: Request):
     return request.session.get('user')
 
-# --- GEMINI GENERATOR ---
 async def generate_gemini(prompt, system_instr):
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash') 
+        model = genai.GenerativeModel('gemini-1.5-flash') 
         full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
         response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
-        try:
-            print(f"⚠️ Primary model failed, trying fallback: {e}")
-            model = genai.GenerativeModel('gemini-flash-latest')
-            full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
-            response = model.generate_content(full_prompt)
-            return response.text
-        except Exception as e2:
-            return f"⚠️ Gemini Error: {str(e2)}"
+        return f"⚠️ Gemini Error: {str(e)}"
 
-# --- RESEARCH MODE ---
 def perform_research(query):
     try:
         results = DDGS().text(query, max_results=5)
@@ -106,63 +88,40 @@ def perform_research(query):
     except Exception as e:
         return f"Research Error: {e}"
 
-# --- IMAGE GENERATION (Hugging Face) ---
 async def generate_image_hf(prompt):
-    if not HF_TOKEN: return "⚠️ **Error:** HF_TOKEN missing in Environment Variables!"
-    
+    if not HF_TOKEN: return "⚠️ Error: HF_TOKEN missing."
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
     try:
         async with httpx.AsyncClient() as client:
-            # 30 seconds timeout
             response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=30.0)
-        
         if response.status_code == 200:
-            # Convert bytes to Base64 String
             img_b64 = base64.b64encode(response.content).decode("utf-8")
-            # HTML return karo jo frontend render karega
-            return f"""🎨 **Image Generated:**<br>
-                       <img src='data:image/png;base64,{img_b64}' 
-                            class='rounded-lg mt-2 shadow-lg w-full hover:scale-105 transition-transform duration-300' 
-                            alt='Generated Art'>"""
-        else: 
-            return f"⚠️ **Image Failed:** {response.text[:200]}"
-    except Exception as e: return f"⚠️ **Error:** {str(e)}"
+            return f"""<div class="mt-2"><img src='data:image/png;base64,{img_b64}' class='rounded-lg shadow-lg w-full max-w-md'></div>"""
+        else: return f"⚠️ Image Failed: {response.text[:200]}"
+    except Exception as e: return f"⚠️ Error: {str(e)}"
 
-# --- VIDEO GENERATION (Hugging Face) ---
 async def generate_video_hf(prompt):
-    if not HF_TOKEN: return "⚠️ **Error:** HF_TOKEN missing!"
-    
-    # Model: Text-to-Video
-    API_URL = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b" 
+    if not HF_TOKEN: return "⚠️ Error: HF_TOKEN missing."
+    API_URL = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
     try:
         async with httpx.AsyncClient() as client:
-            # Video takes time, set timeout to 60s
             response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60.0)
-            
         if response.status_code == 200:
             vid_b64 = base64.b64encode(response.content).decode("utf-8")
-            return f"""🎥 **Video Generated:**<br>
-                       <video controls autoplay loop class='rounded-lg mt-2 shadow-lg w-full'>
-                           <source src='data:video/mp4;base64,{vid_b64}' type='video/mp4'>
-                           Your browser does not support the video tag.
-                       </video>"""
-        else:
-            return f"⚠️ **Video Failed:** {response.text[:200]} (Try a simpler prompt)"
-    except Exception as e: 
-        return f"⚠️ **Error:** {str(e)}"
+            return f"""<div class="mt-2"><video controls autoplay loop class='rounded-lg shadow-lg w-full max-w-md'><source src='data:video/mp4;base64,{vid_b64}' type='video/mp4'></video></div>"""
+        else: return f"⚠️ Video Failed: {response.text[:200]}"
+    except Exception as e: return f"⚠️ Error: {str(e)}"
 
-# --- MODELS ---
+# MODELS & ROUTES
 class ChatRequest(BaseModel):
     message: str
     session_id: str
     mode: str
-    file_data: str | None = None # Generic file holder
-    file_type: str | None = None # MIME type (e.g., application/pdf)
-    image: str | None = None # Legacy support
+    file_data: str | None = None 
+    file_type: str | None = None 
+    image: str | None = None 
 
 class RenameRequest(BaseModel):
     session_id: str
@@ -173,8 +132,6 @@ class ProfileRequest(BaseModel):
 
 class InstructionRequest(BaseModel):
     instruction: str
-
-# --- ROUTES ---
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -217,7 +174,6 @@ async def read_root(request: Request):
     if not user: return RedirectResponse(url="/login")
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
-# API Routes
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
@@ -275,9 +231,6 @@ async def delete_chat_endpoint(session_id: str, request: Request):
     if user: await chats_collection.delete_one({"session_id": session_id, "user_email": user['email']})
     return {"status": "success"}
 
-# --- MAIN CHAT LOGIC ---
-# 👇 ISSE PURANE chat_endpoint SE REPLACE KAR DO
-
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     user = await get_current_user(request)
@@ -285,64 +238,45 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
     sid, mode, msg = req.session_id, req.mode, req.message
     
-    # 1. FILE PROCESSING LOGIC
-    image_object = None # For Gemini
-    vision_url = None   # For Groq
+    image_object = None 
+    vision_url = None   
     
     if req.file_data:
         try:
-            # Clean Base64 string
-            if "," in req.file_data:
-                header, encoded = req.file_data.split(",", 1)
-            else:
-                encoded = req.file_data
-
+            if "," in req.file_data: header, encoded = req.file_data.split(",", 1)
+            else: encoded = req.file_data
             file_bytes = base64.b64decode(encoded)
             file_type = req.file_type or ""
 
-            # A. DOCUMENTS (PDF/DOCX) -> Extract Text
             if "pdf" in file_type:
                 pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-                extracted_text = "\n\n[📄 ATTACHED PDF CONTENT START]\n"
-                has_text = False
+                extracted_text = "\n\n[📄 PDF START]\n"
                 for page in pdf_reader.pages:
                     text = page.extract_text()
-                    if text and text.strip():
-                        extracted_text += text + "\n"
-                        has_text = True
-                extracted_text += "[📄 ATTACHED PDF CONTENT END]\n"
-                
-                # Check if PDF was scanned (image only)
-                if not has_text:
-                    extracted_text += "\n[SYSTEM NOTE: The uploaded PDF appears to be empty or scanned. Inform the user you cannot read scanned PDFs and ask for a JPG/PNG screenshot instead.]\n"
-                
+                    if text: extracted_text += text + "\n"
+                extracted_text += "[📄 PDF END]\n"
                 msg += extracted_text
             
             elif "word" in file_type or "officedocument" in file_type:
                 doc = Document(io.BytesIO(file_bytes))
-                extracted_text = "\n\n[📄 ATTACHED DOC CONTENT START]\n"
-                for para in doc.paragraphs:
-                    extracted_text += para.text + "\n"
-                extracted_text += "[📄 ATTACHED DOC CONTENT END]\n"
+                extracted_text = "\n\n[📄 DOC START]\n"
+                for para in doc.paragraphs: extracted_text += para.text + "\n"
+                extracted_text += "[📄 DOC END]\n"
                 msg += extracted_text
 
-            # B. IMAGES -> Prepare for Vision Models
             elif "image" in file_type:
-                vision_url = req.file_data # Keep full data URI for Groq
-                image_object = PIL.Image.open(io.BytesIO(file_bytes)) # PIL Object for Gemini
-                msg += " [🖼️ Image Attached]"
+                vision_url = req.file_data 
+                image_object = PIL.Image.open(io.BytesIO(file_bytes)) 
+                msg += " [🖼️ Image]"
 
-        except Exception as e:
-            return {"reply": f"⚠️ File Error: {str(e)}"}
+        except Exception as e: return {"reply": f"⚠️ File Error: {str(e)}"}
 
-    # 2. SYSTEM INSTRUCTIONS
     db_user = await users_collection.find_one({"email": user['email']})
     custom_instr = db_user.get("custom_instruction", "") if db_user else ""
     base_system = "You are Shanvika AI."
     if custom_instr: base_system += f"\n\nUSER INSTRUCTION:\n{custom_instr}\n\n"
     if mode == "coding": base_system += " You are an Expert Coder."
 
-    # 3. SAVE TO DB
     chat = await chats_collection.find_one({"session_id": sid, "user_email": user['email']})
     if not chat:
         chat = {"session_id": sid, "user_email": user['email'], "title": "New Chat", "messages": []}
@@ -356,22 +290,14 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
     reply = ""
     try:
-        # 4. AI ROUTING
-        if mode == "image_gen":
-            reply = await generate_image_hf(msg)
-        
-        elif mode == "video":
-            reply = await generate_video_hf(msg)
-
+        if mode == "image_gen": reply = await generate_image_hf(msg)
+        elif mode == "video": reply = await generate_video_hf(msg)
         elif mode == "coding":
-            # GEMINI VISION (If image present)
             if image_object:
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                model = genai.GenerativeModel('gemini-1.5-flash') 
                 response = model.generate_content([msg, image_object])
                 reply = response.text
-            else:
-                reply = await generate_gemini(msg, base_system)
-
+            else: reply = await generate_gemini(msg, base_system)
         elif mode == "research":
             research_data = await asyncio.to_thread(perform_research, msg)
             client = get_groq()
@@ -382,21 +308,13 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 )
                 reply = completion.choices[0].message.content
             else: reply = research_data or "⚠️ No results."
-
-        else: # Default Chat (Groq)
+        else: # Default Chat
             client = get_groq()
             if client:
-                # GROQ VISION (If image present)
                 if vision_url:
                     completion = client.chat.completions.create(
-                        model="llama-3.2-11b-vision-preview",
-                        messages=[{
-                            "role": "user", 
-                            "content": [
-                                {"type": "text", "text": msg},
-                                {"type": "image_url", "image_url": {"url": vision_url}}
-                            ]
-                        }]
+                        model="llama-3.2-90b-vision-preview", 
+                        messages=[{"role": "user", "content": [{"type": "text", "text": msg}, {"type": "image_url", "image_url": {"url": vision_url}}]}]
                     )
                     reply = completion.choices[0].message.content
                 else:
@@ -407,12 +325,11 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     reply = completion.choices[0].message.content
             else: reply = "⚠️ API Key missing."
 
-    except Exception as e:
-        reply = f"⚠️ Error: {str(e)}"
-        print(f"Error Log: {e}")
+    except Exception as e: reply = f"⚠️ Error: {str(e)}"
 
     await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
     return {"reply": reply}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

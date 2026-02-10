@@ -2,9 +2,14 @@ let currentSessionId = null;
 let currentMode = 'chat';
 let abortController = null;
 let currentFile = null;
+let vantaEffect = null;
 
+// 👇 START HERE
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
+    initVanta(); // Load Background
+    
+    // Character count for settings
     const box = document.getElementById('custom-instruction-box');
     if(box) {
         box.addEventListener('input', function() {
@@ -14,9 +19,52 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================
-// 📁 FILE HANDLING (Button Lock + Spinner)
+// ✨ VANTA BACKGROUND LOGIC
 // ==========================================
+function initVanta() {
+    if (vantaEffect) {
+        vantaEffect.destroy();
+        vantaEffect = null;
+    }
 
+    const isLight = document.body.classList.contains('light-mode');
+
+    setTimeout(() => {
+        if (isLight) {
+            // Light Mode: Rings
+            try {
+                vantaEffect = VANTA.RINGS({
+                    el: "#vanta-bg",
+                    mouseControls: true, touchControls: true, gyroControls: false,
+                    minHeight: 200.00, minWidth: 200.00,
+                    scale: 1.00, scaleMobile: 1.00,
+                    backgroundColor: 0xffffff,
+                    color: 0xec4899
+                });
+            } catch (e) { console.log("Vanta Rings Failed", e); }
+        } else {
+            // Dark Mode: Halo
+            try {
+                vantaEffect = VANTA.HALO({
+                    el: "#vanta-bg",
+                    mouseControls: true, touchControls: true, gyroControls: false,
+                    minHeight: 200.00, minWidth: 200.00,
+                    baseColor: 0xca2cac, backgroundColor: 0x000000,
+                    amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40
+                });
+            } catch (e) { console.log("Vanta Halo Failed", e); }
+        }
+    }, 100);
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    initVanta();
+}
+
+// ==========================================
+// 📁 FILE HANDLING
+// ==========================================
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
@@ -26,13 +74,11 @@ async function handleFileUpload(input) {
         input.value = ""; return;
     }
 
-    // LOCK BUTTON & SHOW SPINNER
     const sendBtn = document.querySelector('button[type="submit"]');
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>';
     sendBtn.classList.add('cursor-not-allowed', 'opacity-50');
 
-    // Show Preview
     const wrapper = document.querySelector('.input-wrapper');
     const oldPreview = document.getElementById('file-preview');
     if(oldPreview) oldPreview.remove();
@@ -45,29 +91,21 @@ async function handleFileUpload(input) {
     if (file.type.includes('image')) iconClass = 'fa-image text-pink-400';
     else if (file.type.includes('pdf')) iconClass = 'fa-file-pdf text-red-400';
 
-    previewDiv.innerHTML = `
-        <i class="fas ${iconClass}"></i>
-        <span>${file.name}</span>
-        <span class="text-xs text-gray-400 ml-2">(Processing...)</span>
-    `;
+    previewDiv.innerHTML = `<i class="fas ${iconClass}"></i> <span>${file.name}</span> <span class="text-xs text-gray-400 ml-2">(Processing...)</span>`;
     wrapper.insertBefore(previewDiv, wrapper.querySelector('.input-container'));
 
     try {
         const base64 = await toBase64(file);
         currentFile = { name: file.name, type: file.type, data: base64 };
         
-        // UNLOCK BUTTON & SHOW CHECKMARK
         previewDiv.innerHTML = `
-            <i class="fas ${iconClass}"></i>
-            <span>${file.name}</span>
+            <i class="fas ${iconClass}"></i> <span>${file.name}</span> 
             <span class="text-xs text-green-400 ml-2"><i class="fas fa-check"></i> Ready</span>
             <button onclick="clearFile()" class="text-gray-400 hover:text-white ml-2"><i class="fas fa-times"></i></button>
         `;
         previewDiv.classList.remove('animate-pulse');
-        
     } catch (e) {
-        alert("Error reading file");
-        clearFile();
+        alert("Error reading file"); clearFile();
     } finally {
         sendBtn.disabled = false;
         sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>'; 
@@ -92,14 +130,13 @@ const toBase64 = file => new Promise((resolve, reject) => {
 // ==========================================
 // 💬 CHAT LOGIC
 // ==========================================
-
 async function createNewChat() {
     currentSessionId = null; 
     document.getElementById('chat-box').innerHTML = `
-        <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-60 text-center">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl mb-4 shadow-2xl">🌸</div>
-            <h2 class="text-2xl font-bold">Namaste!</h2>
-            <p>Select a mode below to start.</p>
+        <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-80 text-center animate-fade-in">
+            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-2xl">🌸</div>
+            <h2 class="text-3xl font-bold mb-2">Namaste!</h2>
+            <p class="text-gray-400">Main taiyaar hu. Aaj kya create karein?</p>
         </div>`;
     window.history.pushState({}, document.title, "/");
 }
@@ -136,13 +173,10 @@ async function sendMessage() {
     if (welcomeScreen) welcomeScreen.style.display = 'none';
     
     let displayMsg = message;
-    if (currentFile) {
-        displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
-    }
+    if (currentFile) displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
 
     appendMessage('user', displayMsg);
     inputField.value = '';
-    
     const p = document.getElementById('file-preview');
     if(p) p.style.display = 'none';
 
@@ -154,21 +188,13 @@ async function sendMessage() {
     const loadingDiv = document.createElement('div');
     loadingDiv.id = "loading-bubble";
     loadingDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 w-fit mr-auto border border-gray-700 flex items-center gap-2";
-    
-    let statusText = "Thinking";
-    if (currentMode === 'coding') statusText = "Coding";
-    else if (currentMode === 'image_gen') statusText = "Painting";
-    else if (currentMode === 'video') statusText = "Filming";
-    
-    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}...</span> <div class="typing-dot"></div>`;
+    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">Thinking...</span> <div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
         const payload = { 
-            message: message, 
-            session_id: currentSessionId, 
-            mode: currentMode,
+            message: message, session_id: currentSessionId, mode: currentMode,
             file_data: currentFile ? currentFile.data : null,
             file_type: currentFile ? currentFile.type : null
         };
@@ -204,10 +230,10 @@ function appendMessage(sender, text) {
     const msgDiv = document.createElement('div');
     
     if (sender === 'user') {
-        msgDiv.className = "p-3 mb-4 rounded-2xl bg-blue-600 text-white w-fit max-w-[85%] ml-auto break-words shadow-lg";
+        msgDiv.className = "msg-user";
         msgDiv.innerHTML = text; 
     } else {
-        msgDiv.className = "msg-ai p-4 mb-4 rounded-2xl w-fit max-w-[85%] mr-auto break-words shadow-lg bg-gray-800 border border-gray-700 text-gray-200";
+        msgDiv.className = "msg-ai";
         if (text.includes("<img") || text.includes("<video")) {
             msgDiv.innerHTML = text;
         } else {
@@ -231,114 +257,9 @@ function appendMessage(sender, text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Settings & Profile
-async function openSettingsModal() {
-    document.getElementById('settings-modal').style.display = 'block';
-    try {
-        const res = await fetch('/api/profile');
-        const data = await res.json();
-        const box = document.getElementById('custom-instruction-box');
-        if (data.custom_instruction) {
-            box.value = data.custom_instruction;
-            document.getElementById('char-count').innerText = `${data.custom_instruction.length}/1000`;
-        } else {
-            box.value = ""; document.getElementById('char-count').innerText = "0/1000";
-        }
-    } catch (e) {}
-}
-
-async function saveInstructions() {
-    const txt = document.getElementById('custom-instruction-box').value;
-    const btn = document.querySelector('#settings-modal button.text-pink-400');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    try {
-        await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: txt }) });
-        btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-        setTimeout(() => { btn.innerHTML = originalText; closeModal('settings-modal'); }, 1000);
-    } catch (e) { alert("Error"); btn.innerHTML = originalText; }
-}
-
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-// Global Vanta Variable
-let vantaEffect = null;
-
-// 👇 1. Is Function ko code ke start mein (DOMContentLoaded ke andar) call karo
-document.addEventListener("DOMContentLoaded", () => {
-    loadHistory();
-    initVanta(); // ✨ Start Vanta on Load
-});
-
-// 👇 2. Naya Vanta Logic (Switching Magic)
-let vantaEffect = null;
-
-document.addEventListener("DOMContentLoaded", () => {
-    loadHistory();
-    initVanta(); // Load hote hi sahi effect chalao
-});
-
-function initVanta() {
-    // 🛑 AGAR PURANA EFFECT HAI TOH USSE KHATAM KARO
-    if (vantaEffect) {
-        vantaEffect.destroy();
-        vantaEffect = null;
-    }
-
-    const isLight = document.body.classList.contains('light-mode');
-
-    // Thoda delay dete hain taaki canvas clear ho jaye
-    setTimeout(() => {
-        if (isLight) {
-            // 🌞 LIGHT MODE: RINGS (White & Pink)
-            try {
-                vantaEffect = VANTA.RINGS({
-                    el: "#vanta-bg",
-                    mouseControls: true, touchControls: true, gyroControls: false,
-                    minHeight: 200.00, minWidth: 200.00,
-                    scale: 1.00, scaleMobile: 1.00,
-                    backgroundColor: 0xffffff, // Safed Background
-                    color: 0xec4899 // Pink Rings
-                });
-            } catch (e) { console.log("Vanta Rings Failed", e); }
-        } else {
-            // 🌑 DARK MODE: HALO (Black & Purple)
-            try {
-                vantaEffect = VANTA.HALO({
-                    el: "#vanta-bg",
-                    mouseControls: true, touchControls: true, gyroControls: false,
-                    minHeight: 200.00, minWidth: 200.00,
-                    baseColor: 0xca2cac, backgroundColor: 0x000000,
-                    amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40
-                });
-            } catch (e) { console.log("Vanta Halo Failed", e); }
-        }
-    }, 100);
-}
-
-function toggleTheme() {
-    document.body.classList.toggle('light-mode');
-    
-    // Theme change hone par Vanta refresh karo
-    initVanta();
-}
-function openProfileModal() { 
-    document.getElementById('profile-modal').style.display = 'block'; 
-    fetch('/api/profile').then(r=>r.json()).then(d => {
-        document.getElementById('profile-name-input').value = d.name;
-        document.getElementById('profile-img-modal').src = d.avatar;
-    });
-}
-async function saveProfile() { 
-    const name = document.getElementById('profile-name-input').value;
-    await fetch('/api/update_profile_name', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-    closeModal('profile-modal'); location.reload();
-}
-async function uploadAvatar(input) { alert("Avatar upload requires external storage."); }
-
-// History
-// ... (Keep existing file handling and core logic) ...
-
-// 👇 UPDATE THIS FUNCTION ONLY
+// ==========================================
+// 📜 HISTORY & UI
+// ==========================================
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
@@ -348,26 +269,17 @@ async function loadHistory() {
         
         data.history.forEach(chat => {
             const div = document.createElement('div');
-            // Layout: Center Icon | Text Label (Hidden by CSS until hover) | Menu
             div.className = "p-3 mb-1 hover:bg-white/10 rounded-xl cursor-pointer text-sm text-gray-300 relative group flex items-center transition-all h-10";
-            
             div.innerHTML = `
-                <div class="w-10 flex justify-center shrink-0">
-                    <i class="fas fa-comment-alt text-gray-500 group-hover:text-pink-400 text-lg"></i>
-                </div>
+                <div class="w-10 flex justify-center shrink-0"><i class="fas fa-comment-alt text-gray-500 group-hover:text-pink-400 text-lg"></i></div>
                 <span class="nav-label flex-1 truncate transition-opacity duration-200">${chat.title}</span> 
-                <div class="w-8 flex justify-center nav-label">
-                    <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2" onclick="showDropdown(event, '${chat.id}')"></i>
-                </div>
+                <div class="w-8 flex justify-center nav-label"><i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2" onclick="showDropdown(event, '${chat.id}')"></i></div>
             `;
-            
             div.onclick = (e) => { if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); };
             list.appendChild(div);
         });
     } catch (e) {}
 }
-
-// ... (Rest of your script.js remains the same) ...
 
 function showDropdown(event, sessionId) {
     event.stopPropagation();
@@ -412,3 +324,9 @@ function setMode(mode, btn) {
     btn.classList.remove('bg-white/10', 'text-gray-300', 'border', 'border-white/10');
     btn.classList.add('active', 'bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-none');
 }
+
+// Utils
+function openSettingsModal() { document.getElementById('settings-modal').style.display = 'block'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
+async function saveProfile() { closeModal('profile-modal'); }

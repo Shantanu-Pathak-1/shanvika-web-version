@@ -23,31 +23,27 @@ main { position: relative; z-index: 10; }
 .dropdown-menu { z-index: 210 !important; }
 
 /* =========================================
-   🔥 2. ULTRA NEON SCROLLBARS (Visible Everywhere) 🔥
+   🔥 2. ULTRA NEON SCROLLBARS 🔥
    ========================================= */
-/* Sabhi elements par apply hoga */
 *::-webkit-scrollbar {
-    width: 8px;  /* Thoda mota kiya taaki dikhe */
+    width: 8px;
     height: 8px;
 }
 
-/* Track (Background) */
 *::-webkit-scrollbar-track {
     background: rgba(20, 20, 20, 0.5);
     border-left: 1px solid rgba(255,255,255,0.05);
 }
 
-/* Thumb (Handle) - Neon Cyan to Pink */
 *::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, #06b6d4, #ec4899); /* Cyan to Pink */
     border-radius: 10px;
-    border: 2px solid transparent; /* Padding effect */
+    border: 2px solid transparent; 
     background-clip: content-box;
 }
 
-/* Hover Effect */
 *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #22d3ee, #f472b6); /* Brighter on hover */
+    background: linear-gradient(180deg, #22d3ee, #f472b6);
     background-clip: content-box;
 }
 
@@ -60,7 +56,7 @@ main { position: relative; z-index: 10; }
     background: rgba(10, 10, 10, 0.8); 
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(15px);
-    width: 5rem; /* Collapsed Width */
+    width: 5rem; /* Collapsed */
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -85,187 +81,141 @@ main { position: relative; z-index: 10; }
 }
 
 /* =========================================
-   4. INPUT AREA (Fixed Floating Design)
+   4. FULL WIDTH LAYOUT & INPUT
    ========================================= */
+/* Chat Container - Full Width */
+#chat-box { 
+    width: 100%; 
+    max-width: 100%; 
+    padding: 20px 40px; 
+    padding-bottom: 220px !important; /* Space for input */
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Fixed Input Area */
 .input-fixed-bottom {
     position: fixed; 
     bottom: 0; 
-    left: 0; 
-    width: 100%; 
-    z-index: 50; /* Sabse upar */
-    pointer-events: none; /* Click through allowed on gradient */
-    
-    /* Gradient thoda strong kiya taaki text na chupe */
-    background: linear-gradient(to top, #000000 40%, rgba(0,0,0,0.8) 70%, transparent);
-    
-    padding-bottom: 20px; /* Thoda sa niche se uthaya */
-    padding-top: 40px;    /* Gradient ke liye jagah */
-}
-
-/* Light Mode Input Gradient */
-body.light-mode .input-fixed-bottom {
-    background: linear-gradient(to top, #f3f4f6 50%, rgba(243,244,246,0.9) 80%, transparent);
+    left: 5rem; /* Start after sidebar */
+    right: 0;   /* Go to end */
+    width: auto;
+    padding: 1rem 2rem;
+    pointer-events: none;
+    background: linear-gradient(to top, #000000 30%, rgba(0,0,0,0.8) 70%, transparent);
+    padding-bottom: 20px;
+    padding-top: 40px;
 }
 
 .input-wrapper { 
-    pointer-events: auto; /* Ab click kaam karega */
+    pointer-events: auto;
     width: 100%; 
-    max-width: 900px; /* Thoda chota kiya taaki clean lage */
+    max-width: 1000px; /* Keep input centered max width */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* Sidebar Offset Logic */
-@media (min-width: 768px) { 
-    .input-wrapper { 
-        padding-left: 5rem; /* Sidebar ko avoid karega */
-        padding-right: 1rem;
-    } 
+/* Mobile Input Fix */
+@media (max-width: 767px) {
+    .input-fixed-bottom { left: 0; padding: 1rem; }
 }
 
-/* Input Container (Safed Dabba) */
 .input-container {
     width: 100%;
-    background: rgba(30, 30, 30, 0.8); /* Thoda dark */
+    background: rgba(30, 30, 30, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
     backdrop-filter: blur(15px);
     transition: 0.3s;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3); /* Utha hua dikhega */
-}
-
-body.light-mode .input-container {
-    background: #ffffff;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1); /* Light mode shadow */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
 /* =========================================
-   5. MESSAGES & UTILS (Scroll Fix)
+   5. MESSAGES & BUBBLES
    ========================================= */
-/* Chat Box Container */
-#chat-box { 
-    width: 100%; 
-    max-width: 1000px; 
-    margin: 0 auto; 
-    padding: 20px; 
-    padding-bottom: 220px !important; /* 🔥 IMPORTANT: Niche jagah chodi taaki last message na chupe */
-    flex: 1;
-    overflow-y: auto;
-}
-
 .msg-user { 
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
+    background: linear-gradient(135deg, #2563eb, #7c3aed); 
     color: white; 
     border-radius: 18px 18px 0 18px; 
-    width: fit-content; max-width: 80%; 
+    width: fit-content; max-width: 85%; 
     padding: 12px 18px; 
     margin-left: auto; 
     word-wrap: break-word; 
-    margin-bottom: 20px; /* Spacing badhai */
-    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+    margin-bottom: 15px;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
 }
 
 .msg-ai { 
-    background: rgba(40,40,40,0.9); 
-    border: 1px solid rgba(255,255,255,0.1); 
+    background: rgba(40, 40, 40, 0.8); 
+    border: 1px solid rgba(255,255,255,0.05); 
     color: #e0e0e0; 
     border-radius: 18px 18px 18px 0; 
-    width: fit-content; max-width: 80%; 
+    width: fit-content; max-width: 85%; 
     padding: 12px 18px; 
     margin-right: auto; 
     word-wrap: break-word; 
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
-/* Code Blocks Styling */
-pre { 
-    background: #1e1e1e !important; 
-    padding: 1.2rem; 
-    border-radius: 12px; 
-    border: 1px solid #333; 
-    overflow-x: auto; 
-    margin-top: 15px; 
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5); /* Andar ki taraf shadow */
+/* Mode Buttons */
+.mode-scroll::-webkit-scrollbar { display: none; }
+.mode-btn { 
+    padding: 8px 20px; border-radius: 99px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: 0.3s;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; white-space: nowrap;
 }
-
-/* Scrollbar on Code Blocks */
-pre::-webkit-scrollbar { height: 8px; }
-pre::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+.mode-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+.mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
 
 /* =========================================
-   3. 🌞 LIGHT MODE (Colorful & Vibrant)
+   6. 🌞 LIGHT MODE (Vibrant & Fixed)
    ========================================= */
-body.light-mode { 
-    background-color: #ffffff !important; 
-    color: #1a1a1a !important; 
-}
-/* Canvas dikhana zaroori hai Rings ke liye */
-body.light-mode canvas.vanta-canvas { 
-    display: block !important; 
-    opacity: 0.8; 
-}
+body.light-mode { background-color: #f3f4f6 !important; color: #1a1a1a !important; }
+body.light-mode canvas.vanta-canvas { display: block !important; opacity: 0.8; }
 
-/* Force Text Colors */
+/* Text Overrides */
 body.light-mode .text-white { color: #111 !important; }
 body.light-mode .text-gray-400 { color: #555 !important; }
 body.light-mode .text-gray-300 { color: #444 !important; }
 
 /* Sidebar Light */
-body.light-mode #sidebar { 
-    background: rgba(255, 255, 255, 0.7); 
-    border-right: 1px solid rgba(0,0,0,0.1); 
-    backdrop-filter: blur(10px);
-}
+body.light-mode #sidebar { background: rgba(255, 255, 255, 0.8); border-right: 1px solid rgba(0,0,0,0.1); }
+body.light-mode #sidebar:hover { background: #f9fafb; }
 
-/* Input Area Light */
-body.light-mode .input-fixed-bottom { 
-    background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.8) 80%, transparent); 
-}
-body.light-mode .input-container { 
-    background: rgba(255, 255, 255, 0.9); 
-    border: 1px solid #ddd; 
-    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); 
-}
+/* Input Light */
+body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
+body.light-mode .input-container { background: rgba(255, 255, 255, 0.9); border: 1px solid #ddd; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1); }
 body.light-mode input { color: #000 !important; }
+body.light-mode input::placeholder { color: #666; }
 
-/* 🔥 COLORFUL BUTTONS IN LIGHT MODE 🔥 */
-body.light-mode .mode-btn { 
-    background: linear-gradient(135deg, #e0f2fe, #f3e8ff); /* Halka Blue-Pink Gradient */
-    border: 1px solid #d1d5db; 
-    color: #4b5563; 
-    font-weight: 600;
-}
-body.light-mode .mode-btn:hover {
-    background: linear-gradient(135deg, #bae6fd, #e9d5ff);
-    transform: translateY(-2px);
-}
-body.light-mode .mode-btn.active { 
-    background: linear-gradient(135deg, #ec4899, #8b5cf6) !important; /* Wahi Dark mode wala Neon */
-    color: white !important; 
-    box-shadow: 0 4px 15px rgba(236,72,153,0.3);
-}
+/* Chat Light - Colorful */
+body.light-mode .msg-ai { background: rgba(255, 255, 255, 0.95); border: 1px solid #e5e7eb; color: #1f2937; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+body.light-mode .msg-user { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white !important; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
-/* 🔥 COLORFUL CHAT IN LIGHT MODE 🔥 */
-/* AI Bubble - White Glass */
-body.light-mode .msg-ai { 
-    background: rgba(255, 255, 255, 0.95); 
-    border: 1px solid #e5e7eb; 
-    color: #1f2937; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
-}
+/* Buttons Light - Colorful */
+body.light-mode .mode-btn { background: linear-gradient(135deg, #e0f2fe, #f3e8ff); border: 1px solid #d1d5db; color: #4b5563; font-weight: 600; }
+body.light-mode .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6) !important; color: white !important; box-shadow: 0 4px 15px rgba(236,72,153,0.3); }
 
-/* User Bubble - Vibrant Gradient */
-body.light-mode .msg-user { 
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6); /* Blue-Purple Gradient */
-    color: white; 
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
+/* Modal & Code Light */
+body.light-mode .modal-content { background: #ffffff; color: #000; border: 1px solid #e5e7eb; }
+body.light-mode .modal-content textarea, 
+body.light-mode .modal-content input { background-color: #f3f4f6; color: #000; border: 1px solid #d1d5db; }
+body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; }
 
-/* Code Blocks */
-body.light-mode pre { 
-    background: #2d2d2d !important; /* Code hamesha dark background par acha lagta hai */
-    color: #f8f8f2; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}
+/* =========================================
+   7. UTILS
+   ========================================= */
+pre { background: #1e1e1e !important; padding: 1rem; border-radius: 12px; border: 1px solid #333; overflow-x: auto; margin-top: 15px; }
+code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.9em; }
+.copy-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.1); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; border: none; }
+
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+.modal-content { width: 90%; max-width: 450px; padding: 20px; border-radius: 16px; background: #1e1e1e; border: 1px solid #333; margin: auto; }
+.dropdown-menu { display: none; padding: 5px; min-width: 140px; border-radius: 8px; position: fixed; background: #222; border: 1px solid #444; }
+.dropdown-menu.show { display: block; }
+.dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; color: #eee; }
+.dropdown-item:hover { background: #333; }
+
+.typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #aaa; margin: 0 2px; animation: typing 1.4s infinite; }
+@keyframes typing { 0%, 100% { transform: scale(0.5); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
