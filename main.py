@@ -1,48 +1,72 @@
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+from authlib.integrations.starlette_client import OAuth
 from pydantic import BaseModel
-import random
+from motor.motor_asyncio import AsyncIOMotorClient # MongoDB
+import asyncio
 import uuid
 import shutil
 import os
 import httpx
-import asyncio # 👈 Added for async fix
 from groq import Groq
 from openai import OpenAI
 from duckduckgo_search import DDGS
 
 app = FastAPI()
 
-# 1. CORS Setup
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ==========================================
+# 🔑 KEYS & CONFIG (SECRET RAKHNA)
+# ==========================================
 
-# 2. Get Keys
+# 1. Google & Security Keys
+SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika") # Session ke liye
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "PASTE_YOUR_CLIENT_ID_HERE_IF_LOCAL")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "PASTE_YOUR_CLIENT_SECRET_HERE_IF_LOCAL")
+
+# 2. AI & DB Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+MONGO_URL = os.getenv("MONGO_URL") # MongoDB Connection String
 
-def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-def get_deepseek(): return OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
+# 3. Setup Session (Zaroori hai login yaad rakhne ke liye)
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# --- STORAGE ---
-CHAT_SESSIONS = {} 
-USER_PROFILE = { "name": "Shantanu", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Shantanu" }
+# 4. Setup Google OAuth
+oauth = OAuth()
+oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
 
-# --- STATIC SETUP ---
+# 5. Connect to MongoDB
+client = AsyncIOMotorClient(MONGO_URL)
+db = client.shanvika_db  # Database Name
+users_collection = db.users
+chats_collection = db.chats
+
+# ==========================================
+# ⚙️ STANDARD SETUP
+# ==========================================
+
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+)
+
 if not os.path.exists("static"): os.makedirs("static")
-if not os.path.exists("templates"): os.makedirs("templates")
-    
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# --- AI CLIENTS ---
+def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+def get_deepseek(): return OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
 
 # --- MODELS ---
 class ChatRequest(BaseModel):
@@ -59,6 +83,11 @@ class ProfileRequest(BaseModel):
     name: str
 
 # --- HELPER FUNCTIONS ---
+async def get_current_user(request: Request):
+    user = request.session.get('user')
+    if user: return user
+    return None
+
 def perform_research(query):
     try:
         results = DDGS().text(query, max_results=5)
@@ -85,78 +114,181 @@ async def generate_image_hf(prompt):
         else: return f"⚠️ **Failed:** {response.text[:200]}"
     except Exception as e: return f"⚠️ **Error:** {str(e)}"
 
-# --- ROUTES ---
+# ==========================================
+# 🚀 AUTH ROUTES (Login/Logout)
+# ==========================================
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/auth/login")
+async def login(request: Request):
+    # Determine callback URL based on environment (Local vs Render)
+    redirect_uri = str(request.url_for('auth_callback'))
+    # Fix for Render (Ensure HTTPS)
+    if "onrender.com" in redirect_uri:
+        redirect_uri = redirect_uri.replace("http://", "https://")
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request):
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        user_info = token.get('userinfo')
+        
+        if user_info:
+            request.session['user'] = dict(user_info)
+            
+            # Save User to MongoDB if not exists
+            email = user_info.get('email')
+            existing_user = await users_collection.find_one({"email": email})
+            
+            if not existing_user:
+                await users_collection.insert_one({
+                    "email": email,
+                    "name": user_info.get('name'),
+                    "picture": user_info.get('picture'),
+                    "role": "user" # Default role
+                })
+                
+        return RedirectResponse(url="/")
+    except Exception as e:
+        print(f"Auth Error: {e}")
+        return RedirectResponse(url="/login")
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.pop('user', None)
+    return RedirectResponse(url="/login")
+
+# ==========================================
+# 💬 APP ROUTES (Protected)
+# ==========================================
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    user = await get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 @app.get("/api/profile")
-def get_profile(): return USER_PROFILE
+async def get_profile(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"name": "Guest", "avatar": ""}
+    
+    # Fetch latest data from DB
+    db_user = await users_collection.find_one({"email": user['email']})
+    
+    return {
+        "name": db_user.get("name", user['name']),
+        "avatar": db_user.get("picture", user['picture']),
+        "email": user['email']
+    }
 
 @app.post("/api/update_profile_name")
-def update_profile_name(req: ProfileRequest):
-    USER_PROFILE["name"] = req.name
-    return {"status": "success", "name": req.name}
-
-@app.post("/api/update_avatar")
-def update_avatar(file: UploadFile = File(...)):
-    file_path = f"static/profile_{uuid.uuid4().hex[:8]}.png"
-    with open(file_path, "wb+") as buffer: shutil.copyfileobj(file.file, buffer)
-    USER_PROFILE["avatar"] = f"/{file_path}"
-    return {"status": "success", "avatar": USER_PROFILE["avatar"]}
+async def update_profile_name(req: ProfileRequest, request: Request):
+    user = await get_current_user(request)
+    if user:
+        await users_collection.update_one(
+            {"email": user['email']},
+            {"$set": {"name": req.name}}
+        )
+    return {"status": "success"}
 
 @app.get("/api/history")
-def get_history():
+async def get_history(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"history": []}
+    
+    # Fetch chats ONLY for this user from MongoDB
+    cursor = chats_collection.find({"user_email": user['email']})
     history = []
-    for sid, data in CHAT_SESSIONS.items():
-        history.append({"id": sid, "title": data.get("title", "New Chat")})
+    async for chat in cursor:
+        history.append({"id": chat["session_id"], "title": chat.get("title", "New Chat")})
+    
     return {"history": list(reversed(history))}
 
 @app.get("/api/new_chat")
-def create_chat():
+async def create_chat(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"error": "Not logged in"}
+    
     new_id = str(uuid.uuid4())[:8]
-    CHAT_SESSIONS[new_id] = {"title": "New Chat", "messages": []}
+    # Create empty chat in DB
+    await chats_collection.insert_one({
+        "session_id": new_id,
+        "user_email": user['email'],
+        "title": "New Chat",
+        "messages": []
+    })
     return {"session_id": new_id, "messages": []}
 
 @app.get("/api/chat/{session_id}")
-def get_chat(session_id: str):
-    return {"messages": CHAT_SESSIONS.get(session_id, {}).get("messages", [])}
+async def get_chat_content(session_id: str, request: Request):
+    user = await get_current_user(request)
+    if not user: return {"messages": []}
+    
+    chat = await chats_collection.find_one({"session_id": session_id, "user_email": user['email']})
+    return {"messages": chat.get("messages", []) if chat else []}
 
 @app.post("/api/rename_chat")
-def rename_chat(req: RenameRequest):
-    if req.session_id in CHAT_SESSIONS: CHAT_SESSIONS[req.session_id]["title"] = req.new_title
+async def rename_chat(req: RenameRequest, request: Request):
+    user = await get_current_user(request)
+    if user:
+        await chats_collection.update_one(
+            {"session_id": req.session_id, "user_email": user['email']},
+            {"$set": {"title": req.new_title}}
+        )
     return {"status": "success"}
 
 @app.delete("/api/delete_chat/{session_id}")
-def delete_chat(session_id: str):
-    if session_id in CHAT_SESSIONS: del CHAT_SESSIONS[session_id]
+async def delete_chat_endpoint(session_id: str, request: Request):
+    user = await get_current_user(request)
+    if user:
+        await chats_collection.delete_one({"session_id": session_id, "user_email": user['email']})
     return {"status": "success"}
 
 # --- MAIN CHAT LOGIC ---
 @app.post("/api/chat")
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return {"reply": "⚠️ Please Login first."}
+
     sid = req.session_id
     mode = req.mode
     msg = req.message
     img_data = req.image 
     
-    if sid not in CHAT_SESSIONS:
-        CHAT_SESSIONS[sid] = {"title": "New Chat", "messages": []}
+    # Fetch Chat from DB
+    chat = await chats_collection.find_one({"session_id": sid, "user_email": user['email']})
     
-    if len(CHAT_SESSIONS[sid]["messages"]) == 0:
-        CHAT_SESSIONS[sid]["title"] = " ".join(msg.split()[:5])
+    if not chat:
+        # Emergency creation if not found
+        chat = {"session_id": sid, "user_email": user['email'], "title": "New Chat", "messages": []}
+        await chats_collection.insert_one(chat)
+    
+    # Update Title if first message
+    if len(chat["messages"]) == 0:
+        new_title = " ".join(msg.split()[:5])
+        await chats_collection.update_one({"session_id": sid}, {"$set": {"title": new_title}})
 
     user_content = msg
     if img_data: user_content += " [🖼️ Image Uploaded]"
-    CHAT_SESSIONS[sid]["messages"].append({"role": "user", "content": user_content})
+    
+    # Add User Message to DB
+    await chats_collection.update_one(
+        {"session_id": sid},
+        {"$push": {"messages": {"role": "user", "content": user_content}}}
+    )
 
     reply = ""
     try:
-        # 1. IMAGE GEN
+        # ... (SAME AI LOGIC AS BEFORE) ...
         if mode == "image_gen":
             reply = await generate_image_hf(msg)
 
-        # 2. RESEARCH (Fixed Async Blocking)
         elif mode == "research":
             research_data = await asyncio.to_thread(perform_research, msg)
             client = get_groq()
@@ -169,7 +301,6 @@ async def chat_endpoint(req: ChatRequest):
             else:
                 reply = research_data if research_data else "⚠️ No results."
 
-        # 3. TEXT & VISION
         else:
             sys_instr = "You are Shanvika AI."
             if mode == "coding": sys_instr += " Expert Coder."
@@ -190,7 +321,8 @@ async def chat_endpoint(req: ChatRequest):
                 model = "deepseek-chat" if mode == "coding" else "llama-3.3-70b-versatile"
                 if client:
                     msgs = [{"role": "system", "content": sys_instr}]
-                    msgs.extend(CHAT_SESSIONS[sid]["messages"][-10:])
+                    # Pass previous messages (History context)
+                    msgs.extend(chat["messages"][-10:])
                     completion = client.chat.completions.create(model=model, messages=msgs)
                     reply = completion.choices[0].message.content
                 else: reply = "⚠️ API Key missing."
@@ -199,5 +331,14 @@ async def chat_endpoint(req: ChatRequest):
         reply = f"⚠️ Error: {str(e)}"
         print(f"Error Log: {e}")
 
-    CHAT_SESSIONS[sid]["messages"].append({"role": "assistant", "content": reply})
+    # Save Assistant Reply to DB
+    await chats_collection.update_one(
+        {"session_id": sid},
+        {"$push": {"messages": {"role": "assistant", "content": reply}}}
+    )
+    
     return {"reply": reply}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
