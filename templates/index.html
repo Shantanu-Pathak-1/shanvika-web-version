@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.halo.min.js"></script>
 </head>
 
-<body id="vanta-bg" class="flex h-screen w-full dark-mode text-white overflow-hidden">
+<body id="vanta-bg" class="flex h-screen w-full dark-mode overflow-hidden">
 
     <aside id="sidebar">
         <div class="h-16 flex items-center shrink-0 border-b border-white/5 sidebar-header">
@@ -61,7 +61,7 @@
         <div id="chat-box" class="flex-1 overflow-y-auto p-4 pb-48 scroll-smooth">
             <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-80 text-center animate-fade-in">
                 <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-[0_0_30px_rgba(236,72,153,0.5)]">🌸</div>
-                <h2 class="text-3xl font-bold mb-2">Namaste, Partner!</h2>
+                <h2 class="text-3xl font-bold mb-2 text-white">Namaste, Partner!</h2>
                 <p class="text-gray-400">Main taiyaar hu. Aaj kya create karein?</p>
             </div>
         </div>
@@ -102,6 +102,12 @@
                 <h2 class="text-xl font-bold">Settings</h2>
                 <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
+            
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg mb-4">
+                <span>Theme</span>
+                <button onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-500">Switch Mode</button>
+            </div>
+
             <div class="mb-4">
                 <label class="block text-sm text-gray-400 mb-2">Custom Instructions</label>
                 <textarea id="custom-instruction-box" maxlength="1000" rows="5" class="w-full bg-black/30 border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-pink-500 outline-none resize-none" placeholder="Ex: Always speak in Hinglish..."></textarea>
@@ -130,23 +136,15 @@
     </div>
 
     <script src="/static/js/script.js"></script>
-
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             try {
                 VANTA.HALO({
                     el: "#vanta-bg",
-                    mouseControls: true,
-                    touchControls: true,
-                    gyroControls: false,
-                    minHeight: 200.00,
-                    minWidth: 200.00,
-                    baseColor: 0xca2cac,
-                    backgroundColor: 0x000000,
-                    amplitudeFactor: 3.00,
-                    xOffset: -0.01,
-                    yOffset: 0.06,
-                    size: 1.40
+                    mouseControls: true, touchControls: true, gyroControls: false,
+                    minHeight: 200.00, minWidth: 200.00,
+                    baseColor: 0xca2cac, backgroundColor: 0x000000,
+                    amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40
                 });
             } catch (e) { console.log("Bg effect failed"); }
         });

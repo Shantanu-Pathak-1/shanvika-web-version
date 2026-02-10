@@ -6,7 +6,7 @@ body {
     margin: 0; padding: 0;
     background-color: #000;
     color: #e0e0e0;
-    overflow: hidden; /* Scroll sirf chat box karega */
+    overflow: hidden; 
 }
 
 /* Vanta Canvas Layer */
@@ -15,7 +15,7 @@ canvas.vanta-canvas {
     z-index: 0 !important; pointer-events: none;
 }
 
-/* Z-INDEX HIERARCHY (Corrected) */
+/* Z-INDEX HIERARCHY */
 #sidebar { z-index: 100; }
 main { position: relative; z-index: 10; }
 .input-fixed-bottom { z-index: 50; }
@@ -35,7 +35,6 @@ main { position: relative; z-index: 10; }
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Text Visibility Logic (Icons only mode) */
 .nav-label {
     white-space: nowrap; opacity: 0; width: 0; overflow: hidden;
     transition: all 0.2s ease-in-out;
@@ -48,46 +47,55 @@ main { position: relative; z-index: 10; }
     #sidebar.mobile-open .nav-label { opacity: 1; width: auto; }
 }
 
-/* Desktop Hover Logic */
+/* Desktop Hover */
 @media (min-width: 768px) { 
     #sidebar:hover { width: 18rem; background: rgba(10, 10, 10, 0.9); }
     #sidebar:hover .nav-label { opacity: 1; width: auto; margin-left: 10px; }
-    
-    /* Centering Icons when Collapsed */
-    #sidebar:not(:hover) .w-10, 
-    #sidebar:not(:hover) .w-9 { margin: 0 auto; }
+    #sidebar:not(:hover) .w-10, #sidebar:not(:hover) .w-9 { margin: 0 auto; }
     #sidebar:not(:hover) .h-16 { justify-content: center; padding: 0; }
 }
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
 /* =========================================
-   3. LIGHT MODE RESTORED
+   3. 🌞 LIGHT MODE FORCE FIX (Ye raha Solution!)
    ========================================= */
-body.light-mode { background-color: #f8f9fa !important; color: #1a1a1a !important; }
+body.light-mode { 
+    background-color: #f8f9fa !important; 
+    color: #1a1a1a !important; 
+}
 body.light-mode canvas.vanta-canvas { display: none !important; }
 
-body.light-mode #sidebar { background: #ffffff; border-right: 1px solid #e5e7eb; }
-body.light-mode .nav-label { color: #333 !important; }
-body.light-mode .text-gray-400 { color: #666 !important; }
-body.light-mode .text-white { color: #333 !important; } /* Fix sidebar text color */
+/* Zabardasti Text Color Change */
+body.light-mode .text-white { color: #111 !important; }
+body.light-mode .text-gray-400 { color: #555 !important; }
+body.light-mode .text-gray-300 { color: #444 !important; }
+body.light-mode .text-gray-500 { color: #666 !important; }
 
+/* Sidebar Light */
+body.light-mode #sidebar { background: #ffffff; border-right: 1px solid #e5e7eb; }
+body.light-mode #sidebar:hover { background: #f3f4f6; }
+
+/* Input Area Light */
 body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
 body.light-mode .input-container { background: #ffffff; border: 1px solid #d1d5db; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 body.light-mode input { color: #000 !important; }
-body.light-mode input::placeholder { color: #6b7280; }
+body.light-mode input::placeholder { color: #666; }
 
+/* Buttons Light */
 body.light-mode .mode-btn { background: #e5e7eb; border: 1px solid #d1d5db; color: #4b5563; }
 body.light-mode .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white !important; }
 
+/* Modal Light */
 body.light-mode .modal-content { background: #ffffff; color: #000; border: 1px solid #e5e7eb; }
 body.light-mode .modal-content textarea, 
 body.light-mode .modal-content input { background-color: #f3f4f6; color: #000; border: 1px solid #d1d5db; }
 body.light-mode .modal-content button.text-gray-400 { color: #666 !important; }
 
-/* Light Mode Messages */
+/* Chat Messages Light */
 body.light-mode .msg-ai { background: #ffffff; border: 1px solid #e5e7eb; color: #1f2937; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; } 
+body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; }
+body.light-mode .copy-btn { background: rgba(0,0,0,0.1); color: #333; }
 
 /* =========================================
    4. INPUT AREA
@@ -111,7 +119,7 @@ body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; }
 .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
 
 /* =========================================
-   5. MESSAGES & UTILS (Ye raha wo missing part!)
+   5. MESSAGES & UTILS (FIXED)
    ========================================= */
 #chat-box { max-width: 1000px; margin: 0 auto; width: 100%; }
 
@@ -121,7 +129,7 @@ body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; }
     border-radius: 18px 18px 0 18px; 
     width: fit-content; max-width: 80%; 
     padding: 12px 16px; 
-    margin-left: auto; /* Right align */
+    margin-left: auto; 
     word-wrap: break-word; 
     margin-bottom: 10px;
     box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
@@ -134,12 +142,11 @@ body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; }
     border-radius: 18px 18px 18px 0; 
     width: fit-content; max-width: 80%; 
     padding: 12px 16px; 
-    margin-right: auto; /* Left align */
+    margin-right: auto; 
     word-wrap: break-word; 
     margin-bottom: 10px;
 }
 
-/* Code Blocks Styling */
 pre { 
     background: #111 !important; 
     padding: 1rem; 
@@ -151,7 +158,6 @@ pre {
 }
 code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.9em; }
 
-/* Copy Button Styling */
 .copy-btn { 
     position: absolute; top: 5px; right: 5px; 
     background: rgba(255,255,255,0.1); 
@@ -160,7 +166,6 @@ code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.9em; }
     cursor: pointer; border: none;
     transition: 0.2s;
 }
-.copy-btn:hover { background: rgba(255,255,255,0.2); }
 
 /* =========================================
    6. MODALS & DROPDOWNS
@@ -181,7 +186,6 @@ code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.9em; }
 .dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; color: #eee; }
 .dropdown-item:hover { background: #333; }
 
-/* Typing Animation */
 .typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #aaa; margin: 0 2px; animation: typing 1.4s infinite; }
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
