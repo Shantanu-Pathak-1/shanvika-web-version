@@ -4,18 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Shanvika AI</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.fog.min.js"></script>
+
     <style>
         /* BASE STYLES */
         body {
             margin: 0;
             padding: 0;
-            background-color: #212121; /* Tumhara Dark Color */
+            /* Fallback color if JS fails */
+            background-color: #212121; 
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', sans-serif;
             overflow: hidden;
+            position: relative; /* Important for Vanta */
         }
 
         /* UIVERSE CARD CSS */
@@ -34,13 +40,17 @@
             background-image: linear-gradient(163deg, #00ff75 0%, #3700ff 100%);
             border-radius: 22px;
             transition: all 0.3s;
-            padding: 2px; /* Gradient border width */
+            padding: 2px;
+            /* CRITICAL: Keeps the form above the background animation */
+            position: relative;
+            z-index: 10; 
         }
 
         .card2 {
             border-radius: 20px;
             transition: all 0.2s;
-            background-color: #171717; /* Inner matching bg */
+            background-color: #171717;
+            padding: 2px; /* Added slight padding fix */
         }
 
         .card2:hover {
@@ -73,7 +83,7 @@
             transition: 0.4s ease-in-out;
             background-color: #252525;
             color: white;
-            text-decoration: none; /* Link underline removal */
+            text-decoration: none;
             font-weight: bold;
             font-size: 1em;
             cursor: pointer;
@@ -81,6 +91,7 @@
             margin-top: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-sizing: border-box; /* Fix for padding issues */
         }
 
         .google-btn:hover {
@@ -101,7 +112,8 @@
         }
     </style>
 </head>
-<body>
+
+<body id="vanta-bg">
 
     <div class="card">
         <div class="card2">
@@ -127,5 +139,22 @@
         </div>
     </div>
 
+    <script>
+        VANTA.FOG({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            highlightColor: 0x706f6c,
+            midtoneColor: 0x090706, /* Fixed hex format */
+            lowlightColor: 0x848484,
+            baseColor: 0xffebeb, /* Light Fog base from your screenshot */
+            blurFactor: 0.60,
+            speed: 1.00,
+            zoom: 1.00
+        })
+    </script>
 </body>
 </html>
