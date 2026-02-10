@@ -9,10 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
     loadProfile();
     initVanta();
-    loadMemories(); // Load memories on start
+    loadMemories();
 });
 
-// ... (Vanta & Theme Logic Same as before) ...
+// Vanta & Theme
 function initVanta() {
     if (vantaEffect) { vantaEffect.destroy(); vantaEffect = null; }
     const isLight = document.body.classList.contains('light-mode');
@@ -23,7 +23,7 @@ function initVanta() {
 }
 function toggleTheme() { document.body.classList.toggle('light-mode'); initVanta(); }
 
-// ... (Profile Logic Same as before) ...
+// Profile
 async function loadProfile() {
     try {
         const res = await fetch('/api/profile');
@@ -39,13 +39,12 @@ async function loadProfile() {
     } catch (e) {}
 }
 
-// ... (File Handling Logic Same as before) ...
+// File Upload
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
     if (file.size > 15 * 1024 * 1024) { alert("File > 15MB!"); input.value = ""; return; }
     
-    // UI Update logic
     const sendBtn = document.querySelector('button[type="submit"]');
     sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>';
     const wrapper = document.querySelector('.input-wrapper');
@@ -68,9 +67,7 @@ async function handleFileUpload(input) {
 function clearFile() { currentFile = null; document.getElementById('file-upload').value = ""; const p = document.getElementById('file-preview'); if(p) p.remove(); }
 const toBase64 = file => new Promise((r, j) => { const rd = new FileReader(); rd.readAsDataURL(file); rd.onload = () => r(rd.result); rd.onerror = j; });
 
-// ==========================================
-// 🧠 MEMORY MANAGEMENT LOGIC
-// ==========================================
+// Memories
 async function loadMemories() {
     try {
         const res = await fetch('/api/memories');
@@ -85,39 +82,30 @@ async function loadMemories() {
         });
     } catch (e) {}
 }
-
 async function addMemory() {
     const input = document.getElementById('memory-input');
     const text = input.value.trim();
     if(!text) return;
     await fetch('/api/add_memory', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ memory_text: text }) });
-    input.value = '';
-    loadMemories();
+    input.value = ''; loadMemories();
 }
-
 async function deleteMemory(text) {
-    if(!confirm("Forget this memory?")) return;
+    if(!confirm("Forget this?")) return;
     await fetch('/api/delete_memory', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ memory_text: text }) });
     loadMemories();
 }
-
 async function deleteAllChats() {
-    if(!confirm("⚠️ ARE YOU SURE? All chat history will be deleted forever!")) return;
+    if(!confirm("⚠️ Delete ALL History?")) return;
     await fetch('/api/delete_all_chats', { method: 'DELETE' });
-    loadHistory();
-    createNewChat();
-    alert("History Cleared.");
+    loadHistory(); createNewChat(); alert("History Cleared.");
 }
 
-// ==========================================
-// 🗣️ VOICE LOGIC
-// ==========================================
+// Voice
 function toggleVoice() {
     isVoiceOn = document.getElementById('voice-toggle').checked;
     if(!isVoiceOn) window.speechSynthesis.cancel();
     else speakText("Voice activated.");
 }
-
 function speakText(text) {
     if (!isVoiceOn) return;
     window.speechSynthesis.cancel();
@@ -126,14 +114,11 @@ function speakText(text) {
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(v => v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Female'));
     if (preferred) utterance.voice = preferred;
-    utterance.pitch = 1.1;
-    window.speechSynthesis.speak(utterance);
+    utterance.pitch = 1.1; window.speechSynthesis.speak(utterance);
 }
 window.speechSynthesis.onvoiceschanged = () => {};
 
-// ==========================================
-// 💬 CHAT LOGIC
-// ==========================================
+// Chat Logic
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const message = input.value.trim();
@@ -144,9 +129,7 @@ async function sendMessage() {
         document.getElementById("loading-bubble")?.remove();
         document.querySelector('button[type="submit"] i').className = "fas fa-arrow-up";
         document.querySelector('button[type="submit"]').classList.remove("bg-red-500");
-        appendMessage('shanvika', "🛑 Stopped.");
-        clearFile();
-        return; 
+        appendMessage('shanvika', "🛑 Stopped."); clearFile(); return; 
     }
 
     if (!currentSessionId) {
@@ -160,12 +143,10 @@ async function sendMessage() {
     appendMessage('user', displayMsg);
     input.value = '';
     
-    // UI Loading
     abortController = new AbortController();
     const btn = document.querySelector('button[type="submit"]');
     const icon = btn.querySelector('i');
-    icon.className = "fas fa-stop";
-    btn.classList.add("bg-red-500");
+    icon.className = "fas fa-stop"; btn.classList.add("bg-red-500");
 
     let loadTxt = "Thinking...";
     if (currentMode === 'image_gen') loadTxt = "🎨 Painting...";
@@ -188,13 +169,9 @@ async function sendMessage() {
         if (data.reply) { appendMessage('shanvika', data.reply); speakText(data.reply); }
         else appendMessage('shanvika', "⚠️ Empty response.");
     } catch (e) {
-        loader.remove();
-        if (e.name !== 'AbortError') appendMessage('shanvika', "⚠️ Error.");
+        loader.remove(); if (e.name !== 'AbortError') appendMessage('shanvika', "⚠️ Error.");
     } finally {
-        abortController = null;
-        icon.className = "fas fa-arrow-up";
-        btn.classList.remove("bg-red-500");
-        clearFile();
+        abortController = null; icon.className = "fas fa-arrow-up"; btn.classList.remove("bg-red-500"); clearFile();
     }
 }
 
@@ -203,37 +180,116 @@ function appendMessage(sender, text) {
     const div = document.createElement('div');
     div.className = sender === 'user' ? "msg-user" : "msg-ai";
     if (text.includes("<img") || text.includes("<video") || text.includes("<a href")) div.innerHTML = text;
-    else {
-        div.innerHTML = marked.parse(text);
-        div.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-    }
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
+    else { div.innerHTML = marked.parse(text); div.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b)); }
+    box.appendChild(div); box.scrollTop = box.scrollHeight;
 }
 
-// History & Utils
+// ----------------------------------------------------
+// 📜 HISTORY (FIXED: 3-Dot Menu & Icons)
+// ----------------------------------------------------
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
         const data = await res.json();
         const list = document.getElementById('history-list');
         list.innerHTML = '';
-        data.history.forEach(c => {
-            const d = document.createElement('div');
-            d.className = "p-3 mb-1 hover:bg-white/10 rounded-xl cursor-pointer text-sm text-gray-300 relative group flex items-center transition-all h-10";
-            d.innerHTML = `<span class="truncate flex-1">${c.title}</span><i class="fas fa-trash opacity-0 group-hover:opacity-100 text-red-400 px-2" onclick="deleteChat(event, '${c.id}')"></i>`;
-            d.onclick = (e) => { if(!e.target.classList.contains('fa-trash')) loadChat(c.id); };
-            list.appendChild(d);
+        
+        data.history.forEach(chat => {
+            const div = document.createElement('div');
+            // 'history-item' class added in CSS
+            div.className = "history-item group";
+            div.innerHTML = `
+                <div class="history-icon shrink-0">
+                    <i class="fas fa-comment-alt"></i>
+                </div>
+                
+                <span class="nav-label flex-1 truncate text-sm px-2">${chat.title}</span> 
+                
+                <div class="nav-label w-8 flex justify-center">
+                    <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white p-2" 
+                       onclick="showDropdown(event, '${chat.id}')"></i>
+                </div>
+            `;
+            // Click on div loads chat, but not if 3-dots clicked
+            div.onclick = (e) => { 
+                if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); 
+            };
+            list.appendChild(div);
         });
     } catch (e) {}
 }
 
-async function createNewChat() { currentSessionId = null; document.getElementById('chat-box').innerHTML = document.getElementById('welcome-screen').outerHTML; document.getElementById('welcome-screen').style.display = 'flex'; window.history.pushState({}, '', '/'); }
-async function deleteChat(e, sid) { e.stopPropagation(); if(confirm("Delete?")) { await fetch(`/api/delete_chat/${sid}`, {method:'DELETE'}); loadHistory(); if(currentSessionId==sid) createNewChat(); } }
+// ----------------------------------------------------
+// 👇 3-DOT MENU LOGIC (Rename/Delete)
+// ----------------------------------------------------
+let activeChatId = null;
+
+function showDropdown(event, sessionId) {
+    event.stopPropagation();
+    activeChatId = sessionId;
+    
+    const menu = document.getElementById('dropdown');
+    // Calculate Position
+    const rect = event.target.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 5}px`; 
+    menu.style.left = `${rect.left - 100}px`; // Shift left to stay on screen
+    
+    menu.classList.add('show');
+
+    // Bind Actions
+    document.getElementById('act-delete').onclick = () => deleteChat(activeChatId);
+    document.getElementById('act-rename').onclick = () => renameChat(activeChatId);
+    
+    // Close on click elsewhere
+    document.addEventListener('click', () => menu.classList.remove('show'), { once: true });
+}
+
+async function deleteChat(sid) {
+    if(!confirm("Delete this chat?")) return;
+    await fetch(`/api/delete_chat/${sid}`, { method: 'DELETE' });
+    loadHistory(); if(currentSessionId === sid) createNewChat();
+}
+
+async function renameChat(sid) {
+    const newName = prompt("Rename Chat:");
+    if(newName) {
+        await fetch('/api/rename_chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ session_id: sid, new_title: newName }) });
+        loadHistory();
+    }
+}
+
 async function loadChat(sid) { currentSessionId = sid; document.getElementById('welcome-screen').style.display = 'none'; document.getElementById('chat-box').innerHTML=''; const res=await fetch(`/api/chat/${sid}`); const d=await res.json(); d.messages.forEach(m => appendMessage(m.role=='user'?'user':'shanvika', m.content)); }
+function createNewChat() { currentSessionId = null; document.getElementById('chat-box').innerHTML = document.getElementById('welcome-screen').outerHTML; document.getElementById('welcome-screen').style.display = 'flex'; window.history.pushState({}, '', '/'); }
 function setMode(m, b) { currentMode = m; document.querySelectorAll('.mode-btn').forEach(x => x.classList.replace('active', 'bg-white/10')); document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'border-none')); b.classList.add('active', 'bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'border-none'); }
+
+// Utils
 function openSettingsModal() { document.getElementById('settings-modal').style.display = 'block'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
 async function saveProfile() { closeModal('profile-modal'); }
-async function saveInstructions() { const t = document.getElementById('custom-instruction-box').value; await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: t }) }); closeModal('settings-modal'); alert("Saved!"); }
+
+// ----------------------------------------------------
+// ✨ SAVE BUTTON ANIMATION (No JS Popup)
+// ----------------------------------------------------
+async function saveInstructions(btn) {
+    const text = document.getElementById('custom-instruction-box').value;
+    
+    // Original State save
+    const originalHTML = btn.innerHTML;
+    const originalClasses = btn.className;
+
+    // Loading State
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: text }) });
+    
+    // Success State (Green)
+    btn.className = "mt-2 w-full bg-green-600 text-white border border-green-600 py-2 rounded font-bold transition text-sm flex items-center justify-center gap-2";
+    btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+
+    // Revert after 2 seconds
+    setTimeout(() => {
+        btn.className = originalClasses;
+        btn.innerHTML = originalHTML;
+    }, 2000);
+}

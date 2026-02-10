@@ -8,52 +8,24 @@ body {
     color: #e0e0e0;
     overflow: hidden; 
 }
+canvas.vanta-canvas { position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; z-index: 0 !important; pointer-events: none; }
 
-/* Vanta Canvas Layer (Background Animation) */
-canvas.vanta-canvas {
-    position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 0 !important; pointer-events: none;
-}
-
-/* Z-INDEX HIERARCHY */
+/* Z-INDEX */
 #sidebar { z-index: 100; }
 main { position: relative; z-index: 10; }
 .input-fixed-bottom { z-index: 50; }
 .modal { z-index: 200 !important; }
-.dropdown-menu { z-index: 210 !important; }
+.dropdown-menu { z-index: 210 !important; position: fixed; } /* Fixed dropdown */
+
+/* Scrollbars */
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: rgba(20, 20, 20, 0.5); }
+*::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #06b6d4, #ec4899); border-radius: 10px; }
+*::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #22d3ee, #f472b6); }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
 /* =========================================
-   🔥 2. ULTRA NEON SCROLLBARS 🔥
-   ========================================= */
-*::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-*::-webkit-scrollbar-track {
-    background: rgba(20, 20, 20, 0.5);
-}
-
-*::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #06b6d4, #ec4899);
-    border-radius: 10px;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #22d3ee, #f472b6);
-}
-
-/* Hide scrollbar for specific elements but keep functionality */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* =========================================
-   3. SIDEBAR STYLING (FIXED LOGO ALIGNMENT)
+   3. SIDEBAR STYLING (COLLAPSE FIX)
    ========================================= */
 #sidebar { 
     position: fixed; left: 0; top: 0; bottom: 0;
@@ -65,6 +37,7 @@ main { position: relative; z-index: 10; }
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Nav Label - Key for Hiding Text */
 .nav-label {
     white-space: nowrap; opacity: 0; width: 0; overflow: hidden;
     transition: all 0.2s ease-in-out;
@@ -77,182 +50,89 @@ main { position: relative; z-index: 10; }
     #sidebar.mobile-open .nav-label { opacity: 1; width: auto; }
 }
 
-/* Desktop Hover Logic (The Fix) */
+/* Desktop Logic */
 @media (min-width: 768px) { 
     /* Expanded State (Hover) */
     #sidebar:hover { width: 18rem; background: rgba(5, 5, 5, 0.98); }
     #sidebar:hover .nav-label { opacity: 1; width: auto; margin-left: 10px; }
     
-    /* Collapsed State (Normal) - CENTERING FIX */
+    /* Collapsed State (Normal) */
     #sidebar:not(:hover) .w-10, #sidebar:not(:hover) .w-9 { margin: 0 auto; }
     
-    #sidebar:not(:hover) .sidebar-header {
-        justify-content: center;
-        padding: 0;
-    }
-    
-    /* Logo container centered */
-    #sidebar:not(:hover) .sidebar-header > div {
-        justify-content: center;
-        width: 100%;
-    }
-
-    /* Hide 'New Chat' button when collapsed */
-    #sidebar:not(:hover) .sidebar-header button {
-        display: none;
-    }
+    /* Centering Header Items */
+    #sidebar:not(:hover) .sidebar-header { justify-content: center; padding: 0; }
+    #sidebar:not(:hover) .sidebar-header > div { justify-content: center; width: 100%; }
+    #sidebar:not(:hover) .sidebar-header button { display: none; }
 }
+
+/* History Item Styling */
+.history-item {
+    display: flex; align-items: center; height: 42px;
+    padding: 0 10px; margin-bottom: 4px; border-radius: 12px;
+    cursor: pointer; transition: 0.2s; color: #d1d5db; position: relative;
+}
+.history-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.history-icon { width: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.1rem; color: #6b7280; }
+.history-item:hover .history-icon { color: #ec4899; }
 
 /* =========================================
-   4. LAYOUT & INPUT AREA
+   4. LAYOUT & INPUT
    ========================================= */
-#chat-box { 
-    width: 100%; 
-    max-width: 100%; 
-    padding: 20px 20px; 
-    padding-bottom: 240px !important; /* Space for input */
-    flex: 1;
-    overflow-y: auto;
-}
+#chat-box { width: 100%; max-width: 100%; padding: 20px 20px; padding-bottom: 240px !important; flex: 1; overflow-y: auto; }
+@media (min-width: 768px) { #chat-box { padding-left: 7rem; padding-right: 2rem; } }
 
-@media (min-width: 768px) {
-    #chat-box {
-        padding-left: 7rem; 
-        padding-right: 2rem;
-    }
-}
-
-.input-fixed-bottom {
-    position: fixed; 
-    bottom: 0; 
-    left: 5rem; 
-    right: 0;
-    width: auto;
-    padding: 1rem 2rem;
-    pointer-events: none; /* Allows clicking through empty space */
-    background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.8) 60%, transparent);
-    padding-bottom: 25px;
-    padding-top: 50px;
-}
-
-.input-wrapper { 
-    pointer-events: auto;
-    width: 100%; 
-    max-width: 900px; 
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-@media (max-width: 767px) {
-    .input-fixed-bottom { left: 0; padding: 1rem; padding-bottom: 1.5rem; }
-}
-
-.input-container {
-    width: 100%;
-    background: rgba(20, 20, 20, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 24px;
-    backdrop-filter: blur(20px);
-    transition: 0.3s;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-}
+.input-fixed-bottom { position: fixed; bottom: 0; left: 5rem; right: 0; width: auto; padding: 1rem 2rem; pointer-events: none; background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.8) 60%, transparent); padding-bottom: 25px; padding-top: 50px; }
+.input-wrapper { pointer-events: auto; width: 100%; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 767px) { .input-fixed-bottom { left: 0; padding: 1rem; padding-bottom: 1.5rem; } }
+.input-container { width: 100%; background: rgba(20, 20, 20, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px; backdrop-filter: blur(20px); transition: 0.3s; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
 
 /* =========================================
-   5. MESSAGES
+   5. MESSAGES & MODES
    ========================================= */
-.msg-user { 
-    background: linear-gradient(135deg, #2563eb, #9333ea); 
-    color: white; 
-    border-radius: 20px 20px 4px 20px; 
-    width: fit-content; max-width: 85%; 
-    padding: 12px 18px; 
-    margin-left: auto; 
-    word-wrap: break-word; 
-    margin-bottom: 15px;
-    box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
+.msg-user { background: linear-gradient(135deg, #2563eb, #9333ea); color: white; border-radius: 20px 20px 4px 20px; width: fit-content; max-width: 85%; padding: 12px 18px; margin-left: auto; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3); font-size: 0.95rem; line-height: 1.5; }
+.msg-ai { background: rgba(35, 35, 35, 0.9); border: 1px solid rgba(255,255,255,0.08); color: #ececec; border-radius: 20px 20px 20px 4px; width: fit-content; max-width: 85%; padding: 14px 20px; margin-right: auto; margin-bottom: 15px; font-size: 0.95rem; line-height: 1.6; }
+.msg-ai img, .msg-user img { max-width: 100%; border-radius: 12px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.1); }
 
-.msg-ai { 
-    background: rgba(35, 35, 35, 0.9); 
-    border: 1px solid rgba(255,255,255,0.08); 
-    color: #ececec; 
-    border-radius: 20px 20px 20px 4px; 
-    width: fit-content; max-width: 85%; 
-    padding: 14px 20px; 
-    margin-right: auto; 
-    word-wrap: break-word; 
-    margin-bottom: 15px;
-    font-size: 0.95rem;
-    line-height: 1.6;
-}
-
-/* Images in Chat */
-.msg-ai img, .msg-user img {
-    max-width: 100%;
-    border-radius: 12px;
-    margin-top: 8px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-/* Mode Buttons */
 .mode-scroll { mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); }
-.mode-btn { 
-    padding: 6px 16px; border-radius: 99px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s;
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #aaa; white-space: nowrap;
-}
+.mode-btn { padding: 6px 16px; border-radius: 99px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #aaa; white-space: nowrap; }
 .mode-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); color: white; }
 .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
 
 /* =========================================
-   6. 🌞 LIGHT MODE
+   6. LIGHT MODE & UTILS
    ========================================= */
 body.light-mode { background-color: #f8fafc !important; color: #1e293b !important; }
 body.light-mode canvas.vanta-canvas { opacity: 0.6; }
-
 body.light-mode #sidebar { background: rgba(255, 255, 255, 0.9); border-right: 1px solid #e2e8f0; }
 body.light-mode #sidebar:hover { background: #ffffff; }
-body.light-mode .text-white { color: #1e293b !important; } /* Invert text */
+body.light-mode .text-white { color: #1e293b !important; }
 body.light-mode .text-gray-400 { color: #64748b !important; }
 body.light-mode .text-gray-300 { color: #475569 !important; }
-
 body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
 body.light-mode .input-container { background: rgba(255, 255, 255, 0.95); border: 1px solid #cbd5e1; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
 body.light-mode input { color: #000 !important; }
-
 body.light-mode .msg-ai { background: #ffffff; border: 1px solid #e2e8f0; color: #334155; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 body.light-mode .msg-user { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white !important; }
-
 body.light-mode .modal-content { background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; }
-body.light-mode .modal-content input, 
-body.light-mode .modal-content textarea { background: #f1f5f9; color: #000; border: 1px solid #cbd5e1; }
-body.light-mode .bg-white\/5 { background: rgba(0,0,0,0.05); }
+body.light-mode .modal-content input, body.light-mode .modal-content textarea { background: #f1f5f9; color: #000; border: 1px solid #cbd5e1; }
 
-/* =========================================
-   7. UTILS & MODALS
-   ========================================= */
 pre { background: #1e1e1e !important; padding: 1rem; border-radius: 12px; border: 1px solid #333; overflow-x: auto; margin-top: 10px; }
 code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.9em; }
 .copy-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.15); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; border: none; }
 
-/* Modal Styling */
+/* Modals & Dropdown */
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 999; }
 .modal-content { width: 95%; max-width: 480px; padding: 25px; border-radius: 20px; background: #18181b; border: 1px solid #333; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
 
-/* Dropdown */
-.dropdown-menu { display: none; padding: 6px; min-width: 150px; border-radius: 12px; position: fixed; background: #222; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+/* Dropdown Styles (For 3-Dot Menu) */
+.dropdown-menu { display: none; padding: 6px; min-width: 150px; border-radius: 12px; position: fixed; background: #222; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 9999; }
 .dropdown-menu.show { display: block; animation: fadeIn 0.2s ease; }
 .dropdown-item { padding: 10px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: 8px; color: #eee; font-size: 0.9rem; transition: 0.2s; }
 .dropdown-item:hover { background: rgba(255,255,255,0.1); }
 
-/* Animation */
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
 .animate-pulse { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-
 .typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #aaa; margin: 0 2px; animation: typing 1.4s infinite; }
 @keyframes typing { 0%, 100% { transform: scale(0.5); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
