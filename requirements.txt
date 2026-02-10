@@ -11,3 +11,4 @@ authlib
 itsdangerous
 motor
 dnspython
+google-generativeai

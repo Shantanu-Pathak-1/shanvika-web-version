@@ -226,3 +226,58 @@ function showMenu(e, sid) {
     document.getElementById('act-delete').onclick = async () => { if(confirm("Delete?")) { await fetch(`/api/delete_chat/${sid}`, {method:'DELETE'}); if(currentSessionId === sid) { currentSessionId = null; createNewChat(); } loadHistory(); } dd.style.display = 'none'; };
 }
 window.onclick = (e) => { if(!dd.contains(e.target) && !e.target.closest('.fa-ellipsis-h')) { dd.style.display = 'none'; } }
+
+// --- CUSTOM INSTRUCTIONS LOGIC ---
+
+// 1. Load Instruction when Profile Loads
+async function loadProfile() {
+    try {
+        const res = await fetch("/api/profile");
+        const data = await res.json();
+        if (data.email) {
+            document.getElementById("profile-name-sidebar").innerText = data.name;
+            document.getElementById("profile-img-sidebar").src = data.avatar;
+            document.getElementById("profile-img-modal").src = data.avatar;
+            document.getElementById("profile-name-input").value = data.name;
+            
+            // 👇 Load Saved Instruction into Box
+            if(data.custom_instruction) {
+                document.getElementById("custom-instruction-box").value = data.custom_instruction;
+                document.getElementById("char-count").innerText = data.custom_instruction.length + "/1000";
+            }
+        }
+    } catch (e) { console.error(e); }
+}
+
+// 2. Save Instruction Function
+async function saveInstructions() {
+    const text = document.getElementById("custom-instruction-box").value;
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Saving...";
+    
+    try {
+        await fetch("/api/update_instructions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ instruction: text })
+        });
+        
+        // Show Success Feedback
+        btn.innerHTML = "<i class='fas fa-check'></i> Saved!";
+        setTimeout(() => btn.innerHTML = originalText, 2000);
+        
+    } catch (e) {
+        alert("Error saving instructions");
+        btn.innerHTML = originalText;
+    }
+}
+
+// 3. Character Counter
+document.getElementById("custom-instruction-box").addEventListener("input", function() {
+    document.getElementById("char-count").innerText = this.value.length + "/1000";
+});
+
+// Call loadProfile on startup
+loadProfile();
