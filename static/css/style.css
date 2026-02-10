@@ -1,0 +1,88 @@
+/* Purane style mein body ka height fix karo */
+body { 
+    font-family: 'Segoe UI', sans-serif; 
+    overflow: hidden; 
+    transition: 0.3s; 
+    background: transparent;
+    /* Mobile Browser Address Bar Fix */
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* Asli Mobile Height */
+}
+
+/* Input Container ko Fixed kar denge taaki wo hile nahi */
+.input-fixed-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 50;
+    padding: 1rem;
+    background: linear-gradient(to top, #000000, rgba(0,0,0,0.9), transparent);
+}
+
+/* THEMES */
+body.dark-mode { color: #e0e0e0; }
+body.dark-mode input { color: white; }
+body.dark-mode .sidebar-style { background: rgba(0,0,0,0.8); border-right: 1px solid rgba(255,255,255,0.1); }
+
+body.light-mode { background-color: #f8f9fa !important; color: #1a1a1a !important; }
+body.light-mode canvas { display: none !important; }
+body.light-mode .sidebar-style { background: #ffffff !important; border-right: 1px solid #e5e7eb !important; box-shadow: 2px 0 15px rgba(0,0,0,0.05); }
+body.light-mode .nav-label { color: #333 !important; }
+body.light-mode .text-gray-400 { color: #666 !important; }
+body.light-mode header { background: #ffffff !important; border-bottom: 1px solid #e5e7eb; }
+
+/* Messages & Input Light Mode */
+body.light-mode .input-container { background: #ffffff; border: 1px solid #d1d5db; color: black; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+body.light-mode input { color: #1a1a1a !important; }
+body.light-mode input::placeholder { color: #6b7280; }
+body.light-mode .msg-ai { background: #ffffff; color: #1f2937; border: 1px solid #e5e7eb; }
+
+/* VANTA */
+body.dark-mode canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+
+/* Z-INDEX LAYERING - FIXED */
+aside { position: relative; z-index: 50; }
+main { position: relative; z-index: 10; }
+.modal, .dropdown-menu { position: relative; z-index: 100; }
+
+/* SIDEBAR */
+#sidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); width: 4.5rem; display: flex; flex-direction: column; }
+@media (min-width: 768px) { #sidebar:hover, #sidebar.locked { width: 18rem; } }
+@media (max-width: 767px) { 
+    #sidebar { position: fixed; left: -100%; top:0; bottom:0; width: 80%; z-index: 60; }
+    #sidebar.mobile-open { left: 0; }
+}
+
+@media (min-width: 768px) {
+    #sidebar:not(:hover):not(.locked) .nav-label, 
+    #sidebar:not(:hover):not(.locked) .profile-info { display: none; }
+    #sidebar:not(:hover):not(.locked) .sidebar-content { justify-content: center; }
+}
+.nav-label { margin-left: 12px; white-space: nowrap; }
+
+/* CHAT BUBBLES */
+.msg-user { background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 18px 18px 0 18px; color: white; }
+.msg-ai { background: rgba(30,30,30,0.8); border-radius: 18px 18px 18px 0; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px); }
+
+/* INPUT AREA */
+.input-wrapper { max-width: 48rem; margin: 0 auto; position: relative; }
+.input-container { background: rgba(30,30,30,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; backdrop-filter: blur(10px); z-index: 50; }
+
+.mode-scroll::-webkit-scrollbar { display: none; }
+.mode-btn {
+    white-space: nowrap; padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: 0.2s;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #ccc;
+}
+.mode-btn.active { background: linear-gradient(to right, #ec4899, #8b5cf6); border: none; color: white; font-weight: bold; }
+body.light-mode .mode-btn { background: #e5e7eb; border: 1px solid #d1d5db; color: #4b5563; }
+body.light-mode .mode-btn.active { color: white; background: linear-gradient(to right, #ec4899, #8b5cf6); border: none; }
+
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100; }
+.modal-content { background: #1e1e1e; margin: 15% auto; padding: 20px; border-radius: 16px; width: 90%; max-width: 400px; border: 1px solid #333; color: white; }
+body.light-mode .modal-content { background: white; color: black; border: 1px solid #ccc; }
+
+.dropdown-menu { display: none; position: fixed; z-index: 9999; background: #222; border-radius: 10px; padding: 5px; border: 1px solid #444; }
+.dropdown-menu.show { display: block; }
+.dropdown-item { padding: 8px 12px; cursor: pointer; color: #eee; display: flex; gap: 10px; border-radius: 6px; }
+.dropdown-item:hover { background: #333; }
