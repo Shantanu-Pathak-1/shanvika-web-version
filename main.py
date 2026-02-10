@@ -33,7 +33,7 @@ async def fix_google_oauth_redirect(request: Request, call_next):
 # 🔑 KEYS & CONFIG (SECRET RAKHNA)
 # ==========================================
 # 👇 Apna Asli Email yahan likho (Jisse tum login karte ho)
-ADMIN_EMAIL = "tumhara_email@gmail.com"
+ADMIN_EMAIL = "shantanupathak94@gmail.com"
 
 # 1. Google & Security Keys
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika") # Session ke liye
