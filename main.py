@@ -8,7 +8,6 @@ import random
 import uuid
 import shutil
 import os
-import json
 import httpx  # Async client for Images
 from groq import Groq
 from openai import OpenAI
@@ -29,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Get Keys from Environment Variables (Render Settings)
+# 2. Get Keys from Environment Variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -59,7 +58,6 @@ USER_PROFILE = {
 }
 
 # --- STATIC SETUP ---
-# Ensure folders exist
 if not os.path.exists("static"): os.makedirs("static")
 if not os.path.exists("templates"): os.makedirs("templates")
     
@@ -71,6 +69,7 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str
     mode: str
+    image: str | None = None  # 👈 NEW: Image field added
 
 class RenameRequest(BaseModel):
     session_id: str
@@ -82,11 +81,9 @@ class ProfileRequest(BaseModel):
 # --- HELPER FUNCTIONS ---
 
 def perform_research(query):
-    """Performs web research using DuckDuckGo"""
     try:
         results = DDGS().text(query, max_results=5)
         if not results: return None
-        
         summary = "📊 **Web Research Results:**\n\n"
         for i, r in enumerate(results, 1):
             summary += f"**{i}. {r['title']}**\n{r['body']}\n🔗 Source: {r['href']}\n\n"
@@ -96,26 +93,19 @@ def perform_research(query):
         return None
 
 async def generate_image_hf(prompt):
-    """Generates image using Hugging Face API"""
     if not HF_TOKEN:
-        return "⚠️ **Error:** HF_TOKEN missing in Environment Variables!"
-    
+        return "⚠️ **Error:** HF_TOKEN missing!"
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60.0)
-            
         if response.status_code == 200:
             filename = f"static/gen_{uuid.uuid4().hex[:8]}.png"
-            with open(filename, "wb") as f:
-                f.write(response.content)
+            with open(filename, "wb") as f: f.write(response.content)
             return f"🎨 **Image Generated!**<br><img src='/{filename}' class='rounded-lg mt-2 shadow-lg max-w-full' style='max-height: 400px;'>"
-        else:
-            return f"⚠️ **Failed:** {response.text[:200]}"
-    except Exception as e:
-        return f"⚠️ **Error:** {str(e)}"
+        else: return f"⚠️ **Failed:** {response.text[:200]}"
+    except Exception as e: return f"⚠️ **Error:** {str(e)}"
 
 # --- ROUTES ---
 
@@ -124,8 +114,7 @@ async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/profile")
-def get_profile():
-    return USER_PROFILE
+def get_profile(): return USER_PROFILE
 
 @app.post("/api/update_profile_name")
 def update_profile_name(req: ProfileRequest):
@@ -165,8 +154,7 @@ def rename_chat(req: RenameRequest):
 
 @app.delete("/api/delete_chat/{session_id}")
 def delete_chat(session_id: str):
-    if session_id in CHAT_SESSIONS:
-        del CHAT_SESSIONS[session_id]
+    if session_id in CHAT_SESSIONS: del CHAT_SESSIONS[session_id]
     return {"status": "success"}
 
 # --- MAIN CHAT LOGIC ---
@@ -175,90 +163,91 @@ async def chat_endpoint(req: ChatRequest):
     sid = req.session_id
     mode = req.mode
     msg = req.message
+    img_data = req.image # 👈 Get Image Data
     
-    # Session Management
     if sid not in CHAT_SESSIONS:
         CHAT_SESSIONS[sid] = {"title": "New Chat", "messages": []}
     
-    # Auto Title
     if len(CHAT_SESSIONS[sid]["messages"]) == 0:
         CHAT_SESSIONS[sid]["title"] = " ".join(msg.split()[:5])
 
-    # Save User Message
-    CHAT_SESSIONS[sid]["messages"].append({"role": "user", "content": msg})
+    # Save User Message (with image indicator if present)
+    user_content = msg
+    if img_data:
+        user_content += " [🖼️ Image Uploaded]"
+    CHAT_SESSIONS[sid]["messages"].append({"role": "user", "content": user_content})
 
-    # 1. IMAGE GEN (Async)
+    # 1. SPECIAL CASE: IMAGE ANALYSIS (VISION)
+    if img_data:
+        client = get_groq()
+        if client:
+            try:
+                # Vision Request
+                completion = client.chat.completions.create(
+                    model="llama-3.2-11b-vision-preview", # 👈 Vision Model
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": msg},
+                                {"type": "image_url", "image_url": {"url": img_data}}
+                            ]
+                        }
+                    ],
+                    temperature=0.7,
+                    max_tokens=1024,
+                )
+                reply = completion.choices[0].message.content
+            except Exception as e:
+                reply = f"⚠️ Vision Error: {str(e)}"
+        else:
+            reply = "⚠️ Groq Key missing."
+            
+        CHAT_SESSIONS[sid]["messages"].append({"role": "assistant", "content": reply})
+        return {"reply": reply}
+
+    # 2. IMAGE GENERATION
     if mode == "image_gen":
         reply = await generate_image_hf(msg)
         CHAT_SESSIONS[sid]["messages"].append({"role": "assistant", "content": reply})
         return {"reply": reply}
 
-    # 2. OTHER MODES
+    # 3. OTHER MODES (STANDARD TEXT)
     reply = ""
     try:
-        # Research Mode
         if mode == "research":
             research_data = perform_research(msg)
-            if research_data:
-                client = get_groq()
-                if client:
-                    completion = client.chat.completions.create(
-                        messages=[
-                            {"role": "system", "content": f"Summarize this research in Hinglish:\n{research_data}"},
-                            {"role": "user", "content": msg}
-                        ],
-                        model="llama-3.3-70b-versatile"
-                    )
-                    reply = completion.choices[0].message.content
-                else:
-                    reply = research_data
+            client = get_groq()
+            if research_data and client:
+                completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": f"Summarize this:\n{research_data}"},
+                        {"role": "user", "content": msg}
+                    ],
+                    model="llama-3.3-70b-versatile"
+                )
+                reply = completion.choices[0].message.content
             else:
-                reply = "⚠️ No results found on web."
+                reply = research_data if research_data else "⚠️ No results."
 
-        # Coding Mode (DeepSeek)
         elif mode == "coding":
             client = get_deepseek()
             if client:
-                msgs = [{"role": "system", "content": "You are Shanvika Coder. Write clean code and explain in Hinglish."}]
+                msgs = [{"role": "system", "content": "You are Shanvika Coder."}]
                 msgs.extend(CHAT_SESSIONS[sid]["messages"][-8:])
-                completion = client.chat.completions.create(
-                    model="deepseek-chat", messages=msgs
-                )
+                completion = client.chat.completions.create(model="deepseek-chat", messages=msgs)
                 reply = completion.choices[0].message.content
             else:
-                reply = "⚠️ DeepSeek API Key not found in Settings."
+                reply = "⚠️ DeepSeek Key missing."
 
-        # Anime Mode
-        elif mode == "anime":
+        else: # Default/Anime/Video
             client = get_groq()
             if client:
-                msgs = [{"role": "system", "content": "You are Shanvika 🌸, an Anime Otaku AI. Speak in Hinglish with anime references."}]
-                msgs.extend(CHAT_SESSIONS[sid]["messages"][-8:])
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile", messages=msgs
-                )
-                reply = completion.choices[0].message.content
-            else:
-                reply = "⚠️ Groq Key missing."
-
-        # Video Mode
-        elif mode == "video":
-            client = get_groq()
-            if client:
-                msgs = [{"role": "system", "content": "You are Shanvika, a Video Script Writer. Write viral scripts in Hinglish."}]
-                msgs.extend(CHAT_SESSIONS[sid]["messages"][-8:])
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile", messages=msgs
-                )
-                reply = completion.choices[0].message.content
-            else:
-                reply = "⚠️ Groq Key missing."
-
-        # Default Chat
-        else:
-            client = get_groq()
-            if client:
-                msgs = [{"role": "system", "content": "You are Shanvika 🌸. Helpful AI assistant. Speak in Hinglish."}]
+                sys_prompt = "You are Shanvika."
+                if mode == "anime": sys_prompt += " Anime expert."
+                if mode == "video": sys_prompt += " Video script writer."
+                
+                msgs = [{"role": "system", "content": sys_prompt}]
                 msgs.extend(CHAT_SESSIONS[sid]["messages"][-10:])
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile", messages=msgs
