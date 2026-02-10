@@ -164,20 +164,20 @@ code {
     50% { opacity: 1; }
     100% { opacity: 0.5; }
 }
-/* =========================================
-   🌑 DARK MODE BOTTOM FIX (Force Black)
-   ========================================= */
 
+/* =========================================
+   🌑 DARK MODE FINAL FIX (Force Black Bottom)
+   ========================================= */
 body.dark-mode .input-fixed-bottom {
-    background: linear-gradient(to top, #000000, rgba(0,0,0,0.9), transparent) !important;
+    background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.9) 60%, transparent) !important;
 }
 
-/* Ensure Input Box stays Dark in Dark Mode */
 body.dark-mode .input-container {
-    background: rgba(30,30,30,0.8) !important;
+    background: rgba(30,30,30,0.9) !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
 }
-/* Typing/Thinking Animation */
+
+/* Typing/Thinking Animation inside Chat */
 .typing-dot {
     display: inline-block;
     width: 6px;
@@ -195,7 +195,6 @@ body.dark-mode .input-container {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
 }
-
 /* User Message Fix (Taaki wo faile nahi) */
 .msg-user {
     align-self: flex-end; /* Right side force karo */

@@ -1,106 +1,15 @@
-// --- CONFIG ---
-let currentMode = 'chat';
+// Global Variables
 let currentSessionId = null;
-let vantaEffect = null;
-let isDarkMode = true;
-let selectedImageBase64 = null; // 👈 Store Image Data
+let currentMode = 'chat';
+let abortController = null; // To stop generation
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadProfile();
-    loadHistory(); 
-    initVanta();
+// Initialize
+document.addEventListener("DOMContentLoaded", () => {
+    loadHistory();
+    createNewChat(); // Start fresh
 });
 
-// --- VANTA ---
-function initVanta() {
-    if (!vantaEffect && isDarkMode) {
-        try {
-            vantaEffect = VANTA.HALO({
-                el: "#vanta-bg", mouseControls: true, touchControls: true, minHeight: 200, minWidth: 200,
-                backgroundColor: 0x171718, baseColor: 0x1a59, amplitudeFactor: 3
-            });
-        } catch(e) { console.log("Vanta init failed:", e); }
-    }
-}
-
-// --- THEME ---
-function toggleTheme() {
-    isDarkMode = !isDarkMode;
-    document.body.className = isDarkMode ? "flex h-screen w-full dark-mode" : "flex h-screen w-full light-mode";
-    document.getElementById('theme-btn').innerText = isDarkMode ? "Dark" : "Light";
-    
-    const footer = document.querySelector('.input-fixed-bottom');
-    if (!isDarkMode) {
-        footer.style.background = 'white'; 
-        footer.style.borderTop = '1px solid #e5e7eb';
-    } else {
-        footer.style.background = 'linear-gradient(to top, #000000, rgba(0,0,0,0.9), transparent)';
-        footer.style.borderTop = 'none';
-    }
-    if(isDarkMode) initVanta(); else { if(vantaEffect) { vantaEffect.destroy(); vantaEffect = null; } }
-}
-
-// --- PROFILE ---
-async function loadProfile() {
-    try {
-        const res = await fetch('/api/profile');
-        const data = await res.json();
-        const avatarUrl = data.avatar + "?t=" + new Date().getTime();
-        document.getElementById('profile-img-sidebar').src = avatarUrl;
-        document.getElementById('profile-img-modal').src = avatarUrl;
-        document.getElementById('profile-name-sidebar').innerText = data.name;
-        document.getElementById('profile-name-input').value = data.name;
-    } catch(e){ console.error("Profile load error:", e); }
-}
-
-async function saveProfile() {
-    const name = document.getElementById('profile-name-input').value;
-    try {
-        await fetch('/api/update_profile_name', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({name}) 
-        });
-        loadProfile(); closeModal('profile-modal');
-    } catch(e) { console.error("Save profile error:", e); }
-}
-
-async function uploadAvatar(input) {
-    if(!input.files[0]) return;
-    const fd = new FormData(); fd.append("file", input.files[0]);
-    try { await fetch('/api/update_avatar', { method: 'POST', body: fd }); loadProfile(); } catch(e) { console.error("Avatar upload error:", e); }
-}
-
-// --- CHAT & IMAGE ---
-function setMode(mode, btn) {
-    currentMode = mode;
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const placeholders = {
-        'chat': 'Message Shanvika...', 'coding': 'Ask for code help...',
-        'image_gen': 'Describe image to generate...', 'research': 'What do you want to research?...',
-        'anime': 'Ask about anime...', 'video': 'Describe your video idea...'
-    };
-    document.getElementById('user-input').placeholder = placeholders[mode] || 'Message Shanvika...';
-}
-
-// 🖼️ HANDLE FILE SELECTION
-function handleFileUpload(input) { 
-    const file = input.files[0];
-    if(!file) return;
-
-    // Convert to Base64
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        selectedImageBase64 = e.target.result;
-        // UI feedback
-        const btn = document.querySelector('.fa-paperclip').parentElement;
-        btn.style.color = '#4ade80'; // Green color
-        document.getElementById('user-input').placeholder = "Image selected! Type question & send...";
-        document.getElementById('user-input').focus();
-    };
-    reader.readAsDataURL(file);
-}
+// --- CORE FUNCTIONS ---
 
 async function createNewChat() {
     try {
@@ -108,64 +17,65 @@ async function createNewChat() {
         const data = await res.json();
         currentSessionId = data.session_id;
         
-        document.getElementById('chat-box').innerHTML = `
+        // UI Reset: Show Welcome Screen
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = `
             <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-60 text-center">
                 <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl mb-4 shadow-2xl">🌸</div>
                 <h2 class="text-2xl font-bold">Namaste!</h2>
                 <p>Select a mode below to start.</p>
             </div>`;
-        await loadHistory();
-    } catch(e) { console.error("Create chat error:", e); }
+        loadHistory();
+    } catch (e) { console.error(e); }
 }
 
-// 👇 GLOBAL VARIABLE (Request Rokne ke liye)
-// 👇 Global Variable
-let abortController = null; 
-
+// 👇 UPDATED SEND MESSAGE FUNCTION
 async function sendMessage() {
     const inputField = document.getElementById('user-input');
     const sendBtnIcon = document.querySelector('button[type="submit"] i');
+    const welcomeScreen = document.getElementById('welcome-screen');
     const message = inputField.value.trim();
 
     // 🛑 STOP LOGIC
     if (abortController) {
-        abortController.abort(); 
+        abortController.abort();
         abortController = null;
         
-        // Thinking Bubble Hatao agar user ne roka
-        const loadingBubble = document.getElementById("loading-bubble");
-        if(loadingBubble) loadingBubble.remove();
+        // Remove Loader
+        const loader = document.getElementById("loading-bubble");
+        if(loader) loader.remove();
         
         sendBtnIcon.className = "fas fa-arrow-up";
-        appendMessage('shanvika', "🛑 *Stopped.*");
+        sendBtnIcon.parentElement.classList.remove("bg-red-500");
+        appendMessage('shanvika', "🛑 *Stopped by user.*");
         return;
     }
 
     if (!message) return;
 
-    // 1. User Message Show karo
+    // 1. Hide Welcome Screen (Jadoo 🪄)
+    if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+    // 2. Show User Message
     appendMessage('user', message);
     inputField.value = '';
 
-    // 2. Start Processing
+    // 3. Start Loading UI
     abortController = new AbortController();
-    sendBtnIcon.className = "fas fa-stop"; // Button ko Stop banao
+    sendBtnIcon.className = "fas fa-stop";
     sendBtnIcon.parentElement.classList.add("bg-red-500");
 
-    // 👇 3. THINKING BUBBLE ADD KARO (Chat ke andar)
-    const loadingId = "loading-bubble";
+    // 👇 ADD LOADING BUBBLE TO CHAT
     const chatBox = document.getElementById('chat-box');
     const loadingDiv = document.createElement('div');
-    loadingDiv.id = loadingId;
+    loadingDiv.id = "loading-bubble";
     loadingDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 w-fit mr-auto border border-gray-700 flex items-center gap-2";
     
-    // Status Text based on Mode
     let statusText = "Thinking";
     if (currentMode === 'coding') statusText = "Coding";
-    else if (currentMode === 'image_gen') statusText = "Painting";
+    else if (currentMode === 'image_gen') statusText = "Creating";
     
     loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}</span> <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
-    
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -173,31 +83,35 @@ async function sendMessage() {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, session_id: currentSessionId, mode: currentMode }),
+            body: JSON.stringify({ 
+                message: message, 
+                session_id: currentSessionId, 
+                mode: currentMode 
+            }),
             signal: abortController.signal
         });
 
         const data = await response.json();
 
-        // 👇 4. REPLY AANE PAR THINKING BUBBLE HATA DO
-        const currentLoader = document.getElementById(loadingId);
+        // Remove Loader
+        const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
 
-        // 5. Asli Jawab Dikhao
         if (data.reply) {
             appendMessage('shanvika', data.reply);
         } else {
-            appendMessage('shanvika', "⚠️ Empty response from AI.");
+            appendMessage('shanvika', "⚠️ Empty response.");
         }
 
     } catch (error) {
-        // Error handling
-        const currentLoader = document.getElementById(loadingId);
+        // Remove Loader on Error
+        const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
 
+        // ⚠️ FIX: Ignore 'AbortError' (Don't show "Could not connect")
         if (error.name !== 'AbortError') {
             console.error(error);
-            appendMessage('shanvika', "⚠️ Error: Could not connect to server.");
+            appendMessage('shanvika', "⚠️ Server Error. Please try again.");
         }
     } finally {
         abortController = null;
@@ -205,26 +119,21 @@ async function sendMessage() {
         sendBtnIcon.parentElement.classList.remove("bg-red-500");
     }
 }
-// 👇 REPLACE THIS WHOLE FUNCTION 👇
-function appendMessage(sender, text, msgId = null) {
+
+// 👇 UPDATED APPEND MESSAGE (Better Styling)
+function appendMessage(sender, text) {
     const chatBox = document.getElementById('chat-box');
     const msgDiv = document.createElement('div');
     
-    // Agar msgId diya hai (Thinking bubble ke liye), to set karo
-    if (msgId) msgDiv.id = msgId;
-
-    // 👇 CLASSES FIXED: 'w-fit', 'max-w-[85%]', 'break-words'
     if (sender === 'user') {
         msgDiv.className = "p-3 mb-4 rounded-2xl bg-blue-600 text-white w-fit max-w-[85%] ml-auto break-words shadow-lg";
         msgDiv.innerText = text;
     } else {
         msgDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 text-gray-200 w-fit max-w-[85%] mr-auto break-words border border-gray-700 shadow-lg";
-        
-        // Markdown Logic
         msgDiv.innerHTML = marked.parse(text);
         msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
         
-        // Copy Button Logic
+        // Copy Button
         msgDiv.querySelectorAll('pre').forEach((pre) => {
             const btn = document.createElement('button');
             btn.className = 'copy-btn';
@@ -242,99 +151,54 @@ function appendMessage(sender, text, msgId = null) {
     chatBox.appendChild(msgDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
-// --- HISTORY ---
+
+// ... (Baaki functions same rahenge: setMode, loadHistory etc.) ...
+// Agar purane functions copy karne mein dikkat ho, to bata dena main puri file de dunga.
+// Filhal upar wala part replace karna zaroori hai.
+
+function setMode(mode, btn) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.remove('active', 'bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-none');
+        b.classList.add('bg-white/10', 'text-gray-300', 'border', 'border-white/10');
+    });
+    btn.classList.remove('bg-white/10', 'text-gray-300', 'border', 'border-white/10');
+    btn.classList.add('active', 'bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-none');
+}
+
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
         const data = await res.json();
         const list = document.getElementById('history-list');
-        list.innerHTML = "";
+        list.innerHTML = '';
         data.history.forEach(chat => {
             const div = document.createElement('div');
-            div.className = "p-3 rounded-lg flex items-center justify-between cursor-pointer hover:bg-white/5 mb-1 group transition";
-            div.onclick = (e) => { if(!e.target.closest('button')) loadChat(chat.id); };
-            div.innerHTML = `<div class="flex items-center gap-3 overflow-hidden"><i class="far fa-comment-alt text-gray-500"></i><span class="nav-label text-gray-400 text-sm truncate w-32 group-hover:text-white transition">${chat.title}</span></div><button class="text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition" onclick="showMenu(event, '${chat.id}')"><i class="fas fa-ellipsis-h"></i></button>`;
+            div.className = "p-3 hover:bg-white/5 rounded-lg cursor-pointer text-sm text-gray-300 truncate";
+            div.innerText = chat.title;
+            div.onclick = () => loadChat(chat.id);
             list.appendChild(div);
         });
-    } catch(e){ console.error(e); }
+    } catch (e) {}
 }
 
 async function loadChat(sid) {
-    try {
-        currentSessionId = sid;
-        const res = await fetch(`/api/chat/${sid}`);
-        const data = await res.json();
-        document.getElementById('chat-box').innerHTML = '';
-        data.messages.forEach(m => { appendMessage(m.content, m.role === 'user' ? 'user' : 'ai'); });
-    } catch(e) { console.error(e); }
+    currentSessionId = sid;
+    const chatBox = document.getElementById('chat-box');
+    chatBox.innerHTML = ''; // Clear current
+    
+    // Hide welcome screen when loading a chat
+    const welcomeScreen = document.getElementById('welcome-screen');
+    if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+    const res = await fetch(`/api/chat/${sid}`);
+    const data = await res.json();
+    
+    data.messages.forEach(msg => {
+        appendMessage(msg.role === 'user' ? 'user' : 'shanvika', msg.content);
+    });
 }
 
-// Modals & Menu
 function openSettingsModal() { document.getElementById('settings-modal').style.display = 'block'; }
-function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-const dd = document.getElementById('dropdown');
-function showMenu(e, sid) {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    dd.style.top = rect.bottom + 'px'; dd.style.left = rect.left + 'px'; dd.style.display = 'block';
-    document.getElementById('act-rename').onclick = async () => { const t = prompt("Rename:"); if(t) { await fetch('/api/rename_chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: sid, new_title: t}) }); loadHistory(); } dd.style.display = 'none'; };
-    document.getElementById('act-delete').onclick = async () => { if(confirm("Delete?")) { await fetch(`/api/delete_chat/${sid}`, {method:'DELETE'}); if(currentSessionId === sid) { currentSessionId = null; createNewChat(); } loadHistory(); } dd.style.display = 'none'; };
-}
-window.onclick = (e) => { if(!dd.contains(e.target) && !e.target.closest('.fa-ellipsis-h')) { dd.style.display = 'none'; } }
-
-// --- CUSTOM INSTRUCTIONS LOGIC ---
-
-// 1. Load Instruction when Profile Loads
-async function loadProfile() {
-    try {
-        const res = await fetch("/api/profile");
-        const data = await res.json();
-        if (data.email) {
-            document.getElementById("profile-name-sidebar").innerText = data.name;
-            document.getElementById("profile-img-sidebar").src = data.avatar;
-            document.getElementById("profile-img-modal").src = data.avatar;
-            document.getElementById("profile-name-input").value = data.name;
-            
-            // 👇 Load Saved Instruction into Box
-            if(data.custom_instruction) {
-                document.getElementById("custom-instruction-box").value = data.custom_instruction;
-                document.getElementById("char-count").innerText = data.custom_instruction.length + "/1000";
-            }
-        }
-    } catch (e) { console.error(e); }
-}
-
-// 2. Save Instruction Function
-async function saveInstructions() {
-    const text = document.getElementById("custom-instruction-box").value;
-    
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Saving...";
-    
-    try {
-        await fetch("/api/update_instructions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ instruction: text })
-        });
-        
-        // Show Success Feedback
-        btn.innerHTML = "<i class='fas fa-check'></i> Saved!";
-        setTimeout(() => btn.innerHTML = originalText, 2000);
-        
-    } catch (e) {
-        alert("Error saving instructions");
-        btn.innerHTML = originalText;
-    }
-}
-
-// 3. Character Counter
-document.getElementById("custom-instruction-box").addEventListener("input", function() {
-    document.getElementById("char-count").innerText = this.value.length + "/1000";
-});
-
-// Call loadProfile on startup
-loadProfile();
+function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
