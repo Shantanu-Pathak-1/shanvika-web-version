@@ -32,6 +32,8 @@ async def fix_google_oauth_redirect(request: Request, call_next):
 # ==========================================
 # 🔑 KEYS & CONFIG (SECRET RAKHNA)
 # ==========================================
+# 👇 Apna Asli Email yahan likho (Jisse tum login karte ho)
+ADMIN_EMAIL = "tumhara_email@gmail.com"
 
 # 1. Google & Security Keys
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika") # Session ke liye
@@ -354,6 +356,48 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     )
     
     return {"reply": reply}
+
+# ==========================================
+# 👑 ADMIN PANEL ROUTES (GOD MODE)
+# ==========================================
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    user = await get_current_user(request)
+    if not user: return RedirectResponse(url="/login")
+    
+    # 🔒 SIRF ADMIN ALLOWED HAI
+    if user['email'] != ADMIN_EMAIL:
+        return HTMLResponse("<h1>🚫 Access Denied! Sirf Shantanu (Admin) yahan aa sakta hai.</h1>", status_code=403)
+
+    # Database se saare users aur chats count karo
+    all_users = await users_collection.find().to_list(length=100)
+    total_chats = await chats_collection.count_documents({})
+    
+    return templates.TemplateResponse("admin.html", {
+        "request": request, 
+        "users": all_users, 
+        "total_users": len(all_users),
+        "total_chats": total_chats,
+        "admin_email": ADMIN_EMAIL
+    })
+
+@app.post("/admin/delete_user")
+async def delete_user(request: Request):
+    user = await get_current_user(request)
+    # Security Check
+    if not user or user['email'] != ADMIN_EMAIL:
+        return {"error": "Unauthorized"}
+    
+    form = await request.form()
+    target_email = form.get("email")
+    
+    if target_email:
+        # User ko aur uski saari chats ko delete karo
+        await users_collection.delete_one({"email": target_email})
+        await chats_collection.delete_many({"user_email": target_email})
+        
+    return RedirectResponse(url="/admin", status_code=303)
 
 if __name__ == "__main__":
     import uvicorn

@@ -82,10 +82,26 @@
 
     <div id="settings-modal" class="modal">
         <div class="modal-content">
-            <div class="flex justify-between mb-4"><h2 class="text-xl font-bold">Settings</h2><button onclick="closeModal('settings-modal')"><i class="fas fa-times"></i></button></div>
-            <div class="flex justify-between p-3 bg-white/5 rounded mb-4"><span>Theme</span><button id="theme-btn" onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-sm">Dark</button></div>
-            <button onclick="closeModal('settings-modal'); openModal('profile-modal')" class="w-full p-2 bg-white/10 rounded">✏️ Edit Profile</button>
-        </div>
+            <div class="flex justify-between mb-6 border-b border-gray-700 pb-2">
+                <h2 class="text-xl font-bold">Settings</h2>
+                <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg mb-4">
+                <span>Theme</span>
+                <button id="theme-btn" onclick="toggleTheme()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm transition">Dark</button>
+            </div>
+            
+            <button onclick="closeModal('settings-modal'); openModal('profile-modal')" class="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 mb-2 transition">
+                <i class="fas fa-user-edit"></i> Edit Profile
+            </button>
+
+            <hr class="border-gray-700 my-4">
+            
+            <a href="/logout" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-all font-bold shadow-lg">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+            </div>
     </div>
 
     <div id="profile-modal" class="modal">
@@ -97,7 +113,7 @@
             </div>
             <input type="file" id="avatar-upload" class="hidden" onchange="uploadAvatar(this)">
             <input type="text" id="profile-name-input" class="w-full bg-transparent border border-gray-500 rounded p-2 text-center text-white mb-4">
-            <button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded">Save</button>
+            <button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded hover:bg-blue-500 transition">Save Changes</button>
         </div>
     </div>
 
