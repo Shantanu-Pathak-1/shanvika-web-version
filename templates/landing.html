@@ -153,6 +153,29 @@
     <footer class="py-10 border-t border-white/5 text-center text-gray-500 text-sm bg-black">
     <p>&copy; 2026 Shanvika AI. Created with ❤️ by Shan Pathak.<a href="/about" class="text-pink-500 underline">About Creator</a></p>
     </footer>
-
+<script>
+        // Force Remove Spline Logo using JS Injection
+        const viewer = document.querySelector('spline-viewer');
+        
+        if (viewer) {
+            // Wait for the component to fully load
+            viewer.addEventListener('load', () => {
+                try {
+                    // Shadow DOM ke andar style inject karo
+                    const shadow = viewer.shadowRoot;
+                    if (shadow) {
+                        const style = document.createElement('style');
+                        style.textContent = '#logo { display: none !important; opacity: 0 !important; visibility: hidden !important; }';
+                        shadow.appendChild(style);
+                        console.log("Spline Logo Removed via JS 🥷");
+                    }
+                } catch (e) {
+                    console.log("Logo remove error:", e);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
 </body>
 </html>
