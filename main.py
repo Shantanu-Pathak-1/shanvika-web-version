@@ -18,30 +18,31 @@ import google.generativeai as genai
 import io
 import PyPDF2
 from docx import Document
-import PIL.Image # For Gemini Vision
+import PIL.Image 
+import random # For Pollinations Seed
+from pdf2docx import Converter # New Library for PDF to Word
+import tempfile # Temp files for conversion
 
 # ==========================================
-# 🔑 KEYS & CONFIG (Render Env Vars se load honge)
+# 🔑 KEYS & CONFIG
 # ==========================================
-# Ye sab keys Render ke "Environment Variables" section mein add karni hongi
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 # AI Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-HF_TOKEN = os.getenv("HF_TOKEN") # Hugging Face Token (Image/Video/Anime ke liye)
+HF_TOKEN = os.getenv("HF_TOKEN") 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") # Research ke liye (Optional, but recommended)
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") 
 MONGO_URL = os.getenv("MONGO_URL")
 
-# Gemini Setup
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
 app = FastAPI()
 
-# 👇 HTTPS LOOP FIX (Render ke liye zaroori hai)
+# 👇 HTTPS LOOP FIX (Render specific)
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
     if request.headers.get("x-forwarded-proto") == "https":
@@ -49,10 +50,8 @@ async def fix_google_oauth_redirect(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# Session Middleware
+# Session & OAuth
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
-
-# Google OAuth
 oauth = OAuth()
 oauth.register(
     name='google',
@@ -62,126 +61,152 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# MongoDB Connection
+# DB & Static
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
 
-# Static & Templates
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- 🧠 HELPER FUNCTIONS (The Brain of Shanvika) ---
+# --- HELPER FUNCTIONS ---
 
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 async def get_current_user(request: Request): return request.session.get('user')
 
-# 1. GENERATE IMAGE (Hugging Face with Fallback)
+# ==========================================
+# 🎨 1. SMART IMAGE GENERATION (HF + Backup)
+# ==========================================
 async def generate_image_hf(prompt):
-    if not HF_TOKEN: return "⚠️ **Error:** HF_TOKEN missing in Render Environment Variables!"
-    
-    # Priority: SDXL (Best) -> SD 1.5 (Backup)
-    models = [
-        "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-        "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
-    ]
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
-    async with httpx.AsyncClient() as client:
-        for model_url in models:
+    # Strategy A: Hugging Face (Best Quality)
+    if HF_TOKEN:
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-v1-5"
+        headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+        
+        async with httpx.AsyncClient() as client:
             try:
-                # 'wait_for_model': True means agar model so raha hai to jagayega
-                response = await client.post(model_url, headers=headers, json={"inputs": prompt, "options": {"use_cache": False, "wait_for_model": True}}, timeout=45.0)
+                # 10s timeout to quickly switch to backup if busy
+                response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=10.0)
                 if response.status_code == 200:
                     img_b64 = base64.b64encode(response.content).decode("utf-8")
-                    return f"""🎨 **Image Generated:**<br><img src='data:image/png;base64,{img_b64}' class='rounded-lg mt-2 shadow-lg w-full hover:scale-105 transition-transform duration-300'>"""
-            except Exception as e:
-                print(f"Model failed: {e}")
-                continue
-    return "⚠️ **Image Gen Failed:** Server busy hai, please retry."
+                    return f"""🎨 **Image (HF):**<br><img src='data:image/png;base64,{img_b64}' class='rounded-lg mt-2 shadow-lg w-full hover:scale-105 transition-transform duration-300'>"""
+            except: pass # Silent fail to backup
 
-# 2. GENERATE VIDEO (Text-to-Video)
-async def generate_video_hf(prompt):
-    if not HF_TOKEN: return "⚠️ HF_TOKEN missing!"
-    API_URL = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    # Strategy B: Pollinations AI (Unlimited Free Backup)
+    try:
+        seed = random.randint(1, 100000)
+        safe_prompt = prompt.replace(" ", "%20")
+        image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
+        return f"""🎨 **Image (Backup):**<br><img src='{image_url}' class='rounded-lg mt-2 shadow-lg w-full hover:scale-105 transition-transform duration-300'>"""
+    except Exception as e:
+        return f"⚠️ **Failed:** {str(e)}"
+
+# ==========================================
+# 🌸 2. ANIME CONVERTER (Prompt Logic)
+# ==========================================
+async def convert_to_anime(file_data, prompt):
+    # Agar user ne file upload ki hai (Img2Img - Not reliable on free tier, avoiding complexity)
+    # Hum Smart Logic use karenge: Pollinations URL logic with Anime Prompt
     
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=90.0) # Video takes time
-            if response.status_code == 200:
-                vid_b64 = base64.b64encode(response.content).decode("utf-8")
-                return f"""🎥 **Video Generated:**<br><video controls autoplay loop class='rounded-lg mt-2 shadow-lg w-full'><source src='data:video/mp4;base64,{vid_b64}' type='video/mp4'></video>"""
-            return f"⚠️ **Video Failed:** Status {response.status_code} (Try simpler prompt)"
-    except Exception as e: return f"⚠️ **Error:** {str(e)}"
+    # Simple Text-to-Image Anime (Most Reliable Free Method)
+    anime_prompt = f"anime style, studio ghibli, vibrant colors, masterpiece, {prompt}"
+    
+    # Using Pollinations for Anime (Fastest & Free)
+    seed = random.randint(1, 100000)
+    safe_prompt = anime_prompt.replace(" ", "%20")
+    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux-anime&nologo=true"
+    
+    return f"""✨ **Anime Art:**<br><img src='{image_url}' class='rounded-lg mt-2 shadow-lg w-full'>"""
 
-# 3. ANIME CONVERTER (Image-to-Image)
-async def convert_to_anime(file_data):
-    if not HF_TOKEN: return "⚠️ HF_TOKEN missing!"
-    # Model: Arcane Diffusion (Good for style transfer)
-    API_URL = "https://api-inference.huggingface.co/models/nitrosocke/Arcane-Diffusion"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-
+# ==========================================
+# 🔄 3. UNIVERSAL FILE CONVERTER
+# ==========================================
+async def perform_conversion(file_data, file_type, prompt):
     try:
-        # Convert base64 back to raw bytes
+        # Decode File
         if "," in file_data: header, encoded = file_data.split(",", 1)
         else: encoded = file_data
-        image_bytes = base64.b64decode(encoded)
+        file_bytes = base64.b64decode(encoded)
+        
+        prompt = prompt.lower()
+        target = "pdf"
+        if "word" in prompt or "docx" in prompt: target = "docx"
+        elif "png" in prompt: target = "png"
+        elif "jpg" in prompt: target = "jpeg"
 
-        async with httpx.AsyncClient() as client:
-            # Post raw bytes for img2img
-            response = await client.post(API_URL, headers=headers, content=image_bytes, timeout=50.0)
-            if response.status_code == 200:
-                img_b64 = base64.b64encode(response.content).decode("utf-8")
-                return f"""✨ **Anime Version:**<br><img src='data:image/png;base64,{img_b64}' class='rounded-lg mt-2 w-full'>"""
-            return f"⚠️ **Conversion Failed:** Status {response.status_code}"
-    except Exception as e: return f"⚠️ **Error:** {str(e)}"
+        # A. IMAGE CONVERSION
+        if "image" in file_type:
+            img = PIL.Image.open(io.BytesIO(file_bytes))
+            if target in ["jpeg", "pdf"] and img.mode in ("RGBA", "P"): img = img.convert("RGB")
+            
+            out = io.BytesIO()
+            img.save(out, format=target.upper())
+            out_b64 = base64.b64encode(out.getvalue()).decode("utf-8")
+            
+            mime = "application/pdf" if target == "pdf" else f"image/{target}"
+            return f"""✅ **Converted:**<br><a href="data:{mime};base64,{out_b64}" download="converted.{target}" class="inline-block bg-green-600 text-white px-4 py-2 rounded mt-2">Download {target.upper()}</a>"""
 
-# 4. RESEARCH MODE (Tavily AI -> DDG Fallback)
+        # B. PDF TO WORD
+        elif "pdf" in file_type and target == "docx":
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+            
+            docx_path = tmp_path + ".docx"
+            try:
+                cv = Converter(tmp_path)
+                cv.convert(docx_path, start=0, end=None)
+                cv.close()
+                
+                with open(docx_path, "rb") as f:
+                    out_b64 = base64.b64encode(f.read()).decode("utf-8")
+                
+                return f"""✅ **PDF to Word:**<br><a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{out_b64}" download="converted.docx" class="inline-block bg-blue-600 text-white px-4 py-2 rounded mt-2">Download Word</a>"""
+            except Exception as e: return f"⚠️ Error: {str(e)}"
+            finally:
+                if os.path.exists(tmp_path): os.remove(tmp_path)
+                if os.path.exists(docx_path): os.remove(docx_path)
+        
+        return "⚠️ Please specify 'convert to pdf/word/png' etc."
+    except Exception as e: return f"⚠️ Error: {str(e)}"
+
+# ==========================================
+# 🔍 4. RESEARCH & 5. GEMINI (Logic)
+# ==========================================
 async def perform_research_task(query):
-    # Method A: Tavily API (Best for AI)
     if TAVILY_API_KEY:
         try:
             async with httpx.AsyncClient() as client:
-                payload = {"api_key": TAVILY_API_KEY, "query": query, "search_depth": "basic", "max_results": 3}
-                resp = await client.post("https://api.tavily.com/search", json=payload)
+                resp = await client.post("https://api.tavily.com/search", json={"api_key": TAVILY_API_KEY, "query": query, "search_depth": "basic", "max_results": 3})
                 if resp.status_code == 200:
-                    data = resp.json()
-                    summary = "📊 **Latest Research (Source: Tavily):**\n\n"
-                    for res in data.get("results", []):
-                        summary += f"🔹 **{res['title']}**\n{res['content']}\n🔗 [Read More]({res['url']})\n\n"
+                    summary = "📊 **Tavily Research:**\n\n"
+                    for r in resp.json().get("results", []): summary += f"🔹 **{r['title']}**\n{r['content']}\n🔗 [Link]({r['url']})\n\n"
                     return summary
-        except Exception as e: print(f"Tavily failed: {e}")
+        except: pass
 
-    # Method B: DuckDuckGo (Fallback)
     try:
-        results = DDGS().text(query, max_results=4)
-        if not results: return "⚠️ No results found."
-        summary = "📊 **Web Research (Source: DuckDuckGo):**\n\n"
-        for r in results:
-            summary += f"🔹 **{r['title']}**\n{r['body']}\n🔗 {r['href']}\n\n"
+        results = DDGS().text(query, max_results=3)
+        summary = "📊 **DDG Research:**\n\n"
+        for r in results: summary += f"🔹 **{r['title']}**\n{r['body']}\n🔗 {r['href']}\n\n"
         return summary
-    except Exception as e: return f"⚠️ Research Error: {e}"
+    except: return "⚠️ Research failed."
 
-# 5. GEMINI TEXT
 async def generate_gemini(prompt, system_instr):
     try:
         model = genai.GenerativeModel('gemini-2.5-flash') 
-        full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
-        response = model.generate_content(full_prompt)
-        return response.text
+        return model.generate_content(f"System: {system_instr}\nUser: {prompt}").text
     except:
-        model = genai.GenerativeModel('gemini-1.5-flash') # Fallback
+        model = genai.GenerativeModel('gemini-1.5-flash')
         return model.generate_content(prompt).text
 
-# --- DATA MODELS ---
+# --- ROUTES & MODELS ---
 class ChatRequest(BaseModel):
     message: str
     session_id: str
-    mode: str = "chat" # chat, coding, image_gen, video, research, anime
+    mode: str = "chat"
     file_data: str | None = None
     file_type: str | None = None
 
@@ -194,8 +219,6 @@ class ProfileRequest(BaseModel):
 
 class InstructionRequest(BaseModel):
     instruction: str
-
-# --- ROUTES ---
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
@@ -213,9 +236,8 @@ async def auth_callback(request: Request):
         user_info = token.get('userinfo')
         if user_info:
             request.session['user'] = dict(user_info)
-            email = user_info.get('email')
-            if not await users_collection.find_one({"email": email}):
-                await users_collection.insert_one({"email": email, "name": user_info.get('name'), "picture": user_info.get('picture'), "role": "user", "custom_instruction": ""})
+            if not await users_collection.find_one({"email": user_info.get('email')}):
+                await users_collection.insert_one({"email": user_info.get('email'), "name": user_info.get('name'), "picture": user_info.get('picture'), "custom_instruction": ""})
         return RedirectResponse(url="/")
     except: return RedirectResponse(url="/login")
 
@@ -230,7 +252,6 @@ async def read_root(request: Request):
     if not user: return RedirectResponse(url="/login")
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
-# Profile & Chat Management APIs
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
@@ -293,10 +314,9 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
     sid, mode, msg = req.session_id, req.mode, req.message
     
-    # 1. FILE PARSING (PDF/DOCX/IMAGE)
+    # 1. FILE PARSING
     file_text = ""
-    vision_object = None # For Gemini
-    vision_url = None # For Groq
+    vision_object = None 
     
     if req.file_data:
         try:
@@ -304,11 +324,15 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             else: encoded = req.file_data
             decoded = base64.b64decode(encoded)
             
+            # PDF Reading
             if "pdf" in (req.file_type or ""):
-                reader = PyPDF2.PdfReader(io.BytesIO(decoded))
-                file_text = "\n[PDF CONTENT]:\n" + "\n".join([p.extract_text() for p in reader.pages])
+                try:
+                    reader = PyPDF2.PdfReader(io.BytesIO(decoded))
+                    file_text = "\n[PDF CONTENT]:\n" + "\n".join([p.extract_text() for p in reader.pages])
+                except: file_text = "[PDF attached but could not be read. Only Conversion available]"
+            
+            # Image Reading (For Vision)
             elif "image" in (req.file_type or ""):
-                vision_url = req.file_data
                 vision_object = PIL.Image.open(io.BytesIO(decoded))
                 msg += " [Image Attached]"
         except Exception as e:
@@ -321,50 +345,44 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     if custom_instr: base_system += f"\nUser Preferences: {custom_instr}"
     if mode == "coding": base_system += " You are an Expert Coder. Provide clean code."
     
-    # Update Chat History
-    chat_exists = await chats_collection.find_one({"session_id": sid})
-    if not chat_exists:
+    # Update History
+    if not await chats_collection.find_one({"session_id": sid}):
         await chats_collection.insert_one({"session_id": sid, "user_email": user['email'], "title": msg[:30], "messages": []})
-    
     await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg + file_text}}})
 
-    # 3. ROUTING LOGIC (The Magic ✨)
+    # 3. ROUTING LOGIC
     reply = ""
     
     # A. IMAGE GENERATION
     if mode == "image_gen":
         reply = await generate_image_hf(msg)
         
-    # B. VIDEO GENERATION
-    elif mode == "video":
-        reply = await generate_video_hf(msg)
-        
-    # C. ANIME CONVERSION (Image Upload Required)
-    elif mode == "anime":
+    # B. FILE CONVERTER (New Mode)
+    elif mode == "converter":
         if req.file_data:
-            reply = await convert_to_anime(req.file_data)
+            reply = await perform_conversion(req.file_data, req.file_type, msg)
         else:
-            # Agar image nahi hai, toh Text-to-Image use karo with "Anime Style" prompt
-            reply = await generate_image_hf(msg + ", anime style, studio ghibli style, vibrant colors")
-            
-    # D. RESEARCH MODE
+            reply = "⚠️ **Converter Mode:** Please upload a file (PDF or Image) to convert."
+
+    # C. ANIME CREATOR
+    elif mode == "anime":
+        reply = await convert_to_anime(req.file_data, msg)
+
+    # D. RESEARCH
     elif mode == "research":
         research_data = await perform_research_task(msg)
-        # Combine Research with LLM for final answer
         client = get_groq()
         if client:
             completion = client.chat.completions.create(
-                messages=[{"role": "system", "content": base_system}, {"role": "user", "content": f"Information: {research_data}\n\nUser Question: {msg}\n\nSummarize the information to answer the question."}],
+                messages=[{"role": "system", "content": base_system}, {"role": "user", "content": f"Data: {research_data}\nQuery: {msg}\nSummarize."}],
                 model="llama-3.3-70b-versatile"
             )
             reply = completion.choices[0].message.content
-        else:
-            reply = research_data # Agar Groq fail ho jaye toh raw data dikha do
+        else: reply = research_data
 
-    # E. STANDARD CHAT / CODING (Gemini/Groq)
+    # E. STANDARD CHAT (Groq / Gemini)
     else:
         if mode == "coding" or vision_object:
-            # Use Gemini for Coding or Vision
             if vision_object:
                 model = genai.GenerativeModel('gemini-2.5-flash')
                 response = model.generate_content([msg, vision_object])
@@ -372,10 +390,8 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             else:
                 reply = await generate_gemini(msg + file_text, base_system)
         else:
-            # Use Groq for Fast Chat
             client = get_groq()
             if client:
-                # Fetch recent history for context
                 chat_data = await chats_collection.find_one({"session_id": sid})
                 history = chat_data.get("messages", [])[-6:]
                 msgs = [{"role": "system", "content": base_system}] + history
@@ -383,10 +399,8 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 
                 completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
                 reply = completion.choices[0].message.content
-            else:
-                reply = "⚠️ API Key Error. Check Server Logs."
+            else: reply = "⚠️ API Error."
 
-    # Save Assistant Reply
     await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
     return {"reply": reply}
 

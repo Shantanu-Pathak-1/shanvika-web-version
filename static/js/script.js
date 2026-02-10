@@ -174,10 +174,10 @@ async function sendMessage() {
 
     // Dynamic Loading Text based on Mode
     let loadingText = "Thinking...";
-    if (currentMode === 'image_gen') loadingText = "🎨 Painting...";
-    else if (currentMode === 'video') loadingText = "🎥 Filming (Wait 60s)...";
+    if (currentMo) loadingText = "🎨 Painting...";
     else if (currentMode === 'anime') loadingText = "✨ Converting to Anime...";
     else if (currentMode === 'research') loadingText = "🔍 Searching Web...";
+    else if (currentMode === 'converter') loadingText = "🔄 Converting File...";
 
     const chatBox = document.getElementById('chat-box');
     const loadingDiv = document.createElement('div');

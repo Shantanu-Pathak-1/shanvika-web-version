@@ -15,3 +15,6 @@ google-generativeai
 pypdf2
 python-docx
 pillow
+pdf2docx
+python-multipart
+opencv-python-headless
