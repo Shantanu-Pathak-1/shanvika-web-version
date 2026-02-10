@@ -15,6 +15,10 @@ import base64 # Image/Video data handling ke liye
 from groq import Groq
 from duckduckgo_search import DDGS
 import google.generativeai as genai
+import io
+import PyPDF2
+from docx import Document
+import PIL.Image # For Gemini Vision
 
 app = FastAPI()
 
@@ -156,7 +160,9 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str
     mode: str
-    image: str | None = None
+    file_data: str | None = None # Generic file holder
+    file_type: str | None = None # MIME type (e.g., application/pdf)
+    image: str | None = None # Legacy support
 
 class RenameRequest(BaseModel):
     session_id: str
@@ -275,41 +281,88 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     user = await get_current_user(request)
     if not user: return {"reply": "⚠️ Please Login first."}
 
-    sid, mode, msg, img_data = req.session_id, req.mode, req.message, req.image
+    sid, mode, msg = req.session_id, req.mode, req.message
     
+    # 1. FILE PROCESSING LOGIC
+    image_object = None # For Gemini
+    vision_url = None   # For Groq
+    
+    if req.file_data:
+        try:
+            # Clean Base64 string
+            if "," in req.file_data:
+                header, encoded = req.file_data.split(",", 1)
+            else:
+                encoded = req.file_data
+
+            file_bytes = base64.b64decode(encoded)
+            file_type = req.file_type or ""
+
+            # A. DOCUMENTS (PDF/DOCX) -> Extract Text
+            if "pdf" in file_type:
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+                extracted_text = "\n\n[📄 ATTACHED PDF CONTENT START]\n"
+                for page in pdf_reader.pages:
+                    extracted_text += page.extract_text() + "\n"
+                extracted_text += "[📄 ATTACHED PDF CONTENT END]\n"
+                msg += extracted_text
+            
+            elif "word" in file_type or "officedocument" in file_type:
+                doc = Document(io.BytesIO(file_bytes))
+                extracted_text = "\n\n[📄 ATTACHED DOC CONTENT START]\n"
+                for para in doc.paragraphs:
+                    extracted_text += para.text + "\n"
+                extracted_text += "[📄 ATTACHED DOC CONTENT END]\n"
+                msg += extracted_text
+
+            # B. IMAGES -> Prepare for Vision Models
+            elif "image" in file_type:
+                vision_url = req.file_data # Keep full data URI for Groq
+                image_object = PIL.Image.open(io.BytesIO(file_bytes)) # PIL Object for Gemini
+                msg += " [🖼️ Image Attached]"
+
+        except Exception as e:
+            return {"reply": f"⚠️ File Error: {str(e)}"}
+
+    # 2. SYSTEM INSTRUCTIONS
     db_user = await users_collection.find_one({"email": user['email']})
     custom_instr = db_user.get("custom_instruction", "") if db_user else ""
-
     base_system = "You are Shanvika AI."
     if custom_instr: base_system += f"\n\nUSER INSTRUCTION:\n{custom_instr}\n\n"
     if mode == "coding": base_system += " You are an Expert Coder."
-    elif mode == "anime": base_system += " You are an Anime Expert."
-    
+
+    # 3. SAVE TO DB
     chat = await chats_collection.find_one({"session_id": sid, "user_email": user['email']})
     if not chat:
         chat = {"session_id": sid, "user_email": user['email'], "title": "New Chat", "messages": []}
         await chats_collection.insert_one(chat)
     
     if len(chat["messages"]) == 0:
-        await chats_collection.update_one({"session_id": sid}, {"$set": {"title": msg[:30]}})
+        title = msg[:30] if msg else "File Upload"
+        await chats_collection.update_one({"session_id": sid}, {"$set": {"title": title}})
 
-    user_content = msg
-    if img_data: user_content += " [🖼️ Image Uploaded]"
-    await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": user_content}}})
+    await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
 
     reply = ""
     try:
-        # 👇👇 ROUTING LOGIC 👇👇
+        # 4. AI ROUTING
         if mode == "image_gen":
-            reply = await generate_image_hf(msg) # Returns HTML String
+            reply = await generate_image_hf(msg)
         
         elif mode == "video":
-            reply = await generate_video_hf(msg) # Returns HTML String
+            reply = await generate_video_hf(msg)
 
         elif mode == "coding":
-            reply = await generate_gemini(msg, base_system)
+            # GEMINI VISION (If image present)
+            if image_object:
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                response = model.generate_content([msg, image_object])
+                reply = response.text
+            else:
+                reply = await generate_gemini(msg, base_system)
 
         elif mode == "research":
+            # Research Logic (Kept Simple)
             research_data = await asyncio.to_thread(perform_research, msg)
             client = get_groq()
             if research_data and client:
@@ -318,15 +371,31 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     model="llama-3.3-70b-versatile"
                 )
                 reply = completion.choices[0].message.content
-            else: reply = research_data if research_data else "⚠️ No results."
+            else: reply = research_data or "⚠️ No results."
 
-        else: # Default Chat
+        else: # Default Chat (Groq)
             client = get_groq()
             if client:
-                msgs = [{"role": "system", "content": base_system}]
-                msgs.extend(chat["messages"][-6:]) # Context window reduced for speed
-                completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
-                reply = completion.choices[0].message.content
+                # GROQ VISION (If image present)
+                if vision_url:
+                    completion = client.chat.completions.create(
+                        model="llama-3.2-11b-vision-preview",
+                        messages=[{
+                            "role": "user", 
+                            "content": [
+                                {"type": "text", "text": msg},
+                                {"type": "image_url", "image_url": {"url": vision_url}}
+                            ]
+                        }]
+                    )
+                    reply = completion.choices[0].message.content
+                else:
+                    # Normal Text Chat
+                    msgs = [{"role": "system", "content": base_system}]
+                    msgs.extend(chat["messages"][-6:])
+                    msgs.append({"role": "user", "content": msg}) # Explicitly add current msg
+                    completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
+                    reply = completion.choices[0].message.content
             else: reply = "⚠️ API Key missing."
 
     except Exception as e:
@@ -335,15 +404,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
     await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
     return {"reply": reply}
-
-# Admin Routes (Shortened for brevity as they were fine)
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_panel(request: Request):
-    user = await get_current_user(request)
-    if not user or user['email'] != ADMIN_EMAIL: return HTMLResponse("🚫 Access Denied", status_code=403)
-    all_users = await users_collection.find().to_list(length=100)
-    return templates.TemplateResponse("admin.html", {"request": request, "users": all_users, "total_users": len(all_users), "admin_email": ADMIN_EMAIL})
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

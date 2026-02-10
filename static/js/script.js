@@ -1,7 +1,59 @@
 let currentSessionId = null;
 let currentMode = 'chat';
 let abortController = null;
+// 👇 NEW: File storage variable
+let currentFile = null; 
 
+// 👇 NEW: File Handle Functions (Isse sabse upar rakhna safe hai)
+async function handleFileUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+        alert("File too large! Please upload under 5MB.");
+        input.value = ""; 
+        return;
+    }
+
+    // Preview UI
+    const wrapper = document.querySelector('.input-wrapper');
+    const oldPreview = document.getElementById('file-preview');
+    if(oldPreview) oldPreview.remove();
+
+    const previewDiv = document.createElement('div');
+    previewDiv.id = "file-preview";
+    previewDiv.className = "flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg mb-2 w-fit text-sm border border-gray-600 animate-pulse";
+    previewDiv.innerHTML = `
+        <i class="fas ${file.type.includes('image') ? 'fa-image text-pink-400' : 'fa-file-alt text-blue-400'}"></i>
+        <span>${file.name}</span>
+        <button onclick="clearFile()" class="text-gray-400 hover:text-white ml-2"><i class="fas fa-times"></i></button>
+    `;
+    // Input container se pehle insert karo
+    wrapper.insertBefore(previewDiv, wrapper.querySelector('.input-container'));
+
+    // Convert to Base64
+    const base64 = await toBase64(file);
+    currentFile = {
+        name: file.name,
+        type: file.type,
+        data: base64 
+    };
+}
+
+function clearFile() {
+    currentFile = null;
+    document.getElementById('file-upload').value = "";
+    const p = document.getElementById('file-preview');
+    if(p) p.remove();
+}
+
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
+// 👆 End of New Functions
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
 });
@@ -34,7 +86,8 @@ async function sendMessage() {
         return;
     }
 
-    if (!message) return;
+    // Allow empty message ONLY if file is attached
+    if (!message && !currentFile) return;
 
     if (!currentSessionId) {
         try {
@@ -46,8 +99,17 @@ async function sendMessage() {
     }
 
     if (welcomeScreen) welcomeScreen.style.display = 'none';
-    appendMessage('user', message);
+    
+    // UI mein file icon dikhao agar attached hai
+    let userDisplayMsg = message;
+    if (currentFile) userDisplayMsg += ` <br><small class="text-gray-300"><i class="fas fa-paperclip"></i> ${currentFile.name}</small>`;
+    
+    appendMessage('user', userDisplayMsg);
     inputField.value = '';
+
+    // Remove Preview from UI
+    const p = document.getElementById('file-preview');
+    if(p) p.style.display = 'none'; 
 
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
@@ -61,19 +123,29 @@ async function sendMessage() {
     let statusText = "Thinking";
     if (currentMode === 'coding') statusText = "Coding";
     else if (currentMode === 'image_gen') statusText = "Painting";
-    else if (currentMode === 'video') statusText = "Filming";
     
     loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}...</span> <div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
+        const payload = { 
+            message, 
+            session_id: currentSessionId, 
+            mode: currentMode,
+            file_data: currentFile ? currentFile.data : null, // 👇 Sending File Data
+            file_type: currentFile ? currentFile.type : null
+        };
+
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, session_id: currentSessionId, mode: currentMode }),
+            body: JSON.stringify(payload),
             signal: abortController.signal
         });
+
+        // Clear file after sending
+        clearFile();
 
         const data = await response.json();
         const currentLoader = document.getElementById("loading-bubble");

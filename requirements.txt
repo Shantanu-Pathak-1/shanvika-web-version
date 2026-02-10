@@ -12,3 +12,6 @@ groq
 openai
 duckduckgo-search
 google-generativeai
+PyPDF2
+python-docx
+python-multipart
