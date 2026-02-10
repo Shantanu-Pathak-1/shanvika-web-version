@@ -210,11 +210,17 @@ async def logout(request: Request):
     request.session.pop('user', None)
     return RedirectResponse(url="/login")
 
+# 👇 THIS IS THE UPDATED ROUTE
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     user = await get_current_user(request)
-    if not user: return RedirectResponse(url="/login")
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    
+    # Logic: Agar user login hai, toh Chat App dikhao
+    if user: 
+        return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    
+    # Agar user login NAHI hai, toh Hero Landing Page dikhao
+    return templates.TemplateResponse("landing.html", {"request": request})
 
 # --- USER API ---
 @app.get("/api/profile")
