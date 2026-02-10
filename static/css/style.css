@@ -23,36 +23,31 @@ main { position: relative; z-index: 10; }
 .dropdown-menu { z-index: 210 !important; }
 
 /* =========================================
-   🔥 2. ULTRA NEON SCROLLBARS (Visible Everywhere) 🔥
+   🔥 2. ULTRA NEON SCROLLBARS 🔥
    ========================================= */
-/* Sabhi elements par apply hoga */
 *::-webkit-scrollbar {
-    width: 8px;  /* Thoda mota kiya taaki dikhe */
+    width: 8px;
     height: 8px;
 }
 
-/* Track (Background) */
 *::-webkit-scrollbar-track {
     background: rgba(20, 20, 20, 0.5);
     border-left: 1px solid rgba(255,255,255,0.05);
 }
 
-/* Thumb (Handle) - Neon Cyan to Pink */
 *::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #06b6d4, #ec4899); /* Cyan to Pink */
+    background: linear-gradient(180deg, #06b6d4, #ec4899);
     border-radius: 10px;
-    border: 2px solid transparent; /* Padding effect */
+    border: 2px solid transparent;
     background-clip: content-box;
 }
 
-/* Hover Effect */
 *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #22d3ee, #f472b6); /* Brighter on hover */
-    background-clip: content-box;
+    background: linear-gradient(180deg, #22d3ee, #f472b6);
 }
 
 /* =========================================
-   3. SIDEBAR STYLING
+   3. SIDEBAR STYLING (FIXED LOGO ALIGNMENT)
    ========================================= */
 #sidebar { 
     position: fixed; left: 0; top: 0; bottom: 0;
@@ -76,42 +71,57 @@ main { position: relative; z-index: 10; }
     #sidebar.mobile-open .nav-label { opacity: 1; width: auto; }
 }
 
-/* Desktop Hover */
+/* Desktop Hover Logic (Crucial Fix for Logo) */
 @media (min-width: 768px) { 
+    /* Expanded State (Hover) */
     #sidebar:hover { width: 18rem; background: rgba(5, 5, 5, 0.95); }
     #sidebar:hover .nav-label { opacity: 1; width: auto; margin-left: 10px; }
+    
+    /* Collapsed State (Normal) - CENTERING FIX */
     #sidebar:not(:hover) .w-10, #sidebar:not(:hover) .w-9 { margin: 0 auto; }
-    #sidebar:not(:hover) .h-16 { justify-content: center; padding: 0; }
+    
+    /* Center the header content when collapsed */
+    #sidebar:not(:hover) .sidebar-header {
+        justify-content: center;
+        padding: 0;
+    }
+    
+    /* Force the logo container to center */
+    #sidebar:not(:hover) .sidebar-header > div {
+        justify-content: center;
+        width: 100%;
+    }
+
+    /* Hide the 'New Chat' button when collapsed so logo stays center */
+    #sidebar:not(:hover) .sidebar-header button {
+        display: none;
+    }
 }
 
 /* =========================================
    4. FULL WIDTH LAYOUT & INPUT
    ========================================= */
-/* Chat Container - Full Width */
 #chat-box { 
     width: 100%; 
     max-width: 100%; 
-    /* Default Mobile Padding */
     padding: 20px 20px; 
     padding-bottom: 220px !important; 
     flex: 1;
     overflow-y: auto;
 }
 
-/* 👇👇 YEH RAHA FIX (Desktop Par Gap Diya Hai) 👇👇 */
 @media (min-width: 768px) {
     #chat-box {
-        padding-left: 7rem; /* 5rem Sidebar + 2rem Gap */
+        padding-left: 7rem; /* Sidebar + Gap */
         padding-right: 2rem;
     }
 }
 
-/* Fixed Input Area */
 .input-fixed-bottom {
     position: fixed; 
     bottom: 0; 
-    left: 5rem; /* Start after sidebar */
-    right: 0;   /* Go to end */
+    left: 5rem; 
+    right: 0;
     width: auto;
     padding: 1rem 2rem;
     pointer-events: none;
@@ -123,14 +133,13 @@ main { position: relative; z-index: 10; }
 .input-wrapper { 
     pointer-events: auto;
     width: 100%; 
-    max-width: 1000px; /* Keep input centered max width */
+    max-width: 1000px; 
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* Mobile Input Fix */
 @media (max-width: 767px) {
     .input-fixed-bottom { left: 0; padding: 1rem; }
 }
@@ -182,35 +191,28 @@ main { position: relative; z-index: 10; }
 .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
 
 /* =========================================
-   6. 🌞 LIGHT MODE (Vibrant & Fixed)
+   6. 🌞 LIGHT MODE
    ========================================= */
 body.light-mode { background-color: #f3f4f6 !important; color: #1a1a1a !important; }
 body.light-mode canvas.vanta-canvas { display: block !important; opacity: 0.8; }
-
-/* Text Overrides */
 body.light-mode .text-white { color: #111 !important; }
 body.light-mode .text-gray-400 { color: #555 !important; }
 body.light-mode .text-gray-300 { color: #444 !important; }
 
-/* Sidebar Light */
 body.light-mode #sidebar { background: rgba(255, 255, 255, 0.8); border-right: 1px solid rgba(0,0,0,0.1); }
 body.light-mode #sidebar:hover { background: #f9fafb; }
 
-/* Input Light */
 body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
 body.light-mode .input-container { background: rgba(255, 255, 255, 0.9); border: 1px solid #ddd; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1); }
 body.light-mode input { color: #000 !important; }
 body.light-mode input::placeholder { color: #666; }
 
-/* Chat Light - Colorful */
 body.light-mode .msg-ai { background: rgba(255, 255, 255, 0.95); border: 1px solid #e5e7eb; color: #1f2937; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 body.light-mode .msg-user { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white !important; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
-/* Buttons Light - Colorful */
-body.light-mode .mode-btn { background: linear-gradient(135deg, #e0f2fe, #f3e8ff); border: 1px solid #d1d5db; color: #4b5563; font-weight: 600; }
+body.light-mode .mode-btn { background: linear-gradient(135deg, #e0f2fe, #f3e8ff); border: 1px solid #d1d5db; color: #4b5563; }
 body.light-mode .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6) !important; color: white !important; box-shadow: 0 4px 15px rgba(236,72,153,0.3); }
 
-/* Modal & Code Light */
 body.light-mode .modal-content { background: #ffffff; color: #000; border: 1px solid #e5e7eb; }
 body.light-mode .modal-content textarea, 
 body.light-mode .modal-content input { background-color: #f3f4f6; color: #000; border: 1px solid #d1d5db; }

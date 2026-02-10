@@ -4,12 +4,13 @@ let abortController = null;
 let currentFile = null;
 let vantaEffect = null;
 
-// 👇 INITIALIZATION
+// 👇 START HERE
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
+    loadProfile();
     initVanta();
     
-    // Character count logic
+    // Character count for settings
     const box = document.getElementById('custom-instruction-box');
     if(box) {
         box.addEventListener('input', function() {
@@ -19,11 +20,16 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================
-// ✨ VANTA BACKGROUND (No Changes - Perfect)
+// ✨ VANTA BACKGROUND
 // ==========================================
 function initVanta() {
-    if (vantaEffect) { vantaEffect.destroy(); vantaEffect = null; }
+    if (vantaEffect) {
+        vantaEffect.destroy();
+        vantaEffect = null;
+    }
+
     const isLight = document.body.classList.contains('light-mode');
+
     setTimeout(() => {
         try {
             if (isLight) {
@@ -31,7 +37,7 @@ function initVanta() {
             } else {
                 vantaEffect = VANTA.HALO({ el: "#vanta-bg", mouseControls: true, touchControls: true, minHeight: 200.00, minWidth: 200.00, baseColor: 0xca2cac, backgroundColor: 0x000000, amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40 });
             }
-        } catch (e) { console.log("Vanta Error:", e); }
+        } catch (e) { console.log("Vanta Init Error", e); }
     }, 100);
 }
 
@@ -41,15 +47,42 @@ function toggleTheme() {
 }
 
 // ==========================================
-// 📁 FILE HANDLING (Improved)
+// 👤 PROFILE SYNC LOGIC
+// ==========================================
+async function loadProfile() {
+    try {
+        const res = await fetch('/api/profile');
+        const data = await res.json();
+        
+        if (data.name) {
+            const nameEl = document.getElementById('profile-name-sidebar');
+            if(nameEl) nameEl.innerText = data.name;
+
+            const imgEl = document.getElementById('profile-img-sidebar');
+            const modalImg = document.getElementById('profile-img-modal');
+            const imgSrc = data.avatar || `https://ui-avatars.com/api/?name=${data.name}&background=random&color=fff`;
+            
+            if(imgEl) imgEl.src = imgSrc;
+            if(modalImg) modalImg.src = imgSrc;
+            
+            const inputEl = document.getElementById('profile-name-input');
+            if(inputEl) inputEl.value = data.name;
+        }
+    } catch (e) {
+        console.error("Profile load error:", e);
+    }
+}
+
+// ==========================================
+// 📁 FILE HANDLING
 // ==========================================
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
 
-    // Limit increased to 10MB for PDFs/Images
-    if (file.size > 10 * 1024 * 1024) {
-        alert("File too large! Please upload under 10MB.");
+    // Increased size limit for Converter (15MB)
+    if (file.size > 15 * 1024 * 1024) {
+        alert("File too large! Please upload under 15MB.");
         input.value = ""; return;
     }
 
@@ -57,31 +90,25 @@ async function handleFileUpload(input) {
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>';
     
-    // Remove old preview
+    const wrapper = document.querySelector('.input-wrapper');
     const oldPreview = document.getElementById('file-preview');
     if(oldPreview) oldPreview.remove();
 
-    // Show Preview
-    const wrapper = document.querySelector('.input-wrapper');
     const previewDiv = document.createElement('div');
     previewDiv.id = "file-preview";
     previewDiv.className = "flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg mb-2 w-fit text-sm border border-gray-600 animate-pulse";
     
     let iconClass = 'fa-file-alt text-blue-400';
-    if (file.type.startsWith('image/')) iconClass = 'fa-image text-pink-400';
+    if (file.type.includes('image')) iconClass = 'fa-image text-pink-400';
     else if (file.type.includes('pdf')) iconClass = 'fa-file-pdf text-red-400';
+    else if (file.type.includes('word') || file.name.endsWith('.docx')) iconClass = 'fa-file-word text-blue-600';
 
     previewDiv.innerHTML = `<i class="fas ${iconClass}"></i> <span>${file.name}</span> <span class="text-xs text-gray-400 ml-2">(Processing...)</span>`;
     wrapper.insertBefore(previewDiv, wrapper.querySelector('.input-container'));
 
     try {
         const base64 = await toBase64(file);
-        // Save file data explicitly
-        currentFile = { 
-            name: file.name, 
-            type: file.type, 
-            data: base64 // Contains "data:image/png;base64,..."
-        }; 
+        currentFile = { name: file.name, type: file.type, data: base64 };
         
         previewDiv.innerHTML = `
             <i class="fas ${iconClass}"></i> <span>${file.name}</span> 
@@ -93,13 +120,14 @@ async function handleFileUpload(input) {
         alert("Error reading file"); clearFile();
     } finally {
         sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+        sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>'; 
     }
 }
 
 function clearFile() {
     currentFile = null;
-    document.getElementById('file-upload').value = "";
+    const fileInput = document.getElementById('file-upload');
+    if(fileInput) fileInput.value = "";
     const p = document.getElementById('file-preview');
     if(p) p.remove();
 }
@@ -112,17 +140,18 @@ const toBase64 = file => new Promise((resolve, reject) => {
 });
 
 // ==========================================
-// 💬 CHAT LOGIC (Updated for New Modes)
+// 💬 CHAT LOGIC (BUG FIX HERE)
 // ==========================================
 async function createNewChat() {
     currentSessionId = null; 
     document.getElementById('chat-box').innerHTML = `
         <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-80 text-center animate-fade-in">
-            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-[0_0_30px_rgba(236,72,153,0.5)]">🌸</div>
+            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-2xl">🌸</div>
             <h2 class="text-3xl font-bold mb-2">Namaste!</h2>
             <p class="text-gray-400">Main taiyaar hu. Aaj kya create karein?</p>
         </div>`;
     window.history.pushState({}, document.title, "/");
+    clearFile(); // Clear file on new chat too
 }
 
 async function sendMessage() {
@@ -132,21 +161,29 @@ async function sendMessage() {
     const welcomeScreen = document.getElementById('welcome-screen');
     const message = inputField.value.trim();
 
-    // Abort Logic
+    // 👇👇 BUG FIX: STOP BUTTON LOGIC 👇👇
     if (abortController) {
         abortController.abort();
         abortController = null;
         const loader = document.getElementById("loading-bubble");
         if(loader) loader.remove();
+        
         sendBtnIcon.className = "fas fa-arrow-up";
         sendBtn.classList.remove("bg-red-500");
-        appendMessage('shanvika', "🛑 *Stopped.*");
+        
+        // IMPORTANT: File ko yahan clear karna zaroori hai
+        if(currentFile) {
+            appendMessage('shanvika', `🛑 *Stopped.* (Cancelled attachment: ${currentFile.name})`);
+            clearFile(); 
+        } else {
+            appendMessage('shanvika', "🛑 *Stopped.*");
+        }
         return;
     }
+    // 👆👆 BUG FIX END 👆👆
 
     if (!message && !currentFile) return;
 
-    // Create Session if not exists
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/new_chat');
@@ -158,43 +195,42 @@ async function sendMessage() {
 
     if (welcomeScreen) welcomeScreen.style.display = 'none';
     
-    // UI Update for User Message
     let displayMsg = message;
-    if (currentFile) displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block border border-gray-600"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
+    if (currentFile) displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
 
     appendMessage('user', displayMsg);
     inputField.value = '';
     const p = document.getElementById('file-preview');
     if(p) p.style.display = 'none';
 
-    // Start Loading State
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
     sendBtn.classList.add("bg-red-500");
 
-    // Dynamic Loading Text based on Mode
+    // Dynamic Loading Text
     let loadingText = "Thinking...";
-    if (currentMo) loadingText = "🎨 Painting...";
-    else if (currentMode === 'anime') loadingText = "✨ Converting to Anime...";
-    else if (currentMode === 'research') loadingText = "🔍 Searching Web...";
+    if (currentMode === 'image_gen') loadingText = "🎨 Painting...";
     else if (currentMode === 'converter') loadingText = "🔄 Converting File...";
+    else if (currentMode === 'anime') loadingText = "✨ Creating Anime...";
+    else if (currentMode === 'research') loadingText = "🔍 Researching...";
 
     const chatBox = document.getElementById('chat-box');
     const loadingDiv = document.createElement('div');
     loadingDiv.id = "loading-bubble";
-    loadingDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 w-fit mr-auto border border-gray-700 flex items-center gap-2";
-    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500 animate-pulse"></i> <span class="text-gray-400 text-sm">${loadingText}</span> <div class="typing-dot"></div>`;
+    loadingDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 w-fit mr-auto border border-gray-700 flex items-center gap-2 animate-fade-in";
+    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${loadingText}</span> <div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
         const payload = { 
-            message: message, 
-            session_id: currentSessionId, 
-            mode: currentMode,
+            message: message, session_id: currentSessionId, mode: currentMode,
             file_data: currentFile ? currentFile.data : null,
             file_type: currentFile ? currentFile.type : null
         };
+
+        // Clear file immediately after sending request data
+        clearFile();
 
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -203,13 +239,9 @@ async function sendMessage() {
             signal: abortController.signal
         });
 
-        // Response Received
         const data = await response.json();
         const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
-
-        // Clear file AFTER successful send to prevent resending
-        clearFile();
 
         if (data.reply) appendMessage('shanvika', data.reply);
         else appendMessage('shanvika', "⚠️ Empty response.");
@@ -217,11 +249,18 @@ async function sendMessage() {
     } catch (error) {
         const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
-        if (error.name !== 'AbortError') appendMessage('shanvika', "⚠️ Server Error or Timeout.");
+        
+        if (error.name === 'AbortError') {
+            // Already handled in the stop logic block above
+        } else {
+            appendMessage('shanvika', "⚠️ Connection Error or Timeout.");
+            console.error(error);
+        }
     } finally {
         abortController = null;
         sendBtnIcon.className = "fas fa-arrow-up";
         sendBtn.classList.remove("bg-red-500");
+        clearFile(); // Final safety clear
     }
 }
 
@@ -234,14 +273,11 @@ function appendMessage(sender, text) {
         msgDiv.innerHTML = text; 
     } else {
         msgDiv.className = "msg-ai animate-fade-in";
-        // Handle Images/Videos rendered by Backend HTML
-        if (text.includes("<img") || text.includes("<video")) {
+        if (text.includes("<img") || text.includes("<video") || text.includes("<a href")) {
             msgDiv.innerHTML = text;
         } else {
-            // Markdown Parsing
             msgDiv.innerHTML = marked.parse(text);
             msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
-            // Add Copy Buttons to Code Blocks
             msgDiv.querySelectorAll('pre').forEach((pre) => {
                 const btn = document.createElement('button');
                 btn.className = 'copy-btn';
@@ -261,7 +297,7 @@ function appendMessage(sender, text) {
 }
 
 // ==========================================
-// 📜 HISTORY, UI & SETTINGS (Same as before)
+// 📜 HISTORY & UI
 // ==========================================
 async function loadHistory() {
     try {
@@ -316,6 +352,7 @@ async function loadChat(sid) {
     const res = await fetch(`/api/chat/${sid}`);
     const data = await res.json();
     data.messages.forEach(msg => appendMessage(msg.role === 'user' ? 'user' : 'shanvika', msg.content));
+    clearFile(); // Load chat karte waqt bhi file clear karo
 }
 
 function setMode(mode, btn) {

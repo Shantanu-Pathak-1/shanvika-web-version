@@ -124,6 +124,9 @@ async def convert_to_anime(file_data, prompt):
 # ==========================================
 # 🔄 3. UNIVERSAL FILE CONVERTER
 # ==========================================
+# ==========================================
+# 🔄 UNIVERSAL FILE CONVERTER (Updated with Compression)
+# ==========================================
 async def perform_conversion(file_data, file_type, prompt):
     try:
         # Decode File
@@ -132,24 +135,47 @@ async def perform_conversion(file_data, file_type, prompt):
         file_bytes = base64.b64decode(encoded)
         
         prompt = prompt.lower()
-        target = "pdf"
+        
+        # Target Format Pehchanna
+        target = "pdf" # Default
         if "word" in prompt or "docx" in prompt: target = "docx"
         elif "png" in prompt: target = "png"
-        elif "jpg" in prompt: target = "jpeg"
-
-        # A. IMAGE CONVERSION
+        elif "jpg" in prompt or "jpeg" in prompt: target = "jpeg"
+        elif "webp" in prompt: target = "webp"
+        
+        # Check for Compression Request
+        should_compress = "compress" in prompt or "size" in prompt or "kam" in prompt
+        
+        # --- A. IMAGE OPERATIONS (Convert & Compress) ---
         if "image" in file_type:
             img = PIL.Image.open(io.BytesIO(file_bytes))
-            if target in ["jpeg", "pdf"] and img.mode in ("RGBA", "P"): img = img.convert("RGB")
+            
+            # Convert to RGB (zaroori hai JPG/PDF ke liye)
+            if img.mode in ("RGBA", "P"): img = img.convert("RGB")
             
             out = io.BytesIO()
-            img.save(out, format=target.upper())
-            out_b64 = base64.b64encode(out.getvalue()).decode("utf-8")
             
+            # Logic: Agar user ne 'Compress' bola hai toh Quality low kardo
+            if should_compress:
+                # Quality 30 means high compression (low size)
+                # Optimize=True extra bytes hata deta hai
+                img.save(out, format=target.upper(), optimize=True, quality=30)
+                msg_text = f"✅ **Compressed & Converted to {target.upper()}!**"
+            else:
+                # Normal Quality
+                img.save(out, format=target.upper(), quality=95)
+                msg_text = f"✅ **Converted to {target.upper()}!**"
+            
+            out_b64 = base64.b64encode(out.getvalue()).decode("utf-8")
             mime = "application/pdf" if target == "pdf" else f"image/{target}"
-            return f"""✅ **Converted:**<br><a href="data:{mime};base64,{out_b64}" download="converted.{target}" class="inline-block bg-green-600 text-white px-4 py-2 rounded mt-2">Download {target.upper()}</a>"""
+            
+            return f"""{msg_text}<br>
+                       <a href="data:{mime};base64,{out_b64}" download="shanvika_file.{target}" 
+                          class="inline-block bg-green-600 text-white px-4 py-2 rounded mt-2 hover:bg-green-500">
+                          <i class="fas fa-download"></i> Download File
+                       </a>"""
 
-        # B. PDF TO WORD
+        # --- B. PDF TO WORD (No Compression Support yet) ---
         elif "pdf" in file_type and target == "docx":
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(file_bytes)
@@ -164,13 +190,14 @@ async def perform_conversion(file_data, file_type, prompt):
                 with open(docx_path, "rb") as f:
                     out_b64 = base64.b64encode(f.read()).decode("utf-8")
                 
-                return f"""✅ **PDF to Word:**<br><a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{out_b64}" download="converted.docx" class="inline-block bg-blue-600 text-white px-4 py-2 rounded mt-2">Download Word</a>"""
-            except Exception as e: return f"⚠️ Error: {str(e)}"
+                return f"""✅ **PDF to Word Complete!**<br>
+                           <a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{out_b64}" download="converted.docx" class="inline-block bg-blue-600 text-white px-4 py-2 rounded mt-2">Download Word</a>"""
+            except Exception as e: return f"⚠️ Conversion Error: {str(e)}"
             finally:
                 if os.path.exists(tmp_path): os.remove(tmp_path)
                 if os.path.exists(docx_path): os.remove(docx_path)
         
-        return "⚠️ Please specify 'convert to pdf/word/png' etc."
+        return "⚠️ **Samjh nahi aaya:** Please likho 'Convert to png' ya 'Compress image'."
     except Exception as e: return f"⚠️ Error: {str(e)}"
 
 # ==========================================
