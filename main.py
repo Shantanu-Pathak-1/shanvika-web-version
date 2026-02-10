@@ -88,16 +88,25 @@ templates = Jinja2Templates(directory="templates")
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # --- NEW: GEMINI GENERATOR ---
+
 async def generate_gemini(prompt, system_instr):
     try:
-        # Gemini 1.5 Flash (Fast & Free)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 👇 MODEL NAME UPDATE KIYA HAI 👇
+        model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+        
         # Combine system instruction with user prompt
         full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
         response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
-        return f"⚠️ Gemini Error: {str(e)}"
+        # Fallback: Agar Flash na chale, to purana 'gemini-pro' try karo
+        try:
+            model = genai.GenerativeModel('gemini-pro')
+            full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
+            response = model.generate_content(full_prompt)
+            return response.text
+        except:
+            return f"⚠️ Gemini Error: {str(e)}"
 
 # --- MODELS ---
 class ChatRequest(BaseModel):
