@@ -18,6 +18,17 @@ from duckduckgo_search import DDGS
 
 app = FastAPI()
 
+# 👇👇👇 YE NAYA CODE HAI - ISKO ADD KARO 👇👇👇
+@app.middleware("http")
+async def fix_google_oauth_redirect(request: Request, call_next):
+    # Agar Render bata raha hai ki connection HTTPS tha, to usse maan lo
+    if request.headers.get("x-forwarded-proto") == "https":
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
+# 👆👆👆 YAHAN KHATAM HUA 👆👆👆
+
+# ... (Baki purana code: CORS Setup wagera) ...
 # ==========================================
 # 🔑 KEYS & CONFIG (SECRET RAKHNA)
 # ==========================================
@@ -34,7 +45,12 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 MONGO_URL = os.getenv("MONGO_URL") # MongoDB Connection String
 
 # 3. Setup Session (Zaroori hai login yaad rakhne ke liye)
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=SECRET_KEY, 
+    https_only=True,   # 👈 Ye loop rokega
+    same_site="lax"    # 👈 Ye cookie ko sambhalega
+)
 
 # 4. Setup Google OAuth
 oauth = OAuth()
