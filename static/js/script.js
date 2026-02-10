@@ -4,12 +4,12 @@ let abortController = null;
 let currentFile = null;
 let vantaEffect = null;
 
-// 👇 START HERE
+// 👇 INITIALIZATION
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
-    initVanta(); // Load Background
+    initVanta();
     
-    // Character count for settings
+    // Character count logic
     const box = document.getElementById('custom-instruction-box');
     if(box) {
         box.addEventListener('input', function() {
@@ -19,41 +19,19 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================
-// ✨ VANTA BACKGROUND LOGIC
+// ✨ VANTA BACKGROUND (No Changes - Perfect)
 // ==========================================
 function initVanta() {
-    if (vantaEffect) {
-        vantaEffect.destroy();
-        vantaEffect = null;
-    }
-
+    if (vantaEffect) { vantaEffect.destroy(); vantaEffect = null; }
     const isLight = document.body.classList.contains('light-mode');
-
     setTimeout(() => {
-        if (isLight) {
-            // Light Mode: Rings
-            try {
-                vantaEffect = VANTA.RINGS({
-                    el: "#vanta-bg",
-                    mouseControls: true, touchControls: true, gyroControls: false,
-                    minHeight: 200.00, minWidth: 200.00,
-                    scale: 1.00, scaleMobile: 1.00,
-                    backgroundColor: 0xffffff,
-                    color: 0xec4899
-                });
-            } catch (e) { console.log("Vanta Rings Failed", e); }
-        } else {
-            // Dark Mode: Halo
-            try {
-                vantaEffect = VANTA.HALO({
-                    el: "#vanta-bg",
-                    mouseControls: true, touchControls: true, gyroControls: false,
-                    minHeight: 200.00, minWidth: 200.00,
-                    baseColor: 0xca2cac, backgroundColor: 0x000000,
-                    amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40
-                });
-            } catch (e) { console.log("Vanta Halo Failed", e); }
-        }
+        try {
+            if (isLight) {
+                vantaEffect = VANTA.RINGS({ el: "#vanta-bg", mouseControls: true, touchControls: true, minHeight: 200.00, minWidth: 200.00, scale: 1.00, scaleMobile: 1.00, backgroundColor: 0xffffff, color: 0xec4899 });
+            } else {
+                vantaEffect = VANTA.HALO({ el: "#vanta-bg", mouseControls: true, touchControls: true, minHeight: 200.00, minWidth: 200.00, baseColor: 0xca2cac, backgroundColor: 0x000000, amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40 });
+            }
+        } catch (e) { console.log("Vanta Error:", e); }
     }, 100);
 }
 
@@ -63,32 +41,34 @@ function toggleTheme() {
 }
 
 // ==========================================
-// 📁 FILE HANDLING
+// 📁 FILE HANDLING (Improved)
 // ==========================================
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-        alert("File too large! Please upload under 5MB.");
+    // Limit increased to 10MB for PDFs/Images
+    if (file.size > 10 * 1024 * 1024) {
+        alert("File too large! Please upload under 10MB.");
         input.value = ""; return;
     }
 
     const sendBtn = document.querySelector('button[type="submit"]');
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>';
-    sendBtn.classList.add('cursor-not-allowed', 'opacity-50');
-
-    const wrapper = document.querySelector('.input-wrapper');
+    
+    // Remove old preview
     const oldPreview = document.getElementById('file-preview');
     if(oldPreview) oldPreview.remove();
 
+    // Show Preview
+    const wrapper = document.querySelector('.input-wrapper');
     const previewDiv = document.createElement('div');
     previewDiv.id = "file-preview";
     previewDiv.className = "flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg mb-2 w-fit text-sm border border-gray-600 animate-pulse";
     
     let iconClass = 'fa-file-alt text-blue-400';
-    if (file.type.includes('image')) iconClass = 'fa-image text-pink-400';
+    if (file.type.startsWith('image/')) iconClass = 'fa-image text-pink-400';
     else if (file.type.includes('pdf')) iconClass = 'fa-file-pdf text-red-400';
 
     previewDiv.innerHTML = `<i class="fas ${iconClass}"></i> <span>${file.name}</span> <span class="text-xs text-gray-400 ml-2">(Processing...)</span>`;
@@ -96,7 +76,12 @@ async function handleFileUpload(input) {
 
     try {
         const base64 = await toBase64(file);
-        currentFile = { name: file.name, type: file.type, data: base64 };
+        // Save file data explicitly
+        currentFile = { 
+            name: file.name, 
+            type: file.type, 
+            data: base64 // Contains "data:image/png;base64,..."
+        }; 
         
         previewDiv.innerHTML = `
             <i class="fas ${iconClass}"></i> <span>${file.name}</span> 
@@ -108,8 +93,7 @@ async function handleFileUpload(input) {
         alert("Error reading file"); clearFile();
     } finally {
         sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>'; 
-        sendBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+        sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
     }
 }
 
@@ -128,13 +112,13 @@ const toBase64 = file => new Promise((resolve, reject) => {
 });
 
 // ==========================================
-// 💬 CHAT LOGIC
+// 💬 CHAT LOGIC (Updated for New Modes)
 // ==========================================
 async function createNewChat() {
     currentSessionId = null; 
     document.getElementById('chat-box').innerHTML = `
         <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-80 text-center animate-fade-in">
-            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-2xl">🌸</div>
+            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-[0_0_30px_rgba(236,72,153,0.5)]">🌸</div>
             <h2 class="text-3xl font-bold mb-2">Namaste!</h2>
             <p class="text-gray-400">Main taiyaar hu. Aaj kya create karein?</p>
         </div>`;
@@ -148,6 +132,7 @@ async function sendMessage() {
     const welcomeScreen = document.getElementById('welcome-screen');
     const message = inputField.value.trim();
 
+    // Abort Logic
     if (abortController) {
         abortController.abort();
         abortController = null;
@@ -161,6 +146,7 @@ async function sendMessage() {
 
     if (!message && !currentFile) return;
 
+    // Create Session if not exists
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/new_chat');
@@ -172,29 +158,40 @@ async function sendMessage() {
 
     if (welcomeScreen) welcomeScreen.style.display = 'none';
     
+    // UI Update for User Message
     let displayMsg = message;
-    if (currentFile) displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
+    if (currentFile) displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block border border-gray-600"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
 
     appendMessage('user', displayMsg);
     inputField.value = '';
     const p = document.getElementById('file-preview');
     if(p) p.style.display = 'none';
 
+    // Start Loading State
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
     sendBtn.classList.add("bg-red-500");
+
+    // Dynamic Loading Text based on Mode
+    let loadingText = "Thinking...";
+    if (currentMode === 'image_gen') loadingText = "🎨 Painting...";
+    else if (currentMode === 'video') loadingText = "🎥 Filming (Wait 60s)...";
+    else if (currentMode === 'anime') loadingText = "✨ Converting to Anime...";
+    else if (currentMode === 'research') loadingText = "🔍 Searching Web...";
 
     const chatBox = document.getElementById('chat-box');
     const loadingDiv = document.createElement('div');
     loadingDiv.id = "loading-bubble";
     loadingDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 w-fit mr-auto border border-gray-700 flex items-center gap-2";
-    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">Thinking...</span> <div class="typing-dot"></div>`;
+    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500 animate-pulse"></i> <span class="text-gray-400 text-sm">${loadingText}</span> <div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
         const payload = { 
-            message: message, session_id: currentSessionId, mode: currentMode,
+            message: message, 
+            session_id: currentSessionId, 
+            mode: currentMode,
             file_data: currentFile ? currentFile.data : null,
             file_type: currentFile ? currentFile.type : null
         };
@@ -206,10 +203,13 @@ async function sendMessage() {
             signal: abortController.signal
         });
 
-        clearFile();
+        // Response Received
         const data = await response.json();
         const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
+
+        // Clear file AFTER successful send to prevent resending
+        clearFile();
 
         if (data.reply) appendMessage('shanvika', data.reply);
         else appendMessage('shanvika', "⚠️ Empty response.");
@@ -217,7 +217,7 @@ async function sendMessage() {
     } catch (error) {
         const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
-        if (error.name !== 'AbortError') appendMessage('shanvika', "⚠️ Connection Error.");
+        if (error.name !== 'AbortError') appendMessage('shanvika', "⚠️ Server Error or Timeout.");
     } finally {
         abortController = null;
         sendBtnIcon.className = "fas fa-arrow-up";
@@ -230,15 +230,18 @@ function appendMessage(sender, text) {
     const msgDiv = document.createElement('div');
     
     if (sender === 'user') {
-        msgDiv.className = "msg-user";
+        msgDiv.className = "msg-user animate-fade-in";
         msgDiv.innerHTML = text; 
     } else {
-        msgDiv.className = "msg-ai";
+        msgDiv.className = "msg-ai animate-fade-in";
+        // Handle Images/Videos rendered by Backend HTML
         if (text.includes("<img") || text.includes("<video")) {
             msgDiv.innerHTML = text;
         } else {
+            // Markdown Parsing
             msgDiv.innerHTML = marked.parse(text);
             msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+            // Add Copy Buttons to Code Blocks
             msgDiv.querySelectorAll('pre').forEach((pre) => {
                 const btn = document.createElement('button');
                 btn.className = 'copy-btn';
@@ -258,7 +261,7 @@ function appendMessage(sender, text) {
 }
 
 // ==========================================
-// 📜 HISTORY & UI
+// 📜 HISTORY, UI & SETTINGS (Same as before)
 // ==========================================
 async function loadHistory() {
     try {
@@ -330,3 +333,9 @@ function openSettingsModal() { document.getElementById('settings-modal').style.d
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
 async function saveProfile() { closeModal('profile-modal'); }
+async function saveInstructions() {
+    const text = document.getElementById('custom-instruction-box').value;
+    await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: text }) });
+    closeModal('settings-modal');
+    alert("Instructions Saved!");
+}
