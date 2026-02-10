@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,46 +15,48 @@ import httpx
 from groq import Groq
 from openai import OpenAI
 from duckduckgo_search import DDGS
+import google.generativeai as genai  # 👈 New Import for Gemini
 
 app = FastAPI()
 
-# 👇👇👇 YE NAYA CODE HAI - ISKO ADD KARO 👇👇👇
+# 👇👇👇 HTTPS LOOP FIX 👇👇👇
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
-    # Agar Render bata raha hai ki connection HTTPS tha, to usse maan lo
     if request.headers.get("x-forwarded-proto") == "https":
         request.scope["scheme"] = "https"
     response = await call_next(request)
     return response
-# 👆👆👆 YAHAN KHATAM HUA 👆👆👆
 
-# ... (Baki purana code: CORS Setup wagera) ...
 # ==========================================
-# 🔑 KEYS & CONFIG (SECRET RAKHNA)
+# 🔑 KEYS & CONFIG
 # ==========================================
-# 👇 Apna Asli Email yahan likho (Jisse tum login karte ho)
 ADMIN_EMAIL = "shantanupathak94@gmail.com"
 
 # 1. Google & Security Keys
-SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika") # Session ke liye
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "PASTE_YOUR_CLIENT_ID_HERE_IF_LOCAL")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "PASTE_YOUR_CLIENT_SECRET_HERE_IF_LOCAL")
+SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 # 2. AI & DB Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-MONGO_URL = os.getenv("MONGO_URL") # MongoDB Connection String
+MONGO_URL = os.getenv("MONGO_URL")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # 👈 Gemini Key
 
-# 3. Setup Session (Zaroori hai login yaad rakhne ke liye)
+# 3. Configure Gemini
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+# 4. Setup Session
 app.add_middleware(
     SessionMiddleware, 
     secret_key=SECRET_KEY, 
-    https_only=True,   # 👈 Ye loop rokega
-    same_site="lax"    # 👈 Ye cookie ko sambhalega
+    https_only=True,   
+    same_site="lax"    
 )
 
-# 4. Setup Google OAuth
+# 5. Setup Google OAuth
 oauth = OAuth()
 oauth.register(
     name='google',
@@ -64,9 +66,9 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# 5. Connect to MongoDB
+# 6. Connect to MongoDB
 client = AsyncIOMotorClient(MONGO_URL)
-db = client.shanvika_db  # Database Name
+db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
 
@@ -84,7 +86,18 @@ templates = Jinja2Templates(directory="templates")
 
 # --- AI CLIENTS ---
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-def get_deepseek(): return OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
+
+# --- NEW: GEMINI GENERATOR ---
+async def generate_gemini(prompt, system_instr):
+    try:
+        # Gemini 1.5 Flash (Fast & Free)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Combine system instruction with user prompt
+        full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
+        response = model.generate_content(full_prompt)
+        return response.text
+    except Exception as e:
+        return f"⚠️ Gemini Error: {str(e)}"
 
 # --- MODELS ---
 class ChatRequest(BaseModel):
@@ -99,6 +112,9 @@ class RenameRequest(BaseModel):
 
 class ProfileRequest(BaseModel):
     name: str
+
+class InstructionRequest(BaseModel): # 👈 New Model for Custom Instructions
+    instruction: str
 
 # --- HELPER FUNCTIONS ---
 async def get_current_user(request: Request):
@@ -133,7 +149,7 @@ async def generate_image_hf(prompt):
     except Exception as e: return f"⚠️ **Error:** {str(e)}"
 
 # ==========================================
-# 🚀 AUTH ROUTES (Login/Logout)
+# 🚀 AUTH ROUTES
 # ==========================================
 
 @app.get("/login", response_class=HTMLResponse)
@@ -142,9 +158,7 @@ async def login_page(request: Request):
 
 @app.get("/auth/login")
 async def login(request: Request):
-    # Determine callback URL based on environment (Local vs Render)
     redirect_uri = str(request.url_for('auth_callback'))
-    # Fix for Render (Ensure HTTPS)
     if "onrender.com" in redirect_uri:
         redirect_uri = redirect_uri.replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
@@ -157,8 +171,6 @@ async def auth_callback(request: Request):
         
         if user_info:
             request.session['user'] = dict(user_info)
-            
-            # Save User to MongoDB if not exists
             email = user_info.get('email')
             existing_user = await users_collection.find_one({"email": email})
             
@@ -167,7 +179,8 @@ async def auth_callback(request: Request):
                     "email": email,
                     "name": user_info.get('name'),
                     "picture": user_info.get('picture'),
-                    "role": "user" # Default role
+                    "role": "user",
+                    "custom_instruction": "" # 👈 New field init
                 })
                 
         return RedirectResponse(url="/")
@@ -181,14 +194,13 @@ async def logout(request: Request):
     return RedirectResponse(url="/login")
 
 # ==========================================
-# 💬 APP ROUTES (Protected)
+# 💬 APP ROUTES & API
 # ==========================================
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     user = await get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login")
+    if not user: return RedirectResponse(url="/login")
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 @app.get("/api/profile")
@@ -196,13 +208,13 @@ async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {"name": "Guest", "avatar": ""}
     
-    # Fetch latest data from DB
     db_user = await users_collection.find_one({"email": user['email']})
     
     return {
         "name": db_user.get("name", user['name']),
         "avatar": db_user.get("picture", user['picture']),
-        "email": user['email']
+        "email": user['email'],
+        "custom_instruction": db_user.get("custom_instruction", "") # 👈 Send to frontend
     }
 
 @app.post("/api/update_profile_name")
@@ -215,31 +227,34 @@ async def update_profile_name(req: ProfileRequest, request: Request):
         )
     return {"status": "success"}
 
+@app.post("/api/update_instructions")
+async def update_instructions(req: InstructionRequest, request: Request):
+    user = await get_current_user(request)
+    if user:
+        # Save instruction (Limit to 1000 chars safe side)
+        await users_collection.update_one(
+            {"email": user['email']},
+            {"$set": {"custom_instruction": req.instruction[:1000]}}
+        )
+    return {"status": "success"}
+
 @app.get("/api/history")
 async def get_history(request: Request):
     user = await get_current_user(request)
     if not user: return {"history": []}
-    
-    # Fetch chats ONLY for this user from MongoDB
     cursor = chats_collection.find({"user_email": user['email']})
     history = []
     async for chat in cursor:
         history.append({"id": chat["session_id"], "title": chat.get("title", "New Chat")})
-    
     return {"history": list(reversed(history))}
 
 @app.get("/api/new_chat")
 async def create_chat(request: Request):
     user = await get_current_user(request)
     if not user: return {"error": "Not logged in"}
-    
     new_id = str(uuid.uuid4())[:8]
-    # Create empty chat in DB
     await chats_collection.insert_one({
-        "session_id": new_id,
-        "user_email": user['email'],
-        "title": "New Chat",
-        "messages": []
+        "session_id": new_id, "user_email": user['email'], "title": "New Chat", "messages": []
     })
     return {"session_id": new_id, "messages": []}
 
@@ -247,7 +262,6 @@ async def create_chat(request: Request):
 async def get_chat_content(session_id: str, request: Request):
     user = await get_current_user(request)
     if not user: return {"messages": []}
-    
     chat = await chats_collection.find_one({"session_id": session_id, "user_email": user['email']})
     return {"messages": chat.get("messages", []) if chat else []}
 
@@ -279,69 +293,72 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     msg = req.message
     img_data = req.image 
     
-    # Fetch Chat from DB
-    chat = await chats_collection.find_one({"session_id": sid, "user_email": user['email']})
+    # 1. Fetch User Data (Custom Instructions)
+    db_user = await users_collection.find_one({"email": user['email']})
+    custom_instr = db_user.get("custom_instruction", "") if db_user else ""
+
+    # 2. Build Base System Prompt
+    base_system = "You are Shanvika AI."
+    if custom_instr:
+        base_system += f"\n\nIMPORTANT USER INSTRUCTION (Follow this personality/language):\n{custom_instr}\n\n"
+
+    # 3. Add Mode Specifics
+    if mode == "coding": base_system += " You are an Expert Coder. Write clean, bug-free code."
+    elif mode == "anime": base_system += " You are an Anime Expert (Otaku)."
+    elif mode == "video": base_system += " You are a Script Writer."
     
+    # Fetch/Create Chat
+    chat = await chats_collection.find_one({"session_id": sid, "user_email": user['email']})
     if not chat:
-        # Emergency creation if not found
         chat = {"session_id": sid, "user_email": user['email'], "title": "New Chat", "messages": []}
         await chats_collection.insert_one(chat)
     
-    # Update Title if first message
     if len(chat["messages"]) == 0:
-        new_title = " ".join(msg.split()[:5])
-        await chats_collection.update_one({"session_id": sid}, {"$set": {"title": new_title}})
+        await chats_collection.update_one({"session_id": sid}, {"$set": {"title": msg[:30]}})
 
     user_content = msg
     if img_data: user_content += " [🖼️ Image Uploaded]"
     
-    # Add User Message to DB
-    await chats_collection.update_one(
-        {"session_id": sid},
-        {"$push": {"messages": {"role": "user", "content": user_content}}}
-    )
+    await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": user_content}}})
 
     reply = ""
     try:
-        # ... (SAME AI LOGIC AS BEFORE) ...
+        # --- AI ROUTING ---
         if mode == "image_gen":
             reply = await generate_image_hf(msg)
+
+        elif mode == "coding":
+            # ⚡ Use Gemini for Coding
+            reply = await generate_gemini(msg, base_system)
 
         elif mode == "research":
             research_data = await asyncio.to_thread(perform_research, msg)
             client = get_groq()
             if research_data and client:
                 completion = client.chat.completions.create(
-                    messages=[{"role": "system", "content": f"Summarize:\n{research_data}"}, {"role": "user", "content": msg}],
+                    messages=[{"role": "system", "content": base_system}, {"role": "user", "content": f"Data: {research_data}\nQuery: {msg}"}],
                     model="llama-3.3-70b-versatile"
                 )
                 reply = completion.choices[0].message.content
-            else:
-                reply = research_data if research_data else "⚠️ No results."
+            else: reply = research_data if research_data else "⚠️ No results."
 
         else:
-            sys_instr = "You are Shanvika AI."
-            if mode == "coding": sys_instr += " Expert Coder."
-            elif mode == "anime": sys_instr += " Anime expert."
-            elif mode == "video": sys_instr += " Video Script Writer."
-
+            # Default Chat (Groq) with Custom Instructions
             if img_data:
                 client = get_groq()
                 if client:
                     completion = client.chat.completions.create(
                         model="llama-3.2-11b-vision-preview",
-                        messages=[{"role": "user", "content": [{"type": "text", "text": f"{sys_instr}\nQuery: {msg}"}, {"type": "image_url", "image_url": {"url": img_data}}]}]
+                        messages=[{"role": "user", "content": [{"type": "text", "text": f"{base_system}\nQuery: {msg}"}, {"type": "image_url", "image_url": {"url": img_data}}]}]
                     )
                     reply = completion.choices[0].message.content
                 else: reply = "⚠️ Groq Key missing."
             else:
-                client = get_deepseek() if mode == "coding" else get_groq()
-                model = "deepseek-chat" if mode == "coding" else "llama-3.3-70b-versatile"
+                client = get_groq()
                 if client:
-                    msgs = [{"role": "system", "content": sys_instr}]
-                    # Pass previous messages (History context)
+                    msgs = [{"role": "system", "content": base_system}] # Base system has custom instructions now
                     msgs.extend(chat["messages"][-10:])
-                    completion = client.chat.completions.create(model=model, messages=msgs)
+                    completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
                     reply = completion.choices[0].message.content
                 else: reply = "⚠️ API Key missing."
 
@@ -349,16 +366,11 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         reply = f"⚠️ Error: {str(e)}"
         print(f"Error Log: {e}")
 
-    # Save Assistant Reply to DB
-    await chats_collection.update_one(
-        {"session_id": sid},
-        {"$push": {"messages": {"role": "assistant", "content": reply}}}
-    )
-    
+    await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
     return {"reply": reply}
 
 # ==========================================
-# 👑 ADMIN PANEL ROUTES (GOD MODE)
+# 👑 ADMIN PANEL ROUTES
 # ==========================================
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -366,11 +378,9 @@ async def admin_panel(request: Request):
     user = await get_current_user(request)
     if not user: return RedirectResponse(url="/login")
     
-    # 🔒 SIRF ADMIN ALLOWED HAI
     if user['email'] != ADMIN_EMAIL:
         return HTMLResponse("<h1>🚫 Access Denied! Sirf Shantanu (Admin) yahan aa sakta hai.</h1>", status_code=403)
 
-    # Database se saare users aur chats count karo
     all_users = await users_collection.find().to_list(length=100)
     total_chats = await chats_collection.count_documents({})
     
@@ -385,18 +395,14 @@ async def admin_panel(request: Request):
 @app.post("/admin/delete_user")
 async def delete_user(request: Request):
     user = await get_current_user(request)
-    # Security Check
     if not user or user['email'] != ADMIN_EMAIL:
         return {"error": "Unauthorized"}
     
     form = await request.form()
     target_email = form.get("email")
-    
     if target_email:
-        # User ko aur uski saari chats ko delete karo
         await users_collection.delete_one({"email": target_email})
         await chats_collection.delete_many({"user_email": target_email})
-        
     return RedirectResponse(url="/admin", status_code=303)
 
 if __name__ == "__main__":
