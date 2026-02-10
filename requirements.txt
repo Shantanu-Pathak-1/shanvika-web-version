@@ -2,7 +2,12 @@ fastapi
 uvicorn
 python-multipart
 jinja2
-httpx
 groq
 openai
 duckduckgo-search
+httpx
+pydantic
+authlib
+itsdangerous
+motor
+dnspython
