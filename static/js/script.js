@@ -270,56 +270,55 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // 👇 2. Naya Vanta Logic (Switching Magic)
+let vantaEffect = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadHistory();
+    initVanta(); // Load hote hi sahi effect chalao
+});
+
 function initVanta() {
-    // Agar pehle se koi effect chal raha hai, toh usse roko (Memory Leak bachane ke liye)
-    if (vantaEffect) vantaEffect.destroy();
+    // 🛑 AGAR PURANA EFFECT HAI TOH USSE KHATAM KARO
+    if (vantaEffect) {
+        vantaEffect.destroy();
+        vantaEffect = null;
+    }
 
     const isLight = document.body.classList.contains('light-mode');
 
-    if (isLight) {
-        // 🌞 LIGHT MODE: RINGS EFFECT
-        try {
-            vantaEffect = VANTA.RINGS({
-                el: "#vanta-bg",
-                mouseControls: true,
-                touchControls: true,
-                gyroControls: false,
-                minHeight: 200.00,
-                minWidth: 200.00,
-                scale: 1.00,
-                scaleMobile: 1.00,
-                backgroundColor: 0xffffff, // White Background
-                color: 0xec4899 // Pinkish Ring (Shanvika Theme)
-                // Aapka color: 0xffd1 (Cyan) bhi use kar sakte ho -> color: 0x00ffd1
-            });
-        } catch (e) { console.log("Vanta Rings Failed", e); }
-    } else {
-        // 🌑 DARK MODE: HALO EFFECT
-        try {
-            vantaEffect = VANTA.HALO({
-                el: "#vanta-bg",
-                mouseControls: true,
-                touchControls: true,
-                gyroControls: false,
-                minHeight: 200.00,
-                minWidth: 200.00,
-                baseColor: 0xca2cac,
-                backgroundColor: 0x000000,
-                amplitudeFactor: 3.00,
-                xOffset: -0.01,
-                yOffset: 0.06,
-                size: 1.40
-            });
-        } catch (e) { console.log("Vanta Halo Failed", e); }
-    }
+    // Thoda delay dete hain taaki canvas clear ho jaye
+    setTimeout(() => {
+        if (isLight) {
+            // 🌞 LIGHT MODE: RINGS (White & Pink)
+            try {
+                vantaEffect = VANTA.RINGS({
+                    el: "#vanta-bg",
+                    mouseControls: true, touchControls: true, gyroControls: false,
+                    minHeight: 200.00, minWidth: 200.00,
+                    scale: 1.00, scaleMobile: 1.00,
+                    backgroundColor: 0xffffff, // Safed Background
+                    color: 0xec4899 // Pink Rings
+                });
+            } catch (e) { console.log("Vanta Rings Failed", e); }
+        } else {
+            // 🌑 DARK MODE: HALO (Black & Purple)
+            try {
+                vantaEffect = VANTA.HALO({
+                    el: "#vanta-bg",
+                    mouseControls: true, touchControls: true, gyroControls: false,
+                    minHeight: 200.00, minWidth: 200.00,
+                    baseColor: 0xca2cac, backgroundColor: 0x000000,
+                    amplitudeFactor: 3.00, xOffset: -0.01, yOffset: 0.06, size: 1.40
+                });
+            } catch (e) { console.log("Vanta Halo Failed", e); }
+        }
+    }, 100);
 }
 
-// 👇 3. Toggle Theme function ko update karo taaki wo effect switch kare
 function toggleTheme() {
     document.body.classList.toggle('light-mode');
-    document.body.classList.toggle('dark-mode');
     
-    // Theme badalne par Effect restart karo
+    // Theme change hone par Vanta refresh karo
     initVanta();
 }
 function openProfileModal() { 
