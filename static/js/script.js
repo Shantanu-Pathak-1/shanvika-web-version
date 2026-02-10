@@ -2,13 +2,10 @@ let currentSessionId = null;
 let currentMode = 'chat';
 let abortController = null;
 
-// 👇 UI Setup on Load
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
-    // No createNewChat() call here. Wait for user action.
 });
 
-// User Clicks "New Chat"
 async function createNewChat() {
     currentSessionId = null; 
     document.getElementById('chat-box').innerHTML = `
@@ -39,24 +36,19 @@ async function sendMessage() {
 
     if (!message) return;
 
-    // 👇 LAZY CREATE: Chat tabhi banao jab user message bheje
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/new_chat');
             const data = await res.json();
             currentSessionId = data.session_id;
             loadHistory(); 
-        } catch (e) {
-            console.error("Failed to create session", e);
-            return;
-        }
+        } catch (e) { return; }
     }
 
     if (welcomeScreen) welcomeScreen.style.display = 'none';
     appendMessage('user', message);
     inputField.value = '';
 
-    // UI Loading State
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
     sendBtnIcon.parentElement.classList.add("bg-red-500");
@@ -69,8 +61,9 @@ async function sendMessage() {
     let statusText = "Thinking";
     if (currentMode === 'coding') statusText = "Coding";
     else if (currentMode === 'image_gen') statusText = "Painting";
+    else if (currentMode === 'video') statusText = "Filming";
     
-    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}</span> <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}...</span> <div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -108,28 +101,40 @@ function appendMessage(sender, text) {
         msgDiv.className = "p-3 mb-4 rounded-2xl bg-blue-600 text-white w-fit max-w-[85%] ml-auto break-words shadow-lg";
         msgDiv.innerText = text;
     } else {
-        msgDiv.className = "msg-ai p-4 mb-4 rounded-2xl w-fit max-w-[85%] mr-auto break-words shadow-lg";
-        msgDiv.innerHTML = marked.parse(text);
-        msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+        msgDiv.className = "msg-ai p-4 mb-4 rounded-2xl w-fit max-w-[85%] mr-auto break-words shadow-lg bg-gray-800 border border-gray-700 text-gray-200";
         
-        msgDiv.querySelectorAll('pre').forEach((pre) => {
-            const btn = document.createElement('button');
-            btn.className = 'copy-btn';
-            btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
-            btn.addEventListener('click', () => {
-                const code = pre.querySelector('code').innerText;
-                navigator.clipboard.writeText(code);
-                btn.innerHTML = '<i class="fas fa-check"></i>';
-                setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copy', 2000);
+        // 👇 CHECK: Agar text mein Image/Video HTML hai, toh direct HTML use karo (No Markdown)
+        if (text.includes("<img") || text.includes("<video")) {
+            msgDiv.innerHTML = text; 
+        } else {
+            // Normal text ke liye Markdown
+            msgDiv.innerHTML = marked.parse(text);
+            msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+            
+            // Copy buttons code (Same as before)
+            msgDiv.querySelectorAll('pre').forEach((pre) => {
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                btn.addEventListener('click', () => {
+                    const code = pre.querySelector('code').innerText;
+                    navigator.clipboard.writeText(code);
+                    btn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copy', 2000);
+                });
+                pre.appendChild(btn);
             });
-            pre.appendChild(btn);
-        });
+        }
     }
     chatBox.appendChild(msgDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// 👇 UPDATED HISTORY (ICON VIEW)
+// ... (Baaki functions same rahenge: loadHistory, showDropdown, deleteChat, renameChat, setMode, etc.)
+// Agar tumne wo functions already likhe hain toh unhe yahan wapas likhne ki zaroorat nahi hai, 
+// bas 'appendMessage' aur 'sendMessage' ko update karna zaroori tha.
+// Lekin safety ke liye main baaki functions bhi niche de raha hu:
+
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
@@ -138,7 +143,6 @@ async function loadHistory() {
         list.innerHTML = '';
         data.history.forEach(chat => {
             const div = document.createElement('div');
-            // Flex Layout: Icon Left | Text Center | Menu Right
             div.className = "p-3 mb-1 hover:bg-white/5 rounded-xl cursor-pointer text-sm text-gray-300 relative group flex items-center gap-3 transition-all";
             div.innerHTML = `
                 <i class="fas fa-comment-alt text-gray-500 group-hover:text-pink-400 text-lg shrink-0"></i> 
@@ -202,7 +206,12 @@ function setMode(mode, btn) {
 function openSettingsModal() { document.getElementById('settings-modal').style.display = 'block'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
-// Profile Functions omitted (same as before)
-async function saveProfile() { /* ... existing code ... */ }
-async function uploadAvatar(input) { /* ... existing code ... */ }
 function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
+async function saveProfile() { /* Impl */ }
+async function saveInstructions() { 
+    const txt = document.getElementById('custom-instruction-box').value;
+    await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: txt }) });
+    closeModal('settings-modal');
+    alert("Saved!");
+}
+async function uploadAvatar(input) { /* Impl */ }

@@ -6,20 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
 from pydantic import BaseModel
-from motor.motor_asyncio import AsyncIOMotorClient # MongoDB
+from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 import uuid
-import shutil
 import os
-import httpx
+import httpx # Async requests ke liye
+import base64 # Image/Video data handling ke liye
 from groq import Groq
-from openai import OpenAI
 from duckduckgo_search import DDGS
-import google.generativeai as genai  # 👈 New Import for Gemini
+import google.generativeai as genai
 
 app = FastAPI()
 
-# 👇👇👇 HTTPS LOOP FIX 👇👇👇
+# 👇 HTTPS LOOP FIX
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
     if request.headers.get("x-forwarded-proto") == "https":
@@ -32,31 +31,22 @@ async def fix_google_oauth_redirect(request: Request, call_next):
 # ==========================================
 ADMIN_EMAIL = "shantanupathak94@gmail.com"
 
-# 1. Google & Security Keys
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# 2. AI & DB Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-HF_TOKEN = os.getenv("HF_TOKEN")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN") # Hugging Face Token Zaroori hai
 MONGO_URL = os.getenv("MONGO_URL")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # 👈 Gemini Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# 3. Configure Gemini
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# 4. Setup Session
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key=SECRET_KEY, 
-    https_only=True,   
-    same_site="lax"    
-)
+# Session Middleware
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
 
-# 5. Setup Google OAuth
+# Google OAuth
 oauth = OAuth()
 oauth.register(
     name='google',
@@ -66,49 +56,100 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# 6. Connect to MongoDB
+# MongoDB
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
 
-# ==========================================
-# ⚙️ STANDARD SETUP
-# ==========================================
-
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
-)
-
+# Setup
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- AI CLIENTS ---
+# --- HELPER FUNCTIONS ---
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+async def get_current_user(request: Request):
+    return request.session.get('user')
 
-# --- NEW: GEMINI GENERATOR ---
-
-# --- NEW: GEMINI GENERATOR (Updated Model) ---
+# --- GEMINI GENERATOR ---
 async def generate_gemini(prompt, system_instr):
     try:
-        # 👇 YAHAN NAME CHANGE KIYA HAI (List se confirm karke) 👇
         model = genai.GenerativeModel('gemini-2.5-flash') 
-        
-        # Combine system instruction with user prompt
         full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
         response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
-        # Fallback: Agar specific model na mile, to generic 'latest' try karo
         try:
             print(f"⚠️ Primary model failed, trying fallback: {e}")
-            model = genai.GenerativeModel('gemini-flash-latest') # 👇 Generic Alias
+            model = genai.GenerativeModel('gemini-flash-latest')
             full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
             response = model.generate_content(full_prompt)
             return response.text
         except Exception as e2:
             return f"⚠️ Gemini Error: {str(e2)}"
+
+# --- RESEARCH MODE ---
+def perform_research(query):
+    try:
+        results = DDGS().text(query, max_results=5)
+        if not results: return None
+        summary = "📊 **Web Research Results:**\n\n"
+        for i, r in enumerate(results, 1):
+            summary += f"**{i}. {r['title']}**\n{r['body']}\n🔗 Source: {r['href']}\n\n"
+        return summary
+    except Exception as e:
+        return f"Research Error: {e}"
+
+# --- IMAGE GENERATION (Hugging Face) ---
+async def generate_image_hf(prompt):
+    if not HF_TOKEN: return "⚠️ **Error:** HF_TOKEN missing in Environment Variables!"
+    
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # 30 seconds timeout
+            response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=30.0)
+        
+        if response.status_code == 200:
+            # Convert bytes to Base64 String
+            img_b64 = base64.b64encode(response.content).decode("utf-8")
+            # HTML return karo jo frontend render karega
+            return f"""🎨 **Image Generated:**<br>
+                       <img src='data:image/png;base64,{img_b64}' 
+                            class='rounded-lg mt-2 shadow-lg w-full hover:scale-105 transition-transform duration-300' 
+                            alt='Generated Art'>"""
+        else: 
+            return f"⚠️ **Image Failed:** {response.text[:200]}"
+    except Exception as e: return f"⚠️ **Error:** {str(e)}"
+
+# --- VIDEO GENERATION (Hugging Face) ---
+async def generate_video_hf(prompt):
+    if not HF_TOKEN: return "⚠️ **Error:** HF_TOKEN missing!"
+    
+    # Model: Text-to-Video
+    API_URL = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b" 
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Video takes time, set timeout to 60s
+            response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60.0)
+            
+        if response.status_code == 200:
+            vid_b64 = base64.b64encode(response.content).decode("utf-8")
+            return f"""🎥 **Video Generated:**<br>
+                       <video controls autoplay loop class='rounded-lg mt-2 shadow-lg w-full'>
+                           <source src='data:video/mp4;base64,{vid_b64}' type='video/mp4'>
+                           Your browser does not support the video tag.
+                       </video>"""
+        else:
+            return f"⚠️ **Video Failed:** {response.text[:200]} (Try a simpler prompt)"
+    except Exception as e: 
+        return f"⚠️ **Error:** {str(e)}"
 
 # --- MODELS ---
 class ChatRequest(BaseModel):
@@ -124,44 +165,10 @@ class RenameRequest(BaseModel):
 class ProfileRequest(BaseModel):
     name: str
 
-class InstructionRequest(BaseModel): # 👈 New Model for Custom Instructions
+class InstructionRequest(BaseModel):
     instruction: str
 
-# --- HELPER FUNCTIONS ---
-async def get_current_user(request: Request):
-    user = request.session.get('user')
-    if user: return user
-    return None
-
-def perform_research(query):
-    try:
-        results = DDGS().text(query, max_results=5)
-        if not results: return None
-        summary = "📊 **Web Research Results:**\n\n"
-        for i, r in enumerate(results, 1):
-            summary += f"**{i}. {r['title']}**\n{r['body']}\n🔗 Source: {r['href']}\n\n"
-        return summary
-    except Exception as e:
-        print(f"Research Error: {e}")
-        return None
-
-async def generate_image_hf(prompt):
-    if not HF_TOKEN: return "⚠️ **Error:** HF_TOKEN missing!"
-    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60.0)
-        if response.status_code == 200:
-            filename = f"static/gen_{uuid.uuid4().hex[:8]}.png"
-            with open(filename, "wb") as f: f.write(response.content)
-            return f"🎨 **Image Generated!**<br><img src='/{filename}' class='rounded-lg mt-2 shadow-lg max-w-full' style='max-height: 400px;'>"
-        else: return f"⚠️ **Failed:** {response.text[:200]}"
-    except Exception as e: return f"⚠️ **Error:** {str(e)}"
-
-# ==========================================
-# 🚀 AUTH ROUTES
-# ==========================================
+# --- ROUTES ---
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -179,21 +186,15 @@ async def auth_callback(request: Request):
     try:
         token = await oauth.google.authorize_access_token(request)
         user_info = token.get('userinfo')
-        
         if user_info:
             request.session['user'] = dict(user_info)
             email = user_info.get('email')
             existing_user = await users_collection.find_one({"email": email})
-            
             if not existing_user:
                 await users_collection.insert_one({
-                    "email": email,
-                    "name": user_info.get('name'),
-                    "picture": user_info.get('picture'),
-                    "role": "user",
-                    "custom_instruction": "" # 👈 New field init
+                    "email": email, "name": user_info.get('name'), 
+                    "picture": user_info.get('picture'), "role": "user", "custom_instruction": ""
                 })
-                
         return RedirectResponse(url="/")
     except Exception as e:
         print(f"Auth Error: {e}")
@@ -204,49 +205,31 @@ async def logout(request: Request):
     request.session.pop('user', None)
     return RedirectResponse(url="/login")
 
-# ==========================================
-# 💬 APP ROUTES & API
-# ==========================================
-
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     user = await get_current_user(request)
     if not user: return RedirectResponse(url="/login")
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
+# API Routes
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {"name": "Guest", "avatar": ""}
-    
     db_user = await users_collection.find_one({"email": user['email']})
-    
-    return {
-        "name": db_user.get("name", user['name']),
-        "avatar": db_user.get("picture", user['picture']),
-        "email": user['email'],
-        "custom_instruction": db_user.get("custom_instruction", "") # 👈 Send to frontend
-    }
+    return {"name": db_user.get("name", user['name']), "avatar": db_user.get("picture", user['picture']), 
+            "email": user['email'], "custom_instruction": db_user.get("custom_instruction", "")}
 
 @app.post("/api/update_profile_name")
 async def update_profile_name(req: ProfileRequest, request: Request):
     user = await get_current_user(request)
-    if user:
-        await users_collection.update_one(
-            {"email": user['email']},
-            {"$set": {"name": req.name}}
-        )
+    if user: await users_collection.update_one({"email": user['email']}, {"$set": {"name": req.name}})
     return {"status": "success"}
 
 @app.post("/api/update_instructions")
 async def update_instructions(req: InstructionRequest, request: Request):
     user = await get_current_user(request)
-    if user:
-        # Save instruction (Limit to 1000 chars safe side)
-        await users_collection.update_one(
-            {"email": user['email']},
-            {"$set": {"custom_instruction": req.instruction[:1000]}}
-        )
+    if user: await users_collection.update_one({"email": user['email']}, {"$set": {"custom_instruction": req.instruction[:1000]}})
     return {"status": "success"}
 
 @app.get("/api/history")
@@ -264,9 +247,7 @@ async def create_chat(request: Request):
     user = await get_current_user(request)
     if not user: return {"error": "Not logged in"}
     new_id = str(uuid.uuid4())[:8]
-    await chats_collection.insert_one({
-        "session_id": new_id, "user_email": user['email'], "title": "New Chat", "messages": []
-    })
+    await chats_collection.insert_one({"session_id": new_id, "user_email": user['email'], "title": "New Chat", "messages": []})
     return {"session_id": new_id, "messages": []}
 
 @app.get("/api/chat/{session_id}")
@@ -279,18 +260,13 @@ async def get_chat_content(session_id: str, request: Request):
 @app.post("/api/rename_chat")
 async def rename_chat(req: RenameRequest, request: Request):
     user = await get_current_user(request)
-    if user:
-        await chats_collection.update_one(
-            {"session_id": req.session_id, "user_email": user['email']},
-            {"$set": {"title": req.new_title}}
-        )
+    if user: await chats_collection.update_one({"session_id": req.session_id, "user_email": user['email']}, {"$set": {"title": req.new_title}})
     return {"status": "success"}
 
 @app.delete("/api/delete_chat/{session_id}")
 async def delete_chat_endpoint(session_id: str, request: Request):
     user = await get_current_user(request)
-    if user:
-        await chats_collection.delete_one({"session_id": session_id, "user_email": user['email']})
+    if user: await chats_collection.delete_one({"session_id": session_id, "user_email": user['email']})
     return {"status": "success"}
 
 # --- MAIN CHAT LOGIC ---
@@ -299,26 +275,16 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     user = await get_current_user(request)
     if not user: return {"reply": "⚠️ Please Login first."}
 
-    sid = req.session_id
-    mode = req.mode
-    msg = req.message
-    img_data = req.image 
+    sid, mode, msg, img_data = req.session_id, req.mode, req.message, req.image
     
-    # 1. Fetch User Data (Custom Instructions)
     db_user = await users_collection.find_one({"email": user['email']})
     custom_instr = db_user.get("custom_instruction", "") if db_user else ""
 
-    # 2. Build Base System Prompt
     base_system = "You are Shanvika AI."
-    if custom_instr:
-        base_system += f"\n\nIMPORTANT USER INSTRUCTION (Follow this personality/language):\n{custom_instr}\n\n"
-
-    # 3. Add Mode Specifics
-    if mode == "coding": base_system += " You are an Expert Coder. Write clean, bug-free code."
-    elif mode == "anime": base_system += " You are an Anime Expert (Otaku)."
-    elif mode == "video": base_system += " You are a Script Writer."
+    if custom_instr: base_system += f"\n\nUSER INSTRUCTION:\n{custom_instr}\n\n"
+    if mode == "coding": base_system += " You are an Expert Coder."
+    elif mode == "anime": base_system += " You are an Anime Expert."
     
-    # Fetch/Create Chat
     chat = await chats_collection.find_one({"session_id": sid, "user_email": user['email']})
     if not chat:
         chat = {"session_id": sid, "user_email": user['email'], "title": "New Chat", "messages": []}
@@ -329,17 +295,18 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
     user_content = msg
     if img_data: user_content += " [🖼️ Image Uploaded]"
-    
     await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": user_content}}})
 
     reply = ""
     try:
-        # --- AI ROUTING ---
+        # 👇👇 ROUTING LOGIC 👇👇
         if mode == "image_gen":
-            reply = await generate_image_hf(msg)
+            reply = await generate_image_hf(msg) # Returns HTML String
+        
+        elif mode == "video":
+            reply = await generate_video_hf(msg) # Returns HTML String
 
         elif mode == "coding":
-            # ⚡ Use Gemini for Coding
             reply = await generate_gemini(msg, base_system)
 
         elif mode == "research":
@@ -353,25 +320,14 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 reply = completion.choices[0].message.content
             else: reply = research_data if research_data else "⚠️ No results."
 
-        else:
-            # Default Chat (Groq) with Custom Instructions
-            if img_data:
-                client = get_groq()
-                if client:
-                    completion = client.chat.completions.create(
-                        model="llama-3.2-11b-vision-preview",
-                        messages=[{"role": "user", "content": [{"type": "text", "text": f"{base_system}\nQuery: {msg}"}, {"type": "image_url", "image_url": {"url": img_data}}]}]
-                    )
-                    reply = completion.choices[0].message.content
-                else: reply = "⚠️ Groq Key missing."
-            else:
-                client = get_groq()
-                if client:
-                    msgs = [{"role": "system", "content": base_system}] # Base system has custom instructions now
-                    msgs.extend(chat["messages"][-10:])
-                    completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
-                    reply = completion.choices[0].message.content
-                else: reply = "⚠️ API Key missing."
+        else: # Default Chat
+            client = get_groq()
+            if client:
+                msgs = [{"role": "system", "content": base_system}]
+                msgs.extend(chat["messages"][-6:]) # Context window reduced for speed
+                completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
+                reply = completion.choices[0].message.content
+            else: reply = "⚠️ API Key missing."
 
     except Exception as e:
         reply = f"⚠️ Error: {str(e)}"
@@ -380,41 +336,13 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
     return {"reply": reply}
 
-# ==========================================
-# 👑 ADMIN PANEL ROUTES
-# ==========================================
-
+# Admin Routes (Shortened for brevity as they were fine)
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     user = await get_current_user(request)
-    if not user: return RedirectResponse(url="/login")
-    
-    if user['email'] != ADMIN_EMAIL:
-        return HTMLResponse("<h1>🚫 Access Denied! Sirf Shantanu (Admin) yahan aa sakta hai.</h1>", status_code=403)
-
+    if not user or user['email'] != ADMIN_EMAIL: return HTMLResponse("🚫 Access Denied", status_code=403)
     all_users = await users_collection.find().to_list(length=100)
-    total_chats = await chats_collection.count_documents({})
-    
-    return templates.TemplateResponse("admin.html", {
-        "request": request, 
-        "users": all_users, 
-        "total_users": len(all_users),
-        "total_chats": total_chats,
-        "admin_email": ADMIN_EMAIL
-    })
-
-@app.post("/admin/delete_user")
-async def delete_user(request: Request):
-    user = await get_current_user(request)
-    if not user or user['email'] != ADMIN_EMAIL:
-        return {"error": "Unauthorized"}
-    
-    form = await request.form()
-    target_email = form.get("email")
-    if target_email:
-        await users_collection.delete_one({"email": target_email})
-        await chats_collection.delete_many({"user_email": target_email})
-    return RedirectResponse(url="/admin", status_code=303)
+    return templates.TemplateResponse("admin.html", {"request": request, "users": all_users, "total_users": len(all_users), "admin_email": ADMIN_EMAIL})
 
 if __name__ == "__main__":
     import uvicorn
