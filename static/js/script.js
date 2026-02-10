@@ -1,13 +1,10 @@
 let currentSessionId = null;
 let currentMode = 'chat';
 let abortController = null;
-let currentFile = null; // Store uploaded file data
+let currentFile = null;
 
-// 👇 ON LOAD
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
-    
-    // Character Counter for Settings
     const box = document.getElementById('custom-instruction-box');
     if(box) {
         box.addEventListener('input', function() {
@@ -17,21 +14,25 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================
-// 📁 FILE HANDLING LOGIC (NEW)
+// 📁 FILE HANDLING (Button Lock + Spinner)
 // ==========================================
 
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
 
-    // 5MB Limit check
     if (file.size > 5 * 1024 * 1024) {
         alert("File too large! Please upload under 5MB.");
-        input.value = ""; 
-        return;
+        input.value = ""; return;
     }
 
-    // Show Preview UI
+    // LOCK BUTTON & SHOW SPINNER
+    const sendBtn = document.querySelector('button[type="submit"]');
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>';
+    sendBtn.classList.add('cursor-not-allowed', 'opacity-50');
+
+    // Show Preview
     const wrapper = document.querySelector('.input-wrapper');
     const oldPreview = document.getElementById('file-preview');
     if(oldPreview) oldPreview.remove();
@@ -47,21 +48,30 @@ async function handleFileUpload(input) {
     previewDiv.innerHTML = `
         <i class="fas ${iconClass}"></i>
         <span>${file.name}</span>
-        <button onclick="clearFile()" class="text-gray-400 hover:text-white ml-2"><i class="fas fa-times"></i></button>
+        <span class="text-xs text-gray-400 ml-2">(Processing...)</span>
     `;
     wrapper.insertBefore(previewDiv, wrapper.querySelector('.input-container'));
 
-    // Convert to Base64 for Backend
     try {
         const base64 = await toBase64(file);
-        currentFile = {
-            name: file.name,
-            type: file.type,
-            data: base64 
-        };
+        currentFile = { name: file.name, type: file.type, data: base64 };
+        
+        // UNLOCK BUTTON & SHOW CHECKMARK
+        previewDiv.innerHTML = `
+            <i class="fas ${iconClass}"></i>
+            <span>${file.name}</span>
+            <span class="text-xs text-green-400 ml-2"><i class="fas fa-check"></i> Ready</span>
+            <button onclick="clearFile()" class="text-gray-400 hover:text-white ml-2"><i class="fas fa-times"></i></button>
+        `;
+        previewDiv.classList.remove('animate-pulse');
+        
     } catch (e) {
         alert("Error reading file");
         clearFile();
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>'; 
+        sendBtn.classList.remove('cursor-not-allowed', 'opacity-50');
     }
 }
 
@@ -91,32 +101,29 @@ async function createNewChat() {
             <h2 class="text-2xl font-bold">Namaste!</h2>
             <p>Select a mode below to start.</p>
         </div>`;
-    // URL clean karo
     window.history.pushState({}, document.title, "/");
 }
 
 async function sendMessage() {
     const inputField = document.getElementById('user-input');
-    const sendBtnIcon = document.querySelector('button[type="submit"] i');
+    const sendBtn = document.querySelector('button[type="submit"]');
+    const sendBtnIcon = sendBtn.querySelector('i');
     const welcomeScreen = document.getElementById('welcome-screen');
     const message = inputField.value.trim();
 
-    // STOP GENERATION LOGIC
     if (abortController) {
         abortController.abort();
         abortController = null;
         const loader = document.getElementById("loading-bubble");
         if(loader) loader.remove();
         sendBtnIcon.className = "fas fa-arrow-up";
-        sendBtnIcon.parentElement.classList.remove("bg-red-500");
+        sendBtn.classList.remove("bg-red-500");
         appendMessage('shanvika', "🛑 *Stopped.*");
         return;
     }
 
-    // Empty check (Agar file nahi hai aur text bhi nahi hai toh return)
     if (!message && !currentFile) return;
 
-    // Create Session if not exists
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/new_chat');
@@ -128,7 +135,6 @@ async function sendMessage() {
 
     if (welcomeScreen) welcomeScreen.style.display = 'none';
     
-    // UI Display Logic
     let displayMsg = message;
     if (currentFile) {
         displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
@@ -137,14 +143,12 @@ async function sendMessage() {
     appendMessage('user', displayMsg);
     inputField.value = '';
     
-    // Hide Preview
     const p = document.getElementById('file-preview');
     if(p) p.style.display = 'none';
 
-    // Loading State
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
-    sendBtnIcon.parentElement.classList.add("bg-red-500");
+    sendBtn.classList.add("bg-red-500");
 
     const chatBox = document.getElementById('chat-box');
     const loadingDiv = document.createElement('div');
@@ -161,7 +165,6 @@ async function sendMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
-        // Prepare Payload
         const payload = { 
             message: message, 
             session_id: currentSessionId, 
@@ -177,9 +180,7 @@ async function sendMessage() {
             signal: abortController.signal
         });
 
-        // Clear file from memory after sending
         clearFile();
-
         const data = await response.json();
         const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
@@ -194,7 +195,7 @@ async function sendMessage() {
     } finally {
         abortController = null;
         sendBtnIcon.className = "fas fa-arrow-up";
-        sendBtnIcon.parentElement.classList.remove("bg-red-500");
+        sendBtn.classList.remove("bg-red-500");
     }
 }
 
@@ -204,20 +205,14 @@ function appendMessage(sender, text) {
     
     if (sender === 'user') {
         msgDiv.className = "p-3 mb-4 rounded-2xl bg-blue-600 text-white w-fit max-w-[85%] ml-auto break-words shadow-lg";
-        // User message treated as HTML to show file icon
         msgDiv.innerHTML = text; 
     } else {
         msgDiv.className = "msg-ai p-4 mb-4 rounded-2xl w-fit max-w-[85%] mr-auto break-words shadow-lg bg-gray-800 border border-gray-700 text-gray-200";
-        
-        // CHECK: If AI sends Image/Video HTML, inject directly
         if (text.includes("<img") || text.includes("<video")) {
             msgDiv.innerHTML = text;
         } else {
-            // Otherwise use Markdown
             msgDiv.innerHTML = marked.parse(text);
             msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
-            
-            // Copy Button Logic
             msgDiv.querySelectorAll('pre').forEach((pre) => {
                 const btn = document.createElement('button');
                 btn.className = 'copy-btn';
@@ -236,87 +231,51 @@ function appendMessage(sender, text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// ==========================================
-// ⚙️ SETTINGS & PROFILE (FIXED)
-// ==========================================
-
-// ✅ FIXED: Fetch data before opening modal
+// Settings & Profile
 async function openSettingsModal() {
     document.getElementById('settings-modal').style.display = 'block';
-    
     try {
         const res = await fetch('/api/profile');
         const data = await res.json();
-        
         const box = document.getElementById('custom-instruction-box');
         if (data.custom_instruction) {
             box.value = data.custom_instruction;
             document.getElementById('char-count').innerText = `${data.custom_instruction.length}/1000`;
         } else {
-            box.value = "";
-            document.getElementById('char-count').innerText = "0/1000";
+            box.value = ""; document.getElementById('char-count').innerText = "0/1000";
         }
-    } catch (e) {
-        console.error("Failed to load profile data", e);
-    }
+    } catch (e) {}
 }
 
-// ✅ FIXED: Save and give feedback
 async function saveInstructions() {
     const txt = document.getElementById('custom-instruction-box').value;
     const btn = document.querySelector('#settings-modal button.text-pink-400');
-    
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    
     try {
-        await fetch('/api/update_instructions', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ instruction: txt }) 
-        });
-        
+        await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: txt }) });
         btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            closeModal('settings-modal');
-        }, 1000);
-        
-    } catch (e) {
-        alert("Error saving instructions");
-        btn.innerHTML = originalText;
-    }
+        setTimeout(() => { btn.innerHTML = originalText; closeModal('settings-modal'); }, 1000);
+    } catch (e) { alert("Error"); btn.innerHTML = originalText; }
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
-
-// Profile & Other Utils
 function openProfileModal() { 
     document.getElementById('profile-modal').style.display = 'block'; 
-    // Load current name
     fetch('/api/profile').then(r=>r.json()).then(d => {
         document.getElementById('profile-name-input').value = d.name;
         document.getElementById('profile-img-modal').src = d.avatar;
     });
 }
-
 async function saveProfile() { 
     const name = document.getElementById('profile-name-input').value;
     await fetch('/api/update_profile_name', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-    closeModal('profile-modal');
-    location.reload(); // Refresh to see changes
+    closeModal('profile-modal'); location.reload();
 }
+async function uploadAvatar(input) { alert("Avatar upload requires external storage."); }
 
-async function uploadAvatar(input) { 
-    // Avatar logic remains skipped as it requires Cloudinary/S3 for Render
-    alert("Avatar upload requires external storage (S3/Cloudinary) on Render.");
-}
-
-// ==========================================
-// 📜 HISTORY & UTILS
-// ==========================================
-
+// History
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
@@ -331,10 +290,7 @@ async function loadHistory() {
                 <span class="nav-label flex-1 truncate">${chat.title}</span> 
                 <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2 nav-label" onclick="showDropdown(event, '${chat.id}')"></i>
             `;
-            // Click Handler
-            div.onclick = (e) => { 
-                if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); 
-            };
+            div.onclick = (e) => { if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); };
             list.appendChild(div);
         });
     } catch (e) {}
@@ -343,20 +299,16 @@ async function loadHistory() {
 function showDropdown(event, sessionId) {
     event.stopPropagation();
     const menu = document.getElementById('dropdown');
-    menu.style.top = `${event.clientY}px`;
-    menu.style.left = `${event.clientX}px`;
-    menu.classList.add('show');
-    
+    menu.style.top = `${event.clientY}px`; menu.style.left = `${event.clientX}px`; menu.classList.add('show');
     document.getElementById('act-delete').onclick = () => deleteChat(sessionId);
     document.getElementById('act-rename').onclick = () => renameChat(sessionId);
     document.addEventListener('click', () => menu.classList.remove('show'), { once: true });
 }
 
 async function deleteChat(sid) {
-    if(!confirm("Delete this chat?")) return;
+    if(!confirm("Delete?")) return;
     await fetch(`/api/delete_chat/${sid}`, { method: 'DELETE' });
-    loadHistory();
-    if(currentSessionId === sid) createNewChat();
+    loadHistory(); if(currentSessionId === sid) createNewChat();
 }
 
 async function renameChat(sid) {

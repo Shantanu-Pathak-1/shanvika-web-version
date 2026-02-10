@@ -276,6 +276,8 @@ async def delete_chat_endpoint(session_id: str, request: Request):
     return {"status": "success"}
 
 # --- MAIN CHAT LOGIC ---
+# 👇 ISSE PURANE chat_endpoint SE REPLACE KAR DO
+
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     user = await get_current_user(request)
@@ -302,9 +304,18 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             if "pdf" in file_type:
                 pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
                 extracted_text = "\n\n[📄 ATTACHED PDF CONTENT START]\n"
+                has_text = False
                 for page in pdf_reader.pages:
-                    extracted_text += page.extract_text() + "\n"
+                    text = page.extract_text()
+                    if text and text.strip():
+                        extracted_text += text + "\n"
+                        has_text = True
                 extracted_text += "[📄 ATTACHED PDF CONTENT END]\n"
+                
+                # Check if PDF was scanned (image only)
+                if not has_text:
+                    extracted_text += "\n[SYSTEM NOTE: The uploaded PDF appears to be empty or scanned. Inform the user you cannot read scanned PDFs and ask for a JPG/PNG screenshot instead.]\n"
+                
                 msg += extracted_text
             
             elif "word" in file_type or "officedocument" in file_type:
@@ -362,7 +373,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 reply = await generate_gemini(msg, base_system)
 
         elif mode == "research":
-            # Research Logic (Kept Simple)
             research_data = await asyncio.to_thread(perform_research, msg)
             client = get_groq()
             if research_data and client:
@@ -390,10 +400,9 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     )
                     reply = completion.choices[0].message.content
                 else:
-                    # Normal Text Chat
                     msgs = [{"role": "system", "content": base_system}]
                     msgs.extend(chat["messages"][-6:])
-                    msgs.append({"role": "user", "content": msg}) # Explicitly add current msg
+                    msgs.append({"role": "user", "content": msg}) 
                     completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
                     reply = completion.choices[0].message.content
             else: reply = "⚠️ API Key missing."
