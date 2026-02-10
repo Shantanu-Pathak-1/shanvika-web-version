@@ -7,75 +7,87 @@ body {
     background-color: #000;
 }
 
+/* Vanta Canvas Layer */
 canvas.vanta-canvas {
-    position: absolute !important;
+    position: fixed !important;
     top: 0; left: 0;
+    width: 100%; height: 100%;
     z-index: 0 !important;
     pointer-events: none;
 }
 
-/* LAYERS */
-#sidebar { position: fixed; z-index: 50; }
+/* 🔥 Z-INDEX HIERARCHY (The Master Fix) 🔥 */
+#sidebar { z-index: 100; }
 main { position: relative; z-index: 10; }
-.input-fixed-bottom { z-index: 40; }
-.modal { position: fixed; z-index: 100 !important; }
-.dropdown-menu { position: fixed; z-index: 110 !important; }
+.input-fixed-bottom { z-index: 50; }
+.modal { z-index: 200 !important; }
+.dropdown-menu { z-index: 210 !important; }
 
 /* =========================================
-   SIDEBAR STYLING (THE FIX)
+   SIDEBAR STYLING
    ========================================= */
 #sidebar { 
     position: fixed; 
-    left: 0; 
-    top: 0; 
-    bottom: 0;
-    display: flex; 
-    flex-direction: column; 
-    background: rgba(10, 10, 10, 0.85); 
+    left: 0; top: 0; bottom: 0;
+    display: flex; flex-direction: column;
+    background: rgba(10, 10, 10, 0.6); 
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(12px);
-    z-index: 50;
-    width: 5rem;
+    width: 5rem; /* Collapsed Width */
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Text Visibility Logic */
+.nav-label {
+    white-space: nowrap;
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Mobile Sidebar */
+@media (max-width: 767px) { 
+    #sidebar { left: -100%; width: 80%; background: #111; z-index: 150; } 
+    #sidebar.mobile-open { left: 0; } 
+    #sidebar.mobile-open .nav-label { opacity: 1; width: auto; }
+}
+
+/* Desktop Hover Logic */
 @media (min-width: 768px) { 
-    #sidebar:hover { width: 18rem; }
+    #sidebar:hover { width: 18rem; background: rgba(10, 10, 10, 0.9); }
+    #sidebar:hover .nav-label { opacity: 1; width: auto; margin-left: 10px; }
+    
+    /* Centering Icons when Collapsed */
     #sidebar:not(:hover) .w-10, 
     #sidebar:not(:hover) .w-9 { margin: 0 auto; }
-    #sidebar:not(:hover) .h-16 { justify-content: center; }
+    #sidebar:not(:hover) .h-16 { justify-content: center; padding: 0; }
 }
 
-@media (max-width: 767px) { 
-    #sidebar { position: fixed; left: -100%; top:0; bottom:0; width: 80%; background: #111; } 
-    #sidebar.mobile-open { left: 0; } 
-}
-
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* =========================================
-   SCROLLBAR & INPUT
+   INPUT AREA
    ========================================= */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
-::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #ec4899, #8b5cf6); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #db2777, #7c3aed); }
-
 .input-fixed-bottom {
     position: fixed; bottom: 0; left: 0; width: 100%; padding: 1rem;
     pointer-events: none;
-    background: linear-gradient(to top, #000000 20%, transparent);
+    background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.8) 50%, transparent);
 }
 .input-wrapper { pointer-events: auto; }
+@media (min-width: 768px) { .input-wrapper { margin-left: 5rem; } } /* Sidebar Offset */
 
+/* Mode Buttons */
 .mode-scroll::-webkit-scrollbar { display: none; }
 .mode-btn { 
     padding: 8px 16px; border-radius: 99px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: 0.3s;
     background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #ccc; 
     white-space: nowrap;
 }
-.mode-btn:hover { background: rgba(255,255,255,0.2); }
+.mode-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
 .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
 
 /* =========================================
@@ -86,11 +98,12 @@ main { position: relative; z-index: 10; }
 
 pre { background: #111 !important; padding: 1rem; border-radius: 8px; border: 1px solid #333; overflow-x: auto; position: relative; }
 code { font-family: 'Consolas', monospace; color: #d4d4d4; }
-.copy-btn { position: absolute; top: 5px; right: 5px; background: #333; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
+.copy-btn { position: absolute; top: 5px; right: 5px; background: #333; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
 
-.modal { display: none; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
-.modal-content { padding: 20px; border-radius: 16px; margin: auto; }
-.dropdown-menu { display: none; padding: 5px; min-width: 140px; border-radius: 8px; }
+/* Modal & Dropdown */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+.modal-content { padding: 20px; border-radius: 16px; margin: auto; max-height: 90vh; overflow-y: auto; }
+.dropdown-menu { display: none; padding: 5px; min-width: 140px; border-radius: 8px; position: fixed; }
 .dropdown-menu.show { display: block; }
 .dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; }
 

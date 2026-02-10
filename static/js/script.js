@@ -276,25 +276,38 @@ async function saveProfile() {
 async function uploadAvatar(input) { alert("Avatar upload requires external storage."); }
 
 // History
+// ... (Keep existing file handling and core logic) ...
+
+// 👇 UPDATE THIS FUNCTION ONLY
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
         const data = await res.json();
         const list = document.getElementById('history-list');
         list.innerHTML = '';
+        
         data.history.forEach(chat => {
             const div = document.createElement('div');
-            div.className = "p-3 mb-1 hover:bg-white/5 rounded-xl cursor-pointer text-sm text-gray-300 relative group flex items-center gap-3 transition-all";
+            // Layout: Center Icon | Text Label (Hidden by CSS until hover) | Menu
+            div.className = "p-3 mb-1 hover:bg-white/10 rounded-xl cursor-pointer text-sm text-gray-300 relative group flex items-center transition-all h-10";
+            
             div.innerHTML = `
-                <i class="fas fa-comment-alt text-gray-500 group-hover:text-pink-400 text-lg shrink-0"></i> 
-                <span class="nav-label flex-1 truncate">${chat.title}</span> 
-                <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2 nav-label" onclick="showDropdown(event, '${chat.id}')"></i>
+                <div class="w-10 flex justify-center shrink-0">
+                    <i class="fas fa-comment-alt text-gray-500 group-hover:text-pink-400 text-lg"></i>
+                </div>
+                <span class="nav-label flex-1 truncate transition-opacity duration-200">${chat.title}</span> 
+                <div class="w-8 flex justify-center nav-label">
+                    <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2" onclick="showDropdown(event, '${chat.id}')"></i>
+                </div>
             `;
+            
             div.onclick = (e) => { if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); };
             list.appendChild(div);
         });
     } catch (e) {}
 }
+
+// ... (Rest of your script.js remains the same) ...
 
 function showDropdown(event, sessionId) {
     event.stopPropagation();
