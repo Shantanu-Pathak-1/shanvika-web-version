@@ -260,7 +260,68 @@ async function saveInstructions() {
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
+// Global Vanta Variable
+let vantaEffect = null;
+
+// 👇 1. Is Function ko code ke start mein (DOMContentLoaded ke andar) call karo
+document.addEventListener("DOMContentLoaded", () => {
+    loadHistory();
+    initVanta(); // ✨ Start Vanta on Load
+});
+
+// 👇 2. Naya Vanta Logic (Switching Magic)
+function initVanta() {
+    // Agar pehle se koi effect chal raha hai, toh usse roko (Memory Leak bachane ke liye)
+    if (vantaEffect) vantaEffect.destroy();
+
+    const isLight = document.body.classList.contains('light-mode');
+
+    if (isLight) {
+        // 🌞 LIGHT MODE: RINGS EFFECT
+        try {
+            vantaEffect = VANTA.RINGS({
+                el: "#vanta-bg",
+                mouseControls: true,
+                touchControls: true,
+                gyroControls: false,
+                minHeight: 200.00,
+                minWidth: 200.00,
+                scale: 1.00,
+                scaleMobile: 1.00,
+                backgroundColor: 0xffffff, // White Background
+                color: 0xec4899 // Pinkish Ring (Shanvika Theme)
+                // Aapka color: 0xffd1 (Cyan) bhi use kar sakte ho -> color: 0x00ffd1
+            });
+        } catch (e) { console.log("Vanta Rings Failed", e); }
+    } else {
+        // 🌑 DARK MODE: HALO EFFECT
+        try {
+            vantaEffect = VANTA.HALO({
+                el: "#vanta-bg",
+                mouseControls: true,
+                touchControls: true,
+                gyroControls: false,
+                minHeight: 200.00,
+                minWidth: 200.00,
+                baseColor: 0xca2cac,
+                backgroundColor: 0x000000,
+                amplitudeFactor: 3.00,
+                xOffset: -0.01,
+                yOffset: 0.06,
+                size: 1.40
+            });
+        } catch (e) { console.log("Vanta Halo Failed", e); }
+    }
+}
+
+// 👇 3. Toggle Theme function ko update karo taaki wo effect switch kare
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    document.body.classList.toggle('dark-mode');
+    
+    // Theme badalne par Effect restart karo
+    initVanta();
+}
 function openProfileModal() { 
     document.getElementById('profile-modal').style.display = 'block'; 
     fetch('/api/profile').then(r=>r.json()).then(d => {
