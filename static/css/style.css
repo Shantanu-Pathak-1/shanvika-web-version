@@ -23,27 +23,31 @@ main { position: relative; z-index: 10; }
 .dropdown-menu { z-index: 210 !important; }
 
 /* =========================================
-   🔥 2. ULTRA NEON SCROLLBARS 🔥
+   🔥 2. ULTRA NEON SCROLLBARS (Visible Everywhere) 🔥
    ========================================= */
+/* Sabhi elements par apply hoga */
 *::-webkit-scrollbar {
-    width: 8px;
+    width: 8px;  /* Thoda mota kiya taaki dikhe */
     height: 8px;
 }
 
+/* Track (Background) */
 *::-webkit-scrollbar-track {
     background: rgba(20, 20, 20, 0.5);
     border-left: 1px solid rgba(255,255,255,0.05);
 }
 
+/* Thumb (Handle) - Neon Cyan to Pink */
 *::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, #06b6d4, #ec4899); /* Cyan to Pink */
     border-radius: 10px;
-    border: 2px solid transparent; 
+    border: 2px solid transparent; /* Padding effect */
     background-clip: content-box;
 }
 
+/* Hover Effect */
 *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #22d3ee, #f472b6);
+    background: linear-gradient(180deg, #22d3ee, #f472b6); /* Brighter on hover */
     background-clip: content-box;
 }
 
@@ -56,7 +60,7 @@ main { position: relative; z-index: 10; }
     background: rgba(10, 10, 10, 0.8); 
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(15px);
-    width: 5rem; /* Collapsed */
+    width: 5rem; /* Collapsed Width */
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -87,10 +91,19 @@ main { position: relative; z-index: 10; }
 #chat-box { 
     width: 100%; 
     max-width: 100%; 
-    padding: 20px 40px; 
-    padding-bottom: 220px !important; /* Space for input */
+    /* Default Mobile Padding */
+    padding: 20px 20px; 
+    padding-bottom: 220px !important; 
     flex: 1;
     overflow-y: auto;
+}
+
+/* 👇👇 YEH RAHA FIX (Desktop Par Gap Diya Hai) 👇👇 */
+@media (min-width: 768px) {
+    #chat-box {
+        padding-left: 7rem; /* 5rem Sidebar + 2rem Gap */
+        padding-right: 2rem;
+    }
 }
 
 /* Fixed Input Area */
