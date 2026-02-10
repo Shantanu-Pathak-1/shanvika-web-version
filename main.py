@@ -186,6 +186,11 @@ async def login(request: Request):
     if "onrender.com" in redirect_uri: redirect_uri = redirect_uri.replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
+# 👇 ABOUT / CREATOR PAGE ROUTE
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    return templates.TemplateResponse("about.html", {"request": request})
+
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
     try:
