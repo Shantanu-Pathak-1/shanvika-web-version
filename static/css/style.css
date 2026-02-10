@@ -86,3 +86,31 @@ body.light-mode .modal-content { background: white; color: black; border: 1px so
 .dropdown-menu.show { display: block; }
 .dropdown-item { padding: 8px 12px; cursor: pointer; color: #eee; display: flex; gap: 10px; border-radius: 6px; }
 .dropdown-item:hover { background: #333; }
+/* =========================================
+   🌞 LIGHT MODE FINAL FIXES
+   ========================================= */
+
+/* 1. Bottom Gradient ko White karo */
+body.light-mode .input-fixed-bottom {
+    background: linear-gradient(to top, #ffffff, rgba(255,255,255,0.95), transparent) !important;
+}
+
+/* 2. Settings Modal ke Input Boxes ko Light Banao */
+body.light-mode .modal-content textarea,
+body.light-mode .modal-content input {
+    background-color: #f3f4f6 !important; /* Light Gray Background */
+    color: #000000 !important;            /* Black Text */
+    border: 1px solid #d1d5db !important; /* Light Border */
+}
+
+/* 3. Settings Labels ko Dark karo */
+body.light-mode .modal-content label,
+body.light-mode .modal-content span, 
+body.light-mode .text-gray-400 {
+    color: #374151 !important; /* Dark Grey Text */
+}
+
+/* 4. Close Button ko visible karo */
+body.light-mode .modal-content button.text-gray-400 {
+    color: #000 !important;
+}
