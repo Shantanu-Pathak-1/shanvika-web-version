@@ -4,30 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shanvika AI • Your Intelligent Companion</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.halo.min.js"></script>
+    
+    <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.59/build/spline-viewer.js"></script>
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #000; color: white; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #050505; color: white; overflow-x: hidden; }
         
-        /* Smooth Scroll */
-        html { scroll-behavior: smooth; }
-
-        /* Background Layer (Use Vanta or Your Custom Image) */
-        #bg-canvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            /* 👇 UNCOMMENT BELOW LINE TO USE YOUR IMAGE INSTEAD OF VANTA */
-            /* background: url('YOUR_IMAGE_URL_HERE') center/cover no-repeat; */
+        /* 3D Background Layer */
+        spline-viewer {
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: -1; 
+            /* Slight brightness reduction to make text pop */
+            filter: brightness(0.7) contrast(1.1); 
         }
 
-        /* Glassmorphism */
+        /* Glassmorphism Cards */
         .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: rgba(25, 25, 25, 0.4); /* Darker glass */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
         }
 
         /* Animations */
@@ -46,86 +50,93 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+        
+        /* Smooth Scroll */
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body>
 
-    <div id="bg-canvas"></div>
+    <spline-viewer url="https://prod.spline.design/yszqHxvXsSsuMZq5/scene.splinecode"></spline-viewer>
 
     <nav class="fixed w-full z-50 p-6">
         <div class="max-w-7xl mx-auto flex justify-between items-center glass px-6 py-3 rounded-full">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-sm shadow-lg">🌸</div>
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-lg shadow-lg">🌸</div>
                 <span class="font-bold text-xl tracking-wide">Shanvika</span>
             </div>
-            <a href="/auth/login" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full font-bold text-sm transition transform hover:scale-105">
-                Login
+            <a href="/auth/login" class="bg-white text-black hover:bg-gray-200 px-6 py-2 rounded-full font-bold text-sm transition transform hover:scale-105 shadow-lg">
+                Login / Signup
             </a>
         </div>
     </nav>
 
-    <section class="min-h-screen flex items-center justify-center px-4 pt-20">
-        <div class="text-center max-w-4xl mx-auto">
-            <div class="inline-block px-4 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-400 text-xs font-bold uppercase tracking-widest mb-6 fade-in-up">
-                v10.0 Now Available
+    <section class="min-h-screen flex items-center justify-center px-4 pt-20 relative">
+        <div class="text-center max-w-5xl mx-auto">
+            
+            <div class="inline-block px-4 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-400 text-xs font-bold uppercase tracking-widest mb-6 fade-in-up backdrop-blur-md">
+                v10.0 • Now with Voice & Vision
             </div>
             
-            <h1 class="text-5xl md:text-7xl font-bold mb-6 fade-in-up delay-100 leading-tight">
-                Experience the Future of <br>
-                <span class="text-gradient">Conversational AI</span>
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 fade-in-up delay-100 leading-tight drop-shadow-2xl">
+                Your Personal AI <br>
+                <span class="text-gradient">That Truly Understands</span>
             </h1>
             
-            <p class="text-gray-400 text-lg md:text-xl mb-10 max-w-2xl mx-auto fade-in-up delay-200">
-                Shanvika isn't just a chatbot. She listens, sees, remembers, and creates. 
-                Powered by advanced LLMs with voice interaction and visual intelligence.
+            <p class="text-gray-300 text-lg md:text-xl mb-10 max-w-2xl mx-auto fade-in-up delay-200 drop-shadow-md">
+                Experience the next generation of conversational AI. Shanvika listens, remembers, creates art, and codes alongside you.
             </p>
             
             <div class="flex flex-col md:flex-row gap-4 justify-center fade-in-up delay-300">
                 <a href="/auth/login" class="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg shadow-purple-500/30 transition transform hover:scale-105 flex items-center justify-center gap-2">
-                    <span>Get Started Free</span>
+                    <span>Talk to Shanvika</span>
                     <i class="fas fa-arrow-right"></i>
                 </a>
-                <a href="#features" class="glass text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition">
-                    Explore Features
+                <a href="#features" class="glass text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition backdrop-blur-md">
+                    Explore Capabilities
                 </a>
             </div>
         </div>
+        
+        <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce text-gray-400">
+            <i class="fas fa-chevron-down text-2xl"></i>
+        </div>
     </section>
 
-    <section id="features" class="py-20 px-4">
+    <section id="features" class="py-24 px-4 bg-gradient-to-t from-black via-black/80 to-transparent">
         <div class="max-w-7xl mx-auto">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold mb-4">Beyond Simple Chat</h2>
-                <p class="text-gray-400">Everything you need in one intelligent workspace.</p>
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">Beyond Simple Chat</h2>
+                <p class="text-gray-400 text-lg">Everything you need in one intelligent workspace.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="glass p-8 rounded-3xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-14 h-14 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition">
+                <div class="glass p-8 rounded-3xl hover:bg-white/10 transition duration-300 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition border border-pink-500/20">
                         <i class="fas fa-microphone-alt"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">Voice Interaction</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
+                    <h3 class="text-2xl font-bold mb-3">Voice Interaction</h3>
+                    <p class="text-gray-400 leading-relaxed">
                         Don't just type. Talk to Shanvika naturally. She listens with high-accuracy speech recognition and replies with a human-like voice.
                     </p>
                 </div>
 
-                <div class="glass p-8 rounded-3xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-14 h-14 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition">
+                <div class="glass p-8 rounded-3xl hover:bg-white/10 transition duration-300 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition border border-purple-500/20">
                         <i class="fas fa-brain"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">Long-Term Memory</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
+                    <h3 class="text-2xl font-bold mb-3">Long-Term Memory</h3>
+                    <p class="text-gray-400 leading-relaxed">
                         Shanvika remembers details about you. From your coding style to your favorite movies, conversations feel continuous and personal.
                     </p>
                 </div>
 
-                <div class="glass p-8 rounded-3xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-14 h-14 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition">
+                <div class="glass p-8 rounded-3xl hover:bg-white/10 transition duration-300 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition border border-blue-500/20">
                         <i class="fas fa-magic"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">Creative Studio</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
+                    <h3 class="text-2xl font-bold mb-3">Creative Studio</h3>
+                    <p class="text-gray-400 leading-relaxed">
                         Generate high-quality images, anime art, or convert files instantly. Powered by the latest Flux models for superior visuals.
                     </p>
                 </div>
@@ -133,28 +144,9 @@
         </div>
     </section>
 
-    <footer class="py-10 border-t border-white/5 text-center text-gray-500 text-sm">
-        <p>&copy; 2026 Shanvika AI. Created by Shan Pathak.</p>
+    <footer class="py-10 border-t border-white/5 text-center text-gray-500 text-sm bg-black">
+        <p>&copy; 2026 Shanvika AI. Created with ❤️ by Shan Pathak.</p>
     </footer>
 
-    <script>
-        // Init Background Effect
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                VANTA.HALO({
-                    el: "#bg-canvas",
-                    mouseControls: true,
-                    touchControls: true,
-                    gyroControls: false,
-                    minHeight: 200.00,
-                    minWidth: 200.00,
-                    baseColor: 0x000000,
-                    backgroundColor: 0x000000,
-                    amplitudeFactor: 1.5,
-                    size: 1.5
-                })
-            } catch (e) { console.log(e) }
-        });
-    </script>
 </body>
 </html>

@@ -211,15 +211,12 @@ async def logout(request: Request):
     return RedirectResponse(url="/login")
 
 # 👇 THIS IS THE UPDATED ROUTE
+# main.py mein ye wala route replace kar dena
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     user = await get_current_user(request)
-    
-    # Logic: Agar user login hai, toh Chat App dikhao
     if user: 
         return templates.TemplateResponse("index.html", {"request": request, "user": user})
-    
-    # Agar user login NAHI hai, toh Hero Landing Page dikhao
     return templates.TemplateResponse("landing.html", {"request": request})
 
 # --- USER API ---
