@@ -2,26 +2,21 @@ let currentSessionId = null;
 let currentMode = 'chat';
 let abortController = null;
 
-// 👇 FIX: Start mein sirf history load karo, New Chat create mat karo
+// 👇 UI Setup on Load
 document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
-    // Default welcome screen dikhao, backend call mat karo abhi
+    // No createNewChat() call here. Wait for user action.
 });
 
-// --- CORE FUNCTIONS ---
-
-// User jab "New Chat" button dabaye, tabhi call hoga
+// User Clicks "New Chat"
 async function createNewChat() {
-    currentSessionId = null; // Reset ID
-    // Clear Chat Box & Show Welcome Screen
+    currentSessionId = null; 
     document.getElementById('chat-box').innerHTML = `
         <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-60 text-center">
             <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl mb-4 shadow-2xl">🌸</div>
             <h2 class="text-2xl font-bold">Namaste!</h2>
             <p>Select a mode below to start.</p>
         </div>`;
-    
-    // URL se ID hatao
     window.history.pushState({}, document.title, "/");
 }
 
@@ -44,13 +39,13 @@ async function sendMessage() {
 
     if (!message) return;
 
-    // 👇 LOGIC FIX: Agar Session ID nahi hai, to pehle create karo
+    // 👇 LAZY CREATE: Chat tabhi banao jab user message bheje
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/new_chat');
             const data = await res.json();
             currentSessionId = data.session_id;
-            loadHistory(); // List update karo
+            loadHistory(); 
         } catch (e) {
             console.error("Failed to create session", e);
             return;
@@ -61,12 +56,11 @@ async function sendMessage() {
     appendMessage('user', message);
     inputField.value = '';
 
-    // Start Loading
+    // UI Loading State
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
     sendBtnIcon.parentElement.classList.add("bg-red-500");
 
-    // Add Loading Bubble
     const chatBox = document.getElementById('chat-box');
     const loadingDiv = document.createElement('div');
     loadingDiv.id = "loading-bubble";
@@ -74,7 +68,7 @@ async function sendMessage() {
     
     let statusText = "Thinking";
     if (currentMode === 'coding') statusText = "Coding";
-    else if (currentMode === 'image_gen') statusText = "Creating";
+    else if (currentMode === 'image_gen') statusText = "Painting";
     
     loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}</span> <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
@@ -84,11 +78,7 @@ async function sendMessage() {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                message: message, 
-                session_id: currentSessionId, 
-                mode: currentMode 
-            }),
+            body: JSON.stringify({ message, session_id: currentSessionId, mode: currentMode }),
             signal: abortController.signal
         });
 
@@ -102,7 +92,7 @@ async function sendMessage() {
     } catch (error) {
         const currentLoader = document.getElementById("loading-bubble");
         if (currentLoader) currentLoader.remove();
-        if (error.name !== 'AbortError') appendMessage('shanvika', "⚠️ Error connecting.");
+        if (error.name !== 'AbortError') appendMessage('shanvika', "⚠️ Connection Error.");
     } finally {
         abortController = null;
         sendBtnIcon.className = "fas fa-arrow-up";
@@ -139,7 +129,7 @@ function appendMessage(sender, text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// --- HISTORY & DROPDOWN ---
+// 👇 UPDATED HISTORY (ICON VIEW)
 async function loadHistory() {
     try {
         const res = await fetch('/api/history');
@@ -148,16 +138,19 @@ async function loadHistory() {
         list.innerHTML = '';
         data.history.forEach(chat => {
             const div = document.createElement('div');
-            // 👇 Added Right Click Event
-            div.className = "p-3 hover:bg-white/5 rounded-lg cursor-pointer text-sm text-gray-300 truncate relative group flex justify-between items-center";
-            div.innerHTML = `<span>${chat.title}</span> <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2" onclick="showDropdown(event, '${chat.id}')"></i>`;
+            // Flex Layout: Icon Left | Text Center | Menu Right
+            div.className = "p-3 mb-1 hover:bg-white/5 rounded-xl cursor-pointer text-sm text-gray-300 relative group flex items-center gap-3 transition-all";
+            div.innerHTML = `
+                <i class="fas fa-comment-alt text-gray-500 group-hover:text-pink-400 text-lg shrink-0"></i> 
+                <span class="nav-label flex-1 truncate">${chat.title}</span> 
+                <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2 nav-label" onclick="showDropdown(event, '${chat.id}')"></i>
+            `;
             div.onclick = (e) => { if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); };
             list.appendChild(div);
         });
     } catch (e) {}
 }
 
-// 👇 DROPDOWN LOGIC
 function showDropdown(event, sessionId) {
     event.stopPropagation();
     const menu = document.getElementById('dropdown');
@@ -165,11 +158,8 @@ function showDropdown(event, sessionId) {
     menu.style.left = `${event.clientX}px`;
     menu.classList.add('show');
     
-    // Setup actions
     document.getElementById('act-delete').onclick = () => deleteChat(sessionId);
     document.getElementById('act-rename').onclick = () => renameChat(sessionId);
-    
-    // Close on click elsewhere
     document.addEventListener('click', () => menu.classList.remove('show'), { once: true });
 }
 
@@ -183,11 +173,7 @@ async function deleteChat(sid) {
 async function renameChat(sid) {
     const newName = prompt("New Name:");
     if(newName) {
-        await fetch('/api/rename_chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ session_id: sid, new_title: newName })
-        });
+        await fetch('/api/rename_chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ session_id: sid, new_title: newName }) });
         loadHistory();
     }
 }
@@ -196,10 +182,8 @@ async function loadChat(sid) {
     currentSessionId = sid;
     const welcomeScreen = document.getElementById('welcome-screen');
     if (welcomeScreen) welcomeScreen.style.display = 'none';
-    
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = ''; 
-    
     const res = await fetch(`/api/chat/${sid}`);
     const data = await res.json();
     data.messages.forEach(msg => appendMessage(msg.role === 'user' ? 'user' : 'shanvika', msg.content));
@@ -215,8 +199,10 @@ function setMode(mode, btn) {
     btn.classList.add('active', 'bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-none');
 }
 
-// Utils
 function openSettingsModal() { document.getElementById('settings-modal').style.display = 'block'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
-// Profile logic omitted for brevity, keep your existing profile logic
+// Profile Functions omitted (same as before)
+async function saveProfile() { /* ... existing code ... */ }
+async function uploadAvatar(input) { /* ... existing code ... */ }
+function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }

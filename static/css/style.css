@@ -1,5 +1,5 @@
 /* =========================================
-   CORE & RESET
+   CORE & LAYOUT
    ========================================= */
 body { 
     font-family: 'Segoe UI', sans-serif; 
@@ -9,37 +9,49 @@ body {
     height: 100vh; height: 100dvh;
 }
 
-/* Z-Index Hierarchy */
-aside { position: relative; z-index: 50; }
+/* 🔥 Z-INDEX HIERARCHY (The Fix) 🔥 */
 main { position: relative; z-index: 10; }
-/* Dropdown sabse upar hona chahiye lekin hidden */
-.dropdown-menu { position: fixed; z-index: 9999; } 
+.input-fixed-bottom { z-index: 40; }
+aside { position: relative; z-index: 100; } /* Sidebar upar */
+.modal { position: fixed; z-index: 200 !important; } /* Modal sabse upar */
+.dropdown-menu { position: fixed; z-index: 210 !important; } /* Dropdown usse bhi upar */
 
-/* Input Area Fixed Bottom */
+/* Input Area */
 .input-fixed-bottom {
-    position: fixed; bottom: 0; left: 0; width: 100%; z-index: 50; padding: 1rem;
-    pointer-events: none; /* Allows clicking through gradient */
+    position: fixed; bottom: 0; left: 0; width: 100%; padding: 1rem;
+    pointer-events: none; /* Click pass-through (Gradient click block nahi karega) */
 }
 .input-wrapper { max-width: 48rem; margin: 0 auto; position: relative; pointer-events: auto; }
+.input-container { border-radius: 24px; backdrop-filter: blur(10px); transition: 0.3s; }
 
-/* Input Container */
-.input-container {
-    border-radius: 24px; backdrop-filter: blur(10px); z-index: 50; transition: 0.3s;
+/* Sidebar Styling (Clean Icons) */
+#sidebar { 
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+    width: 5rem; /* Collapsed Width */
+    display: flex; flex-direction: column;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);
+}
+.nav-label { white-space: nowrap; transition: opacity 0.2s; }
+
+/* Mobile View */
+@media (max-width: 767px) { 
+    #sidebar { position: fixed; left: -100%; top:0; bottom:0; width: 80%; z-index: 150; background: #111; } 
+    #sidebar.mobile-open { left: 0; } 
 }
 
-/* Scrollbar Hide */
-.mode-scroll::-webkit-scrollbar { display: none; }
-.mode-btn { white-space: nowrap; padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: 0.2s; }
-
-/* Sidebar */
-#sidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); width: 4.5rem; display: flex; flex-direction: column; }
-.nav-label { margin-left: 12px; white-space: nowrap; }
-@media (max-width: 767px) { #sidebar { position: fixed; left: -100%; top:0; bottom:0; width: 80%; z-index: 60; } #sidebar.mobile-open { left: 0; } }
+/* Desktop Logic */
 @media (min-width: 768px) { 
-    #sidebar:hover, #sidebar.locked { width: 18rem; }
-    #sidebar:not(:hover):not(.locked) .nav-label, 
-    #sidebar:not(:hover):not(.locked) .profile-info { display: none; }
-    #sidebar:not(:hover):not(.locked) .sidebar-content { justify-content: center; }
+    #sidebar:hover { width: 18rem; background: rgba(0,0,0,0.9); }
+    
+    /* Jab Sidebar Band Hai */
+    #sidebar:not(:hover) .nav-label, 
+    #sidebar:not(:hover) .profile-info { display: none !important; } /* Text Gayab */
+    
+    #sidebar:not(:hover) .sidebar-content,
+    #sidebar:not(:hover) #history-list div { justify-content: center !important; } /* Icons Center */
+    
+    #sidebar:not(:hover) .w-9 { margin: 0 auto; } /* Profile Pic Center */
 }
 
 /* =========================================
@@ -52,14 +64,13 @@ body.dark-mode canvas { position: fixed; top:0; left:0; width:100%; height:100%;
 body.dark-mode .input-fixed-bottom { background: linear-gradient(to top, #000000 30%, rgba(0,0,0,0.9) 70%, transparent); }
 body.dark-mode .input-container { background: rgba(30,30,30,0.9); border: 1px solid rgba(255,255,255,0.1); }
 body.dark-mode .mode-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #ccc; }
-body.dark-mode .sidebar-style { background: rgba(0,0,0,0.8); border-right: 1px solid rgba(255,255,255,0.1); }
 body.dark-mode .modal-content { background: #1e1e1e; color: white; border: 1px solid #333; }
 body.dark-mode .dropdown-menu { background: #222; border: 1px solid #444; }
 body.dark-mode .dropdown-item { color: #eee; }
 body.dark-mode .dropdown-item:hover { background: #333; }
 
 /* =========================================
-   🌞 LIGHT MODE (Fixed)
+   🌞 LIGHT MODE
    ========================================= */
 body.light-mode { background-color: #f8f9fa !important; color: #1a1a1a !important; }
 body.light-mode canvas { display: none !important; }
@@ -67,9 +78,8 @@ body.light-mode canvas { display: none !important; }
 body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
 body.light-mode .input-container { background: #ffffff; border: 1px solid #d1d5db; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 body.light-mode input { color: #000 !important; }
-body.light-mode input::placeholder { color: #6b7280; }
 
-body.light-mode .sidebar-style { background: #ffffff; border-right: 1px solid #e5e7eb; }
+body.light-mode #sidebar { background: #ffffff; border-right: 1px solid #e5e7eb; }
 body.light-mode .nav-label { color: #333 !important; }
 body.light-mode .text-gray-400 { color: #666 !important; }
 
@@ -85,7 +95,7 @@ body.light-mode .dropdown-item { color: #333; }
 body.light-mode .dropdown-item:hover { background: #f3f4f6; }
 
 /* =========================================
-   CHAT & UI ELEMENTS
+   UI ELEMENTS
    ========================================= */
 .msg-user { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border-radius: 18px 18px 0 18px; align-self: flex-end; margin-left: auto; width: fit-content; max-width: 85%; word-wrap: break-word; }
 .msg-ai { border-radius: 18px 18px 18px 0; width: fit-content; max-width: 85%; margin-right: auto; word-wrap: break-word; }
@@ -93,22 +103,20 @@ body.light-mode .dropdown-item:hover { background: #f3f4f6; }
 body.dark-mode .msg-ai { background: rgba(30,30,30,0.8); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; }
 body.light-mode .msg-ai { background: #ffffff; border: 1px solid #e5e7eb; color: #1f2937; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-/* Code Blocks */
 pre { background: #1e1e1e !important; padding: 1rem; border-radius: 10px; overflow-x: auto; margin: 0.5rem 0; position: relative; border: 1px solid #333; }
 code { font-family: 'Consolas', monospace; font-size: 0.9em; color: #abb2bf; }
 .copy-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.1); color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
 
-/* Typing Animation */
 .typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #888; margin: 0 2px; animation: typing 1.4s infinite ease-in-out both; }
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-/* Utils */
+/* Modal Overlay */
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); }
-.modal-content { margin: 10% auto; padding: 20px; border-radius: 16px; width: 90%; max-width: 450px; }
+.modal-content { margin: 10% auto; padding: 20px; border-radius: 16px; width: 90%; max-width: 450px; position: relative; }
 
-/* 👇 FIX: DROPDOWN HIDDEN BY DEFAULT 👇 */
-.dropdown-menu { display: none; border-radius: 10px; padding: 5px; min-width: 120px; }
+/* Dropdown */
+.dropdown-menu { display: none; border-radius: 10px; padding: 5px; min-width: 140px; }
 .dropdown-menu.show { display: block; }
 .dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; gap: 10px; border-radius: 6px; align-items: center; }
