@@ -169,22 +169,50 @@ async function sendMessage() {
     }
 }
 
-function appendMessage(htmlContent, role) {
-    const welcome = document.getElementById('welcome-screen');
-    if(welcome) welcome.style.display = 'none';
-
-    const box = document.getElementById('chat-box');
-    const div = document.createElement('div');
-    div.className = `flex gap-4 mb-4 ${role === 'user' ? 'flex-row-reverse' : ''}`;
-    const avatar = role === 'ai' ? 
-        '<div class="w-8 h-8 rounded-full bg-pink-600 flex items-center justify-center text-xs text-white">🌸</div>' : 
-        '<div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white">U</div>';
+// 👇 REPLACE THIS WHOLE FUNCTION 👇
+function appendMessage(sender, text) {
+    const chatBox = document.getElementById('chat-box');
+    const msgDiv = document.createElement('div');
     
-    div.innerHTML = `${avatar}<div class="${role === 'ai' ? 'msg-ai' : 'msg-user'} p-3 px-4 max-w-[85%] text-sm leading-relaxed shadow-md">${htmlContent}</div>`;
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
-}
+    // Style classes
+    msgDiv.className = `p-4 mb-4 max-w-[85%] rounded-2xl ${sender === 'user' ? 'msg-user ml-auto' : 'msg-ai mr-auto'}`;
+    
+    // Markdown Convert Logic (Sirf AI ke liye)
+    if (sender === 'shanvika') {
+        // 1. Markdown ko HTML banao
+        msgDiv.innerHTML = marked.parse(text);
+        
+        // 2. Code Blocks ko Highlight karo
+        msgDiv.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
 
+        // 3. Har Code Block par COPY Button lagao
+        msgDiv.querySelectorAll('pre').forEach((pre) => {
+            // Button create karo
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            
+            // Button click logic
+            btn.addEventListener('click', () => {
+                const code = pre.querySelector('code').innerText;
+                navigator.clipboard.writeText(code);
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copy', 2000);
+            });
+            
+            pre.appendChild(btn); // Button ko code block mein daalo
+        });
+
+    } else {
+        // User ka message normal text rahega
+        msgDiv.innerText = text;
+    }
+
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
 // --- HISTORY ---
 async function loadHistory() {
     try {

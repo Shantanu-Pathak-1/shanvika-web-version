@@ -114,3 +114,43 @@ body.light-mode .text-gray-400 {
 body.light-mode .modal-content button.text-gray-400 {
     color: #000 !important;
 }
+
+/* =========================================
+   💻 CODE BLOCK STYLING
+   ========================================= */
+pre {
+    background: #1e1e1e; /* Dark background */
+    padding: 15px;
+    border-radius: 10px;
+    overflow-x: auto; /* Scroll agar line lambi ho */
+    margin-top: 10px;
+    margin-bottom: 10px;
+    position: relative; /* Copy button ke liye */
+    border: 1px solid #333;
+}
+
+code {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+}
+
+/* Copy Button Style */
+.copy-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: 0.2s;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+    background: #2563eb;
+}
