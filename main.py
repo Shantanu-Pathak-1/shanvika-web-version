@@ -89,24 +89,26 @@ def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # --- NEW: GEMINI GENERATOR ---
 
+# --- NEW: GEMINI GENERATOR (Updated Model) ---
 async def generate_gemini(prompt, system_instr):
     try:
-        # 👇 MODEL NAME UPDATE KIYA HAI 👇
-        model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+        # 👇 YAHAN NAME CHANGE KIYA HAI (List se confirm karke) 👇
+        model = genai.GenerativeModel('gemini-2.5-flash') 
         
         # Combine system instruction with user prompt
         full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
         response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
-        # Fallback: Agar Flash na chale, to purana 'gemini-pro' try karo
+        # Fallback: Agar specific model na mile, to generic 'latest' try karo
         try:
-            model = genai.GenerativeModel('gemini-pro')
+            print(f"⚠️ Primary model failed, trying fallback: {e}")
+            model = genai.GenerativeModel('gemini-flash-latest') # 👇 Generic Alias
             full_prompt = f"System Instruction: {system_instr}\n\nUser Query: {prompt}"
             response = model.generate_content(full_prompt)
             return response.text
-        except:
-            return f"⚠️ Gemini Error: {str(e)}"
+        except Exception as e2:
+            return f"⚠️ Gemini Error: {str(e2)}"
 
 # --- MODELS ---
 class ChatRequest(BaseModel):
