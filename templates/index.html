@@ -4,64 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shanvika 🌸 AI</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
     <link href="/static/css/style.css" rel="stylesheet">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.fog.min.js"></script>
 </head>
-<body id="vanta-bg" class="flex h-screen w-full dark-mode">
 
-    <aside id="sidebar" class="sidebar-style backdrop-blur-md shadow-2xl">
-        <div class="flex-1 flex flex-col overflow-hidden">
-           <div class="p-4 flex items-center justify-between h-16 border-b border-white/5 sidebar-content">
-                <div class="flex items-center gap-3 overflow-hidden select-none"> 
-                    <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-sm shadow-lg">🌸</div>
-                    <span class="nav-label font-bold text-lg text-gray-200">Shanvika</span>
-                </div>
-                
-                <button onclick="createNewChat()" class="nav-label text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition" title="New Chat">
-                    <i class="fas fa-edit text-lg"></i>
-                </button>
+<body id="vanta-bg" class="flex h-screen w-full dark-mode text-white overflow-hidden">
+
+    <aside id="sidebar" class="fixed left-0 top-0 h-full flex flex-col border-r border-white/5 bg-black/80 backdrop-blur-xl z-50 transition-all duration-300 w-20 md:hover:w-72 overflow-hidden group">
+        
+        <div class="h-16 flex items-center justify-between px-4 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3 overflow-hidden select-none cursor-pointer" onclick="window.location.reload()">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-xl shadow-lg">🌸</div>
+                <span class="font-bold text-xl tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap text-white">Shanvika</span>
             </div>
-                <button onclick="createNewChat()" class="nav-label text-gray-400 hover:text-white" title="New Chat"><i class="fas fa-edit text-lg"></i></button>
-            </div>
-            <div class="mt-2 px-2 flex-1 overflow-y-auto" id="history-list"></div>
+            
+            <button onclick="createNewChat()" class="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition opacity-0 group-hover:opacity-100 duration-200" title="New Chat">
+                <i class="fas fa-edit text-lg"></i>
+            </button>
         </div>
-        <div class="p-4 border-t border-white/5">
-            <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition sidebar-content group">
-                <div class="w-9 h-9 rounded-full bg-gray-700 overflow-hidden flex-shrink-0 cursor-pointer border border-gray-600" onclick="openProfileModal()">
+
+        <div id="history-list" class="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 scrollbar-hide">
+            </div>
+
+        <div class="p-4 border-t border-white/5 shrink-0">
+            <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition cursor-pointer group/profile" onclick="openProfileModal()">
+                <div class="w-9 h-9 rounded-full bg-gray-700 overflow-hidden shrink-0 border border-gray-500">
                     <img id="profile-img-sidebar" src="" class="w-full h-full object-cover">
                 </div>
-                <div class="profile-info flex-1 overflow-hidden cursor-pointer" onclick="openProfileModal()">
-                    <div id="profile-name-sidebar" class="text-sm font-bold truncate">Loading...</div>
-                    <div class="text-xs text-gray-400">Pro Plan</div>
+                <div class="flex-1 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div id="profile-name-sidebar" class="text-sm font-bold truncate text-white">Partner</div>
+                    <div class="text-xs text-pink-400">Pro Plan</div>
                 </div>
-                <button class="text-gray-400 hover:text-white ml-2 nav-label" onclick="openSettingsModal()"><i class="fas fa-cog"></i></button>
+                <button class="text-gray-400 hover:text-white opacity-0 group-hover/profile:opacity-100 transition" onclick="event.stopPropagation(); openSettingsModal()">
+                    <i class="fas fa-cog"></i>
+                </button>
             </div>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col relative">
-        <header class="md:hidden flex justify-between p-4 bg-black/50 backdrop-blur-md z-20">
-            <span class="font-bold text-white text-xl">🌸 Shanvika</span>
-            <button onclick="document.getElementById('sidebar').classList.toggle('mobile-open')" class="text-white"><i class="fas fa-bars"></i></button>
+    <main class="flex-1 flex flex-col relative z-10 h-full ml-0 md:ml-20 transition-all duration-300">
+        
+        <header class="md:hidden flex justify-between items-center p-4 bg-black/60 backdrop-blur-md z-20 border-b border-white/10">
+            <span class="font-bold text-white text-xl flex items-center gap-2">🌸 Shanvika</span>
+            <button onclick="document.getElementById('sidebar').classList.toggle('mobile-open')" class="text-white">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
         </header>
 
         <div id="chat-box" class="flex-1 overflow-y-auto p-4 pb-48 scroll-smooth">
-            <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-60 text-center">
-                <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl mb-4 shadow-2xl">🌸</div>
-                <h2 class="text-2xl font-bold">Namaste!</h2>
-                <p>Select a mode below to start.</p>
+            <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-80 text-center animate-fade-in">
+                <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-5xl mb-6 shadow-[0_0_30px_rgba(236,72,153,0.5)]">🌸</div>
+                <h2 class="text-3xl font-bold mb-2">Namaste, Partner!</h2>
+                <p class="text-gray-400">Main taiyaar hu. Aaj kya create karein?</p>
             </div>
         </div>
 
-       <div class="input-fixed-bottom">
+        <div class="input-fixed-bottom">
             <div class="input-wrapper flex flex-col gap-3 mx-auto max-w-4xl">
                 
-                <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 justify-start md:justify-center px-2">
+                <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 px-2 no-scrollbar">
                     <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
                     <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
                     <div class="mode-btn flex-shrink-0" onclick="setMode('image_gen', this)">🎨 Image Gen</div>
@@ -70,75 +80,79 @@
                     <div class="mode-btn flex-shrink-0" onclick="setMode('video', this)">🎥 Video</div>
                 </div>
 
-                <form class="input-container flex items-center p-2 pr-2 shadow-2xl bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
+                <form class="input-container flex items-center p-2 pr-2 shadow-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
                     <button type="button" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 flex-shrink-0 transition" onclick="document.getElementById('file-upload').click()">
                         <i class="fas fa-paperclip"></i>
                     </button>
                     <input type="file" id="file-upload" class="hidden" onchange="handleFileUpload(this)">
 
-                    <input type="text" id="user-input" class="flex-1 bg-transparent border-none outline-none px-3 py-3 text-white min-w-0" placeholder="Message Shanvika..." autocomplete="off">
+                    <input type="text" id="user-input" class="flex-1 bg-transparent border-none outline-none px-3 py-3 text-white min-w-0 placeholder-gray-500" placeholder="Message Shanvika..." autocomplete="off">
                     
                     <button type="submit" class="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 shadow-md transition transform active:scale-95 flex-shrink-0">
                         <i class="fas fa-arrow-up"></i>
                     </button>
                 </form>
                 
-                <p class="text-center text-[10px] text-gray-500 mt-1">Shanvika v5.0 • All Systems Active</p>
+                <p class="text-center text-[10px] text-gray-500 mt-1">Shanvika v5.0 • Powered by Gemini & Llama</p>
             </div>
         </div>
     </main>
 
     <div id="settings-modal" class="modal">
-        <div class="modal-content w-full max-w-lg"> 
+        <div class="modal-content w-full max-w-lg bg-[#1e1e1e] border border-gray-700"> 
             <div class="flex justify-between mb-4 border-b border-gray-700 pb-2">
-                <h2 class="text-xl font-bold">Settings & Personality</h2>
+                <h2 class="text-xl font-bold text-white">Settings</h2>
                 <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            
-            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg mb-4">
-                <span>Theme</span>
-                <button onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-sm">Dark</button>
-            </div>
-
             <div class="mb-4">
-                <label class="block text-sm text-gray-400 mb-2">Custom Instructions (How should AI behave?)</label>
-                <textarea id="custom-instruction-box" maxlength="1000" rows="4" 
-                    class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-pink-500 outline-none resize-none"
-                    placeholder="Ex: Speak in Hinglish, be funny, act like a programmer friend..."></textarea>
-                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Supports Hindi, Hinglish, English</span>
-                    <span id="char-count">0/1000</span>
-                </div>
-                <button onclick="saveInstructions()" class="mt-2 text-pink-400 hover:text-pink-300 text-sm font-bold">
-                    <i class="fas fa-save"></i> Save Instructions
-                </button>
+                <label class="block text-sm text-gray-400 mb-2">Custom Instructions</label>
+                <textarea id="custom-instruction-box" maxlength="1000" rows="5" class="w-full bg-black/30 border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-pink-500 outline-none resize-none" placeholder="Ex: Always speak in Hinglish..."></textarea>
+                <div class="flex justify-between text-xs text-gray-500 mt-1"><span>Format: Text</span><span id="char-count">0/1000</span></div>
+                <button onclick="saveInstructions()" class="mt-3 text-pink-400 hover:text-pink-300 text-sm font-bold flex items-center gap-2"><i class="fas fa-save"></i> Save Instructions</button>
             </div>
             <hr class="border-gray-700 my-4">
-            
-            <a href="/logout" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-all font-bold">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </a>
+            <a href="/logout" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg font-bold"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </div>
 
     <div id="profile-modal" class="modal">
-        <div class="modal-content text-center">
-            <h2 class="text-xl font-bold mb-4">Edit Profile</h2>
-            <div class="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-blue-500 relative cursor-pointer group" onclick="document.getElementById('avatar-upload').click()">
+        <div class="modal-content text-center bg-[#1e1e1e] border border-gray-700">
+            <h2 class="text-xl font-bold mb-4 text-white">Edit Profile</h2>
+            <div class="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-blue-500 relative cursor-pointer group">
                 <img id="profile-img-modal" src="" class="w-full h-full object-cover">
-                <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100"><i class="fas fa-camera text-white"></i></div>
             </div>
-            <input type="file" id="avatar-upload" class="hidden" onchange="uploadAvatar(this)">
-            <input type="text" id="profile-name-input" class="w-full bg-transparent border border-gray-500 rounded p-2 text-center text-white mb-4">
-            <button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded hover:bg-blue-500 transition">Save Changes</button>
+            <input type="text" id="profile-name-input" class="w-full bg-black/30 border border-gray-500 rounded p-2 text-center text-white mb-4">
+            <button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded text-white font-bold hover:bg-blue-500">Save Changes</button>
         </div>
     </div>
 
-    <div id="dropdown" class="dropdown-menu"><div class="dropdown-item" id="act-rename">Rename</div><div class="dropdown-item" id="act-delete" style="color:#ff5555">Delete</div></div>
+    <div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl">
+        <div class="dropdown-item hover:bg-gray-700" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div>
+        <div class="dropdown-item hover:bg-gray-700 text-red-400" id="act-delete"><i class="fas fa-trash"></i> Delete</div>
+    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.halo.min.js"></script>
-    
     <script src="/static/js/script.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            try {
+                VANTA.FOG({
+                    el: "#vanta-bg",
+                    mouseControls: true,
+                    touchControls: true,
+                    gyroControls: false,
+                    minHeight: 200.00,
+                    minWidth: 200.00,
+                    highlightColor: 0xec4899,
+                    midtoneColor: 0x8b5cf6,
+                    lowlightColor: 0x111111,
+                    baseColor: 0x000000,
+                    blurFactor: 0.60,
+                    speed: 1.20,
+                    zoom: 1.00
+                });
+            } catch (e) { console.log("Bg effect failed"); }
+        });
+    </script>
 </body>
 </html>
