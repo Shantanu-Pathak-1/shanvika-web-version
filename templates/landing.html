@@ -14,6 +14,7 @@
         body { font-family: 'Inter', sans-serif; background-color: #050505; color: white; overflow-x: hidden; }
         
         /* 3D Background Layer */
+    
         spline-viewer {
             position: fixed; 
             top: 0; 
@@ -23,6 +24,11 @@
             z-index: -1; 
             /* Slight brightness reduction to make text pop */
             filter: brightness(0.7) contrast(1.1); 
+        }
+
+        /* 👇 MAGIC CODE: Ye line Spline ka logo chupayegi */
+        spline-viewer::part(logo) {
+            display: none !important;
         }
 
         /* Glassmorphism Cards */
