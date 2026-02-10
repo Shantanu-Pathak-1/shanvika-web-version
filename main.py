@@ -220,12 +220,23 @@ async def read_root(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request})
 
 # --- USER API ---
+# 👇 Updated Profile Route (Plan Logic Added)
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {}
+    
     db_user = await users_collection.find_one({"email": user['email']})
-    return {"name": db_user.get("name"), "avatar": db_user.get("picture"), "custom_instruction": db_user.get("custom_instruction", "")}
+    
+    # Check if user is Admin
+    plan_name = "Pro Plan" if user['email'] == ADMIN_EMAIL else "Free Plan"
+    
+    return {
+        "name": db_user.get("name"), 
+        "avatar": db_user.get("picture"), 
+        "custom_instruction": db_user.get("custom_instruction", ""),
+        "plan": plan_name  # 👈 Ye naya data bhej rahe hain
+    }
 
 @app.post("/api/update_profile_name")
 async def update_name(req: ProfileRequest, request: Request):

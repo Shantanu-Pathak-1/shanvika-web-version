@@ -87,8 +87,38 @@ function toggleRecording() {
 // ... (Baaki code waisa hi hai, bas pura copy karo) ...
 function initVanta() { if (vantaEffect) { vantaEffect.destroy(); vantaEffect = null; } const isLight = document.body.classList.contains('light-mode'); setTimeout(() => { try { if (isLight) vantaEffect = VANTA.RINGS({ el: "#vanta-bg", mouseControls: true, touchControls: true, minHeight: 200, minWidth: 200, scale: 1, backgroundColor: 0xffffff, color: 0xec4899 }); else vantaEffect = VANTA.HALO({ el: "#vanta-bg", mouseControls: true, touchControls: true, minHeight: 200, minWidth: 200, baseColor: 0xca2cac, backgroundColor: 0x000000, amplitudeFactor: 3, xOffset: -0.01, yOffset: 0.06, size: 1.4 }); } catch (e) {} }, 100); }
 function toggleTheme() { document.body.classList.toggle('light-mode'); initVanta(); }
-async function loadProfile() { try { const res = await fetch('/api/profile'); const data = await res.json(); if (data.name) { document.getElementById('profile-name-sidebar').innerText = data.name; const imgSrc = data.avatar || `https://ui-avatars.com/api/?name=${data.name}&background=random&color=fff`; document.getElementById('profile-img-sidebar').src = imgSrc; document.getElementById('profile-img-modal').src = imgSrc; document.getElementById('profile-name-input').value = data.name; document.getElementById('custom-instruction-box').value = data.custom_instruction; } } catch (e) {} }
-async function handleFileUpload(input) { const file = input.files[0]; if (!file) return; if (file.size > 15 * 1024 * 1024) { alert("File > 15MB!"); input.value = ""; return; } const sendBtn = document.querySelector('button[type="submit"]'); sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>'; const wrapper = document.querySelector('.input-wrapper'); const oldP = document.getElementById('file-preview'); if(oldP) oldP.remove(); const div = document.createElement('div'); div.id = "file-preview"; div.className = "flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg mb-2 w-fit text-sm border border-gray-600 animate-pulse"; div.innerHTML = `<i class="fas fa-file"></i> <span>${file.name}</span>`; wrapper.insertBefore(div, wrapper.querySelector('.input-container')); try { const base64 = await toBase64(file); currentFile = { name: file.name, type: file.type, data: base64 }; div.innerHTML = `<i class="fas fa-file"></i> <span>${file.name}</span> <span class="text-xs text-green-400 ml-2">Ready</span> <button onclick="clearFile()" class="ml-2 text-gray-400"><i class="fas fa-times"></i></button>`; div.classList.remove('animate-pulse'); } catch (e) { clearFile(); } finally { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>'; } }
+// Profile Loader with Plan Logic
+async function loadProfile() {
+    try {
+        const res = await fetch('/api/profile');
+        const data = await res.json();
+        
+        if (data.name) {
+            // Name & Image
+            document.getElementById('profile-name-sidebar').innerText = data.name;
+            const imgSrc = data.avatar || `https://ui-avatars.com/api/?name=${data.name}&background=random&color=fff`;
+            document.getElementById('profile-img-sidebar').src = imgSrc;
+            document.getElementById('profile-img-modal').src = imgSrc;
+            document.getElementById('profile-name-input').value = data.name;
+            document.getElementById('custom-instruction-box').value = data.custom_instruction;
+
+            // 👇 PLAN UPDATE LOGIC
+            const planEl = document.getElementById('profile-plan-sidebar');
+            if (planEl) {
+                planEl.innerText = data.plan;
+                
+                // Agar Admin/Pro hai to Pink Color, nahi to Gray
+                if (data.plan === "Pro Plan") {
+                    planEl.className = "text-xs text-pink-400 font-bold shadow-pink-500/20 drop-shadow-sm";
+                    planEl.innerHTML = '<i class="fas fa-crown text-[10px] mr-1"></i> Pro Plan';
+                } else {
+                    planEl.className = "text-xs text-gray-500";
+                    planEl.innerText = "Free Plan";
+                }
+            }
+        }
+    } catch (e) { console.error(e); }
+}async function handleFileUpload(input) { const file = input.files[0]; if (!file) return; if (file.size > 15 * 1024 * 1024) { alert("File > 15MB!"); input.value = ""; return; } const sendBtn = document.querySelector('button[type="submit"]'); sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-500"></i>'; const wrapper = document.querySelector('.input-wrapper'); const oldP = document.getElementById('file-preview'); if(oldP) oldP.remove(); const div = document.createElement('div'); div.id = "file-preview"; div.className = "flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg mb-2 w-fit text-sm border border-gray-600 animate-pulse"; div.innerHTML = `<i class="fas fa-file"></i> <span>${file.name}</span>`; wrapper.insertBefore(div, wrapper.querySelector('.input-container')); try { const base64 = await toBase64(file); currentFile = { name: file.name, type: file.type, data: base64 }; div.innerHTML = `<i class="fas fa-file"></i> <span>${file.name}</span> <span class="text-xs text-green-400 ml-2">Ready</span> <button onclick="clearFile()" class="ml-2 text-gray-400"><i class="fas fa-times"></i></button>`; div.classList.remove('animate-pulse'); } catch (e) { clearFile(); } finally { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>'; } }
 function clearFile() { currentFile = null; document.getElementById('file-upload').value = ""; const p = document.getElementById('file-preview'); if(p) p.remove(); }
 const toBase64 = file => new Promise((r, j) => { const rd = new FileReader(); rd.readAsDataURL(file); rd.onload = () => r(rd.result); rd.onerror = j; });
 async function loadMemories() { try { const res = await fetch('/api/memories'); const data = await res.json(); const list = document.getElementById('memory-list'); list.innerHTML = ''; data.memories.forEach(mem => { const div = document.createElement('div'); div.className = "flex justify-between items-center bg-white/5 p-2 rounded text-xs text-gray-300"; div.innerHTML = `<span>${mem}</span> <button onclick="deleteMemory('${mem}')" class="text-red-400 hover:text-white"><i class="fas fa-times"></i></button>`; list.appendChild(div); }); } catch (e) {} }
