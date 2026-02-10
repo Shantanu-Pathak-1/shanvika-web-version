@@ -25,8 +25,7 @@
             /* Slight brightness reduction to make text pop */
             filter: brightness(0.7) contrast(1.1); 
         }
-
-        /* 👇 MAGIC CODE: Ye line Spline ka logo chupayegi */
+       
         spline-viewer::part(logo) {
             display: none !important;
         }
@@ -64,10 +63,12 @@
 <body>
 
     <spline-viewer url="https://prod.spline.design/yszqHxvXsSsuMZq5/scene.splinecode"></spline-viewer>
+     <div style="position: fixed; bottom: 10px; right: 10px; width: 150px; height: 50px; background: #050505; z-index: 40; pointer-events: none;"></div>
+       
 
     <nav class="fixed w-full z-50 p-6">
         <div class="max-w-7xl mx-auto flex justify-between items-center glass px-6 py-3 rounded-full">
-            <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-lg shadow-lg">🌸</div>
                 <span class="font-bold text-xl tracking-wide">Shanvika</span>
             </div>
@@ -154,28 +155,33 @@
     <p>&copy; 2026 Shanvika AI. Created with ❤️ by Shan Pathak.<a href="/about" class="text-pink-500 underline">About Creator</a></p>
     </footer>
 <script>
-        // Force Remove Spline Logo using JS Injection
-        const viewer = document.querySelector('spline-viewer');
-        
-        if (viewer) {
-            // Wait for the component to fully load
-            viewer.addEventListener('load', () => {
-                try {
-                    // Shadow DOM ke andar style inject karo
-                    const shadow = viewer.shadowRoot;
-                    if (shadow) {
-                        const style = document.createElement('style');
-                        style.textContent = '#logo { display: none !important; opacity: 0 !important; visibility: hidden !important; }';
-                        shadow.appendChild(style);
-                        console.log("Spline Logo Removed via JS 🥷");
-                    }
-                } catch (e) {
-                    console.log("Logo remove error:", e);
+        // 💥 NUCLEAR OPTION: Find and Destroy Spline Logo
+        const killLogo = setInterval(() => {
+            const viewer = document.querySelector('spline-viewer');
+            
+            if (viewer && viewer.shadowRoot) {
+                // Shadow DOM ke andar logo dhoondo
+                const logo = viewer.shadowRoot.querySelector('#logo');
+                
+                if (logo) {
+                    // Agar mil gaya, toh uda do!
+                    logo.remove();
+                    
+                    // Style bhi inject kar do double safety ke liye
+                    const style = document.createElement('style');
+                    style.textContent = '#logo { display: none !important; opacity: 0 !important; width: 0 !important; height: 0 !important; }';
+                    viewer.shadowRoot.appendChild(style);
+                    
+                    console.log("🚫 Spline Logo Destroyed!");
+                    
+                    // Loop rok do kyunki kaam ho gaya
+                    clearInterval(killLogo);
                 }
-            });
-        }
+            }
+        }, 50); // Har 50ms mein check karega (Bohot fast)
+
+        // Safety Timeout: 5 second baad loop band kar do taaki browser hang na ho
+        setTimeout(() => clearInterval(killLogo), 5000);
     </script>
-</body>
-</html>
 </body>
 </html>
