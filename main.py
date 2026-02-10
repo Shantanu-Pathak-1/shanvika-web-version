@@ -20,6 +20,7 @@ import PyPDF2
 from docx import Document
 import PIL.Image 
 import random 
+import re 
 from pdf2docx import Converter 
 import tempfile 
 
@@ -191,6 +192,29 @@ async def login(request: Request):
 async def about_page(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
+# 👇 GALLERY ROUTES (Add in main.py)
+@app.get("/gallery", response_class=HTMLResponse)
+async def gallery_page(request: Request):
+    user = await get_current_user(request)
+    if not user: return RedirectResponse(url="/")
+    
+    db_user = await users_collection.find_one({"email": user['email']})
+    images = db_user.get("gallery", [])
+    
+    return templates.TemplateResponse("gallery.html", {"request": request, "images": reversed(images)})
+
+@app.post("/api/delete_gallery_item")
+async def delete_gallery_item(request: Request):
+    user = await get_current_user(request)
+    data = await request.json()
+    img_url = data.get("url")
+    
+    await users_collection.update_one(
+        {"email": user['email']},
+        {"$pull": {"gallery": {"url": img_url}}}
+    )
+    return {"status": "ok"}
+
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
     try:
@@ -205,7 +229,8 @@ async def auth_callback(request: Request):
                     "picture": user_info.get('picture'), 
                     "custom_instruction": "", 
                     "memories": [],
-                    "is_banned": False # New users are not banned
+                    "gallery": [], # Initialize gallery
+                    "is_banned": False 
                 })
         return RedirectResponse(url="/")
     except: return RedirectResponse(url="/login")
@@ -215,8 +240,6 @@ async def logout(request: Request):
     request.session.pop('user', None)
     return RedirectResponse(url="/login")
 
-# 👇 THIS IS THE UPDATED ROUTE
-# main.py mein ye wala route replace kar dena
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     user = await get_current_user(request)
@@ -225,7 +248,6 @@ async def read_root(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request})
 
 # --- USER API ---
-# 👇 Updated Profile Route (Plan Logic Added)
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
@@ -240,7 +262,7 @@ async def get_profile(request: Request):
         "name": db_user.get("name"), 
         "avatar": db_user.get("picture"), 
         "custom_instruction": db_user.get("custom_instruction", ""),
-        "plan": plan_name  # 👈 Ye naya data bhej rahe hain
+        "plan": plan_name 
     }
 
 @app.post("/api/update_profile_name")
@@ -329,7 +351,6 @@ async def admin_panel(request: Request):
     banned_count = 0
     
     async for u in users_cursor:
-        # Count Chats for Usage Stats
         msg_count = await chats_collection.count_documents({"user_email": u['email']})
         u['msg_count'] = msg_count
         if u.get('is_banned', False): banned_count += 1
@@ -347,28 +368,22 @@ async def admin_panel(request: Request):
         "admin_email": ADMIN_EMAIL
     })
 
-# BAN USER (Soft Delete)
 @app.post("/admin/ban_user")
 async def ban_user(request: Request, email: str = Form(...)):
     user = await get_current_user(request)
     if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    
-    # Set banned flag to True
     await users_collection.update_one({"email": email}, {"$set": {"is_banned": True}})
     return RedirectResponse(url="/admin", status_code=303)
 
-# UNBAN USER (Recover)
 @app.post("/admin/unban_user")
 async def unban_user(request: Request, email: str = Form(...)):
     user = await get_current_user(request)
     if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    
-    # Set banned flag to False
     await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
     return RedirectResponse(url="/admin", status_code=303)
 
 # ==========================================
-# 🤖 CHAT CONTROLLER (Banned Check Added)
+# 🤖 CHAT CONTROLLER (Gallery Logic Added)
 # ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
@@ -376,15 +391,12 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         user = await get_current_user(request)
         if not user: return {"reply": "⚠️ Please Login first."}
         
-        # 👇 SECURITY CHECK: Is User Banned?
         db_user_check = await users_collection.find_one({"email": user['email']})
         if db_user_check.get("is_banned", False):
             return {"reply": "🚫 **ACCOUNT SUSPENDED**<br>Your account has been banned by the Administrator due to policy violation. Contact support to recover."}
 
         sid, mode, msg = req.session_id, req.mode, req.message
         
-        # ... (Rest of the Chat Logic Same as before) ...
-        # File Parsing
         file_text = ""
         vision_object = None
         if req.file_data:
@@ -402,7 +414,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     msg += " [Image Attached]"
             except Exception as e: return {"reply": f"⚠️ File Error: {e}"}
 
-        # Prompt & Memory
         custom_instr = db_user_check.get("custom_instruction", "")
         memories = db_user_check.get("memories", [])
         
@@ -414,18 +425,37 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
         if mode == "coding": base_system += " You are an Expert Coder."
         
-        # Save Chat
         if not await chats_collection.find_one({"session_id": sid}):
             await chats_collection.insert_one({"session_id": sid, "user_email": user['email'], "title": msg[:30], "messages": []})
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg + file_text}}})
 
         # Routing
         reply = ""
-        if mode == "image_gen": reply = await generate_image_hf(msg)
+        
+        # 👇 UPDATED LOGIC: Image & Anime (Save to Gallery)
+        if mode == "image_gen" or mode == "anime":
+            prompt_query = msg
+            if mode == "image_gen": 
+                reply = await generate_image_hf(prompt_query)
+            else: 
+                reply = await convert_to_anime(req.file_data, prompt_query)
+            
+            # Extract URL to save in Gallery
+            try:
+                url_match = re.search(r"src='([^']+)'", reply)
+                if url_match:
+                    img_url = url_match.group(1)
+                    await users_collection.update_one(
+                        {"email": user['email']},
+                        {"$push": {"gallery": {"url": img_url, "prompt": prompt_query, "mode": mode}}}
+                    )
+            except Exception as e:
+                print(f"Gallery Save Error: {e}")
+
         elif mode == "converter":
             if req.file_data: reply = await perform_conversion(req.file_data, req.file_type, msg)
             else: reply = "⚠️ Upload file to convert."
-        elif mode == "anime": reply = await convert_to_anime(req.file_data, msg)
+            
         elif mode == "research":
             research_data = await perform_research_task(msg)
             client = get_groq()
@@ -436,6 +466,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 )
                 reply = completion.choices[0].message.content
             else: reply = research_data
+            
         else:
             if mode == "coding" or vision_object:
                 if vision_object:
