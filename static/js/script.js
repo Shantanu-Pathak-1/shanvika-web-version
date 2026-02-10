@@ -1,21 +1,37 @@
 let currentSessionId = null;
 let currentMode = 'chat';
 let abortController = null;
-// 👇 NEW: File storage variable
-let currentFile = null; 
+let currentFile = null; // Store uploaded file data
 
-// 👇 NEW: File Handle Functions (Isse sabse upar rakhna safe hai)
+// 👇 ON LOAD
+document.addEventListener("DOMContentLoaded", () => {
+    loadHistory();
+    
+    // Character Counter for Settings
+    const box = document.getElementById('custom-instruction-box');
+    if(box) {
+        box.addEventListener('input', function() {
+            document.getElementById('char-count').innerText = `${this.value.length}/1000`;
+        });
+    }
+});
+
+// ==========================================
+// 📁 FILE HANDLING LOGIC (NEW)
+// ==========================================
+
 async function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+    // 5MB Limit check
+    if (file.size > 5 * 1024 * 1024) {
         alert("File too large! Please upload under 5MB.");
         input.value = ""; 
         return;
     }
 
-    // Preview UI
+    // Show Preview UI
     const wrapper = document.querySelector('.input-wrapper');
     const oldPreview = document.getElementById('file-preview');
     if(oldPreview) oldPreview.remove();
@@ -23,21 +39,30 @@ async function handleFileUpload(input) {
     const previewDiv = document.createElement('div');
     previewDiv.id = "file-preview";
     previewDiv.className = "flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg mb-2 w-fit text-sm border border-gray-600 animate-pulse";
+    
+    let iconClass = 'fa-file-alt text-blue-400';
+    if (file.type.includes('image')) iconClass = 'fa-image text-pink-400';
+    else if (file.type.includes('pdf')) iconClass = 'fa-file-pdf text-red-400';
+
     previewDiv.innerHTML = `
-        <i class="fas ${file.type.includes('image') ? 'fa-image text-pink-400' : 'fa-file-alt text-blue-400'}"></i>
+        <i class="fas ${iconClass}"></i>
         <span>${file.name}</span>
         <button onclick="clearFile()" class="text-gray-400 hover:text-white ml-2"><i class="fas fa-times"></i></button>
     `;
-    // Input container se pehle insert karo
     wrapper.insertBefore(previewDiv, wrapper.querySelector('.input-container'));
 
-    // Convert to Base64
-    const base64 = await toBase64(file);
-    currentFile = {
-        name: file.name,
-        type: file.type,
-        data: base64 
-    };
+    // Convert to Base64 for Backend
+    try {
+        const base64 = await toBase64(file);
+        currentFile = {
+            name: file.name,
+            type: file.type,
+            data: base64 
+        };
+    } catch (e) {
+        alert("Error reading file");
+        clearFile();
+    }
 }
 
 function clearFile() {
@@ -53,10 +78,10 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
 });
-// 👆 End of New Functions
-document.addEventListener("DOMContentLoaded", () => {
-    loadHistory();
-});
+
+// ==========================================
+// 💬 CHAT LOGIC
+// ==========================================
 
 async function createNewChat() {
     currentSessionId = null; 
@@ -66,6 +91,7 @@ async function createNewChat() {
             <h2 class="text-2xl font-bold">Namaste!</h2>
             <p>Select a mode below to start.</p>
         </div>`;
+    // URL clean karo
     window.history.pushState({}, document.title, "/");
 }
 
@@ -75,6 +101,7 @@ async function sendMessage() {
     const welcomeScreen = document.getElementById('welcome-screen');
     const message = inputField.value.trim();
 
+    // STOP GENERATION LOGIC
     if (abortController) {
         abortController.abort();
         abortController = null;
@@ -86,9 +113,10 @@ async function sendMessage() {
         return;
     }
 
-    // Allow empty message ONLY if file is attached
+    // Empty check (Agar file nahi hai aur text bhi nahi hai toh return)
     if (!message && !currentFile) return;
 
+    // Create Session if not exists
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/new_chat');
@@ -100,17 +128,20 @@ async function sendMessage() {
 
     if (welcomeScreen) welcomeScreen.style.display = 'none';
     
-    // UI mein file icon dikhao agar attached hai
-    let userDisplayMsg = message;
-    if (currentFile) userDisplayMsg += ` <br><small class="text-gray-300"><i class="fas fa-paperclip"></i> ${currentFile.name}</small>`;
-    
-    appendMessage('user', userDisplayMsg);
+    // UI Display Logic
+    let displayMsg = message;
+    if (currentFile) {
+        displayMsg += ` <br><span class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded mt-1 inline-block"><i class="fas fa-paperclip"></i> ${currentFile.name}</span>`;
+    }
+
+    appendMessage('user', displayMsg);
     inputField.value = '';
-
-    // Remove Preview from UI
+    
+    // Hide Preview
     const p = document.getElementById('file-preview');
-    if(p) p.style.display = 'none'; 
+    if(p) p.style.display = 'none';
 
+    // Loading State
     abortController = new AbortController();
     sendBtnIcon.className = "fas fa-stop";
     sendBtnIcon.parentElement.classList.add("bg-red-500");
@@ -123,17 +154,19 @@ async function sendMessage() {
     let statusText = "Thinking";
     if (currentMode === 'coding') statusText = "Coding";
     else if (currentMode === 'image_gen') statusText = "Painting";
+    else if (currentMode === 'video') statusText = "Filming";
     
     loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}...</span> <div class="typing-dot"></div>`;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
+        // Prepare Payload
         const payload = { 
-            message, 
+            message: message, 
             session_id: currentSessionId, 
             mode: currentMode,
-            file_data: currentFile ? currentFile.data : null, // 👇 Sending File Data
+            file_data: currentFile ? currentFile.data : null,
             file_type: currentFile ? currentFile.type : null
         };
 
@@ -144,7 +177,7 @@ async function sendMessage() {
             signal: abortController.signal
         });
 
-        // Clear file after sending
+        // Clear file from memory after sending
         clearFile();
 
         const data = await response.json();
@@ -171,19 +204,20 @@ function appendMessage(sender, text) {
     
     if (sender === 'user') {
         msgDiv.className = "p-3 mb-4 rounded-2xl bg-blue-600 text-white w-fit max-w-[85%] ml-auto break-words shadow-lg";
-        msgDiv.innerText = text;
+        // User message treated as HTML to show file icon
+        msgDiv.innerHTML = text; 
     } else {
         msgDiv.className = "msg-ai p-4 mb-4 rounded-2xl w-fit max-w-[85%] mr-auto break-words shadow-lg bg-gray-800 border border-gray-700 text-gray-200";
         
-        // 👇 CHECK: Agar text mein Image/Video HTML hai, toh direct HTML use karo (No Markdown)
+        // CHECK: If AI sends Image/Video HTML, inject directly
         if (text.includes("<img") || text.includes("<video")) {
-            msgDiv.innerHTML = text; 
+            msgDiv.innerHTML = text;
         } else {
-            // Normal text ke liye Markdown
+            // Otherwise use Markdown
             msgDiv.innerHTML = marked.parse(text);
             msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
             
-            // Copy buttons code (Same as before)
+            // Copy Button Logic
             msgDiv.querySelectorAll('pre').forEach((pre) => {
                 const btn = document.createElement('button');
                 btn.className = 'copy-btn';
@@ -202,10 +236,86 @@ function appendMessage(sender, text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// ... (Baaki functions same rahenge: loadHistory, showDropdown, deleteChat, renameChat, setMode, etc.)
-// Agar tumne wo functions already likhe hain toh unhe yahan wapas likhne ki zaroorat nahi hai, 
-// bas 'appendMessage' aur 'sendMessage' ko update karna zaroori tha.
-// Lekin safety ke liye main baaki functions bhi niche de raha hu:
+// ==========================================
+// ⚙️ SETTINGS & PROFILE (FIXED)
+// ==========================================
+
+// ✅ FIXED: Fetch data before opening modal
+async function openSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'block';
+    
+    try {
+        const res = await fetch('/api/profile');
+        const data = await res.json();
+        
+        const box = document.getElementById('custom-instruction-box');
+        if (data.custom_instruction) {
+            box.value = data.custom_instruction;
+            document.getElementById('char-count').innerText = `${data.custom_instruction.length}/1000`;
+        } else {
+            box.value = "";
+            document.getElementById('char-count').innerText = "0/1000";
+        }
+    } catch (e) {
+        console.error("Failed to load profile data", e);
+    }
+}
+
+// ✅ FIXED: Save and give feedback
+async function saveInstructions() {
+    const txt = document.getElementById('custom-instruction-box').value;
+    const btn = document.querySelector('#settings-modal button.text-pink-400');
+    
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+        await fetch('/api/update_instructions', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ instruction: txt }) 
+        });
+        
+        btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            closeModal('settings-modal');
+        }, 1000);
+        
+    } catch (e) {
+        alert("Error saving instructions");
+        btn.innerHTML = originalText;
+    }
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
+
+// Profile & Other Utils
+function openProfileModal() { 
+    document.getElementById('profile-modal').style.display = 'block'; 
+    // Load current name
+    fetch('/api/profile').then(r=>r.json()).then(d => {
+        document.getElementById('profile-name-input').value = d.name;
+        document.getElementById('profile-img-modal').src = d.avatar;
+    });
+}
+
+async function saveProfile() { 
+    const name = document.getElementById('profile-name-input').value;
+    await fetch('/api/update_profile_name', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
+    closeModal('profile-modal');
+    location.reload(); // Refresh to see changes
+}
+
+async function uploadAvatar(input) { 
+    // Avatar logic remains skipped as it requires Cloudinary/S3 for Render
+    alert("Avatar upload requires external storage (S3/Cloudinary) on Render.");
+}
+
+// ==========================================
+// 📜 HISTORY & UTILS
+// ==========================================
 
 async function loadHistory() {
     try {
@@ -221,7 +331,10 @@ async function loadHistory() {
                 <span class="nav-label flex-1 truncate">${chat.title}</span> 
                 <i class="fas fa-ellipsis-v opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white px-2 nav-label" onclick="showDropdown(event, '${chat.id}')"></i>
             `;
-            div.onclick = (e) => { if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); };
+            // Click Handler
+            div.onclick = (e) => { 
+                if(!e.target.classList.contains('fa-ellipsis-v')) loadChat(chat.id); 
+            };
             list.appendChild(div);
         });
     } catch (e) {}
@@ -274,16 +387,3 @@ function setMode(mode, btn) {
     btn.classList.remove('bg-white/10', 'text-gray-300', 'border', 'border-white/10');
     btn.classList.add('active', 'bg-gradient-to-r', 'from-pink-500', 'to-purple-600', 'text-white', 'border-none');
 }
-
-function openSettingsModal() { document.getElementById('settings-modal').style.display = 'block'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function toggleTheme() { document.body.classList.toggle('light-mode'); document.body.classList.toggle('dark-mode'); }
-function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
-async function saveProfile() { /* Impl */ }
-async function saveInstructions() { 
-    const txt = document.getElementById('custom-instruction-box').value;
-    await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: txt }) });
-    closeModal('settings-modal');
-    alert("Saved!");
-}
-async function uploadAvatar(input) { /* Impl */ }
