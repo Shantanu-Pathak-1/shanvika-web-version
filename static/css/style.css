@@ -120,3 +120,71 @@ code { font-family: 'Consolas', monospace; font-size: 0.9em; color: #abb2bf; }
 .dropdown-menu { display: none; border-radius: 10px; padding: 5px; min-width: 140px; }
 .dropdown-menu.show { display: block; }
 .dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; gap: 10px; border-radius: 6px; align-items: center; }
+
+/* =========================================
+   🛠️ MODE BUTTONS FIX (Sundar Design)
+   ========================================= */
+
+.mode-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 5px;
+    justify-content: center; /* Desktop par Center */
+}
+
+/* Scrollbar chupao */
+.mode-scroll::-webkit-scrollbar { display: none; }
+
+/* Mobile par left align taaki scroll kar sakein */
+@media (max-width: 768px) {
+    .mode-scroll { justify-content: flex-start; }
+}
+
+/* Button Design */
+.mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px; /* Thoda bada size */
+    border-radius: 99px; /* Pill Shape */
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    
+    /* Default Dark Mode Look */
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px); /* Hover par thoda upar */
+}
+
+/* 🔥 ACTIVE STATE (Gradient Magic) 🔥 */
+.mode-btn.active {
+    background: linear-gradient(135deg, #ec4899, #8b5cf6) !important;
+    border: 1px solid transparent !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.5); /* Pink Glow */
+}
+
+/* Light Mode Fixes for Buttons */
+body.light-mode .mode-btn {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+}
+body.light-mode .mode-btn:hover {
+    background: #e5e7eb;
+}
+body.light-mode .mode-btn.active {
+    background: linear-gradient(135deg, #ec4899, #8b5cf6) !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+}
