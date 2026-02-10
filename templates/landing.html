@@ -11,32 +11,74 @@
     <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.59/build/spline-viewer.js"></script>
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #050505; color: white; overflow-x: hidden; }
+        /* CORE VARIABLES */
+        :root {
+            --bg-color: #050505;
+            --text-main: #ffffff;
+            --text-sub: #9ca3af;
+            --glass-bg: rgba(25, 25, 25, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: rgba(0, 0, 0, 0.3);
+            --badge-bg: rgba(236, 72, 153, 0.1);
+            --badge-border: rgba(236, 72, 153, 0.3);
+            --badge-text: #f472b6;
+        }
+
+        /* LIGHT MODE VARIABLES */
+        body.light-mode {
+            --bg-color: #ffffff;
+            --text-main: #111827;
+            --text-sub: #4b5563;
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --glass-shadow: rgba(0, 0, 0, 0.05);
+            --badge-bg: rgba(236, 72, 153, 0.1);
+            --badge-border: rgba(236, 72, 153, 0.4);
+            --badge-text: #db2777;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            overflow-x: hidden; 
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
         
         /* 3D Background Layer */
-    
         spline-viewer {
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            z-index: -1; 
-            /* Slight brightness reduction to make text pop */
-            filter: brightness(0.7) contrast(1.1); 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; 
+            filter: brightness(0.7) contrast(1.1);
+            transition: opacity 0.3s;
         }
-       
-        spline-viewer::part(logo) {
-            display: none !important;
+
+        /* 📱 MOBILE OPTIMIZATION: Hide 3D Model on Small Screens */
+        @media (max-width: 768px) {
+            spline-viewer { display: none !important; }
+            body { background-color: var(--bg-color); } /* Simple Background */
         }
+
+        /* LIGHT MODE SPECIFIC TWEAKS */
+        body.light-mode spline-viewer { opacity: 0.1; filter: grayscale(1); } /* Light mode mein robot halka dikhega */
+        body.light-mode .text-gray-300, 
+        body.light-mode .text-gray-400,
+        body.light-mode .text-gray-500 { color: var(--text-sub) !important; }
 
         /* Glassmorphism Cards */
         .glass {
-            background: rgba(25, 25, 25, 0.4); /* Darker glass */
+            background: var(--glass-bg);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px var(--glass-shadow);
+            transition: all 0.3s ease;
+        }
+
+        /* Badge Styling */
+        .badge {
+            background: var(--badge-bg);
+            border: 1px solid var(--badge-border);
+            color: var(--badge-text);
         }
 
         /* Animations */
@@ -44,10 +86,7 @@
         .delay-100 { animation-delay: 0.1s; }
         .delay-200 { animation-delay: 0.3s; }
         .delay-300 { animation-delay: 0.5s; }
-
-        @keyframes fadeInUp {
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
         /* Gradient Text */
         .text-gradient {
@@ -56,32 +95,36 @@
             -webkit-text-fill-color: transparent;
         }
         
-        /* Smooth Scroll */
         html { scroll-behavior: smooth; }
     </style>
 </head>
 <body>
 
     <spline-viewer url="https://prod.spline.design/yszqHxvXsSsuMZq5/scene.splinecode"></spline-viewer>
-     <!-- <div style="position: fixed; bottom: 10px; right: 10px; width: 150px; height: 50px; background: #050505; z-index: 40; pointer-events: none;"></div>
-        -->
 
     <nav class="fixed w-full z-50 p-6">
         <div class="max-w-7xl mx-auto flex justify-between items-center glass px-6 py-3 rounded-full">
-    <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-lg shadow-lg">🌸</div>
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-lg shadow-lg text-white">🌸</div>
                 <span class="font-bold text-xl tracking-wide">Shanvika</span>
             </div>
-            <a href="/auth/login" class="bg-white text-black hover:bg-gray-200 px-6 py-2 rounded-full font-bold text-sm transition transform hover:scale-105 shadow-lg">
-                Login / Signup
-            </a>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="toggleTheme()" class="w-9 h-9 rounded-full glass flex items-center justify-center hover:scale-110 transition text-yellow-400">
+                    <i id="theme-icon" class="fas fa-sun"></i>
+                </button>
+
+                <a href="/auth/login" class="bg-white text-black hover:bg-gray-200 px-6 py-2 rounded-full font-bold text-sm transition transform hover:scale-105 shadow-lg">
+                    Login / Signup
+                </a>
+            </div>
         </div>
     </nav>
 
     <section class="min-h-screen flex items-center justify-center px-4 pt-20 relative">
         <div class="text-center max-w-5xl mx-auto">
             
-            <div class="inline-block px-4 py-1 rounded-full border border-pink-500/30 bg-pink-500/10 text-pink-400 text-xs font-bold uppercase tracking-widest mb-6 fade-in-up backdrop-blur-md">
+            <div class="inline-block px-4 py-1 rounded-full badge text-xs font-bold uppercase tracking-widest mb-6 fade-in-up backdrop-blur-md">
                 v10.0 • Now with Voice & Vision
             </div>
             
@@ -99,27 +142,27 @@
                     <span>Talk to Shanvika</span>
                     <i class="fas fa-arrow-right"></i>
                 </a>
-                <a href="#features" class="glass text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition backdrop-blur-md">
+                <a href="#features" class="glass px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition backdrop-blur-md">
                     Explore Capabilities
                 </a>
             </div>
         </div>
         
-        <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce text-gray-400">
+        <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce opacity-50">
             <i class="fas fa-chevron-down text-2xl"></i>
         </div>
     </section>
 
-    <section id="features" class="py-24 px-4 bg-gradient-to-t from-black via-black/80 to-transparent">
+    <section id="features" class="py-24 px-4">
         <div class="max-w-7xl mx-auto">
             <div class="text-center mb-16">
                 <h2 class="text-3xl md:text-5xl font-bold mb-4">Beyond Simple Chat</h2>
-                <p class="text-gray-400 text-lg">Everything you need in one intelligent workspace.</p>
+                <p class="text-gray-300 text-lg">Everything you need in one intelligent workspace.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="glass p-8 rounded-3xl hover:bg-white/10 transition duration-300 group cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition border border-pink-500/20">
+                <div class="glass p-8 rounded-3xl hover:-translate-y-2 transition duration-300 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center text-3xl mb-6 border border-pink-500/20">
                         <i class="fas fa-microphone-alt"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-3">Voice Interaction</h3>
@@ -128,8 +171,8 @@
                     </p>
                 </div>
 
-                <div class="glass p-8 rounded-3xl hover:bg-white/10 transition duration-300 group cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition border border-purple-500/20">
+                <div class="glass p-8 rounded-3xl hover:-translate-y-2 transition duration-300 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-3xl mb-6 border border-purple-500/20">
                         <i class="fas fa-brain"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-3">Long-Term Memory</h3>
@@ -138,8 +181,8 @@
                     </p>
                 </div>
 
-                <div class="glass p-8 rounded-3xl hover:bg-white/10 transition duration-300 group cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition border border-blue-500/20">
+                <div class="glass p-8 rounded-3xl hover:-translate-y-2 transition duration-300 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-3xl mb-6 border border-blue-500/20">
                         <i class="fas fa-magic"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-3">Creative Studio</h3>
@@ -151,36 +194,45 @@
         </div>
     </section>
 
-    <footer class="py-10 border-t border-white/5 text-center text-gray-500 text-sm bg-black">
-    <p>&copy; 2026 Shanvika AI. Created with ❤️ by Shan Pathak.<a href="/about" class="text-pink-500 underline">About Creator</a></p>
+    <footer class="py-10 border-t border-white/10 text-center text-gray-500 text-sm">
+        <p>&copy; 2026 Shanvika AI. Created with ❤️ by <a href="/about" class="text-pink-500 hover:underline">Shan Pathak</a>.</p>
     </footer>
-<script>
-        // 💥 NUCLEAR OPTION: Find and Destroy Spline Logo
+
+    <script>
+        // 1. THEME TOGGLE LOGIC
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const icon = document.getElementById('theme-icon');
+            
+            if (document.body.classList.contains('light-mode')) {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                icon.parentElement.classList.replace('text-yellow-400', 'text-gray-600');
+            } else {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                icon.parentElement.classList.replace('text-gray-600', 'text-yellow-400');
+            }
+        }
+
+        // 2. 💥 NUCLEAR OPTION: Find and Destroy Spline Logo (Mobile Safe)
         const killLogo = setInterval(() => {
             const viewer = document.querySelector('spline-viewer');
             
             if (viewer && viewer.shadowRoot) {
-                // Shadow DOM ke andar logo dhoondo
                 const logo = viewer.shadowRoot.querySelector('#logo');
-                
                 if (logo) {
-                    // Agar mil gaya, toh uda do!
                     logo.remove();
-                    
-                    // Style bhi inject kar do double safety ke liye
+                    // Extra CSS Injection
                     const style = document.createElement('style');
-                    style.textContent = '#logo { display: none !important; opacity: 0 !important; width: 0 !important; height: 0 !important; }';
+                    style.textContent = '#logo { display: none !important; width: 0 !important; height: 0 !important; opacity: 0 !important; }';
                     viewer.shadowRoot.appendChild(style);
-                    
                     console.log("🚫 Spline Logo Destroyed!");
-                    
-                    // Loop rok do kyunki kaam ho gaya
                     clearInterval(killLogo);
                 }
             }
-        }, 50); // Har 50ms mein check karega (Bohot fast)
+        }, 50);
 
-        // Safety Timeout: 5 second baad loop band kar do taaki browser hang na ho
         setTimeout(() => clearInterval(killLogo), 5000);
     </script>
 </body>
