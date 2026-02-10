@@ -175,12 +175,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.halo.min.js"></script>
 
-    <script>
+<script>
         // --- CONFIG ---
         let currentMode = 'chat';
         let currentSessionId = null;
         let vantaEffect = null;
         let isDarkMode = true;
+        let selectedImageBase64 = null; // 👈 Store Image Data
 
         document.addEventListener('DOMContentLoaded', () => {
             loadProfile();
@@ -206,7 +207,6 @@
             document.body.className = isDarkMode ? "flex h-screen w-full dark-mode" : "flex h-screen w-full light-mode";
             document.getElementById('theme-btn').innerText = isDarkMode ? "Dark" : "Light";
             
-            // Footer Fix for Light Mode
             const footer = document.querySelector('.absolute.bottom-0');
             if (!isDarkMode) {
                 footer.classList.remove('bg-gradient-to-t', 'from-black', 'via-black/90');
@@ -215,7 +215,6 @@
                 footer.classList.add('bg-gradient-to-t', 'from-black', 'via-black/90');
                 footer.style.background = '';
             }
-
             if(isDarkMode) initVanta(); else { if(vantaEffect) { vantaEffect.destroy(); vantaEffect = null; } }
         }
 
@@ -240,110 +239,115 @@
                     headers: {'Content-Type': 'application/json'}, 
                     body: JSON.stringify({name}) 
                 });
-                loadProfile(); 
-                closeModal('profile-modal');
+                loadProfile(); closeModal('profile-modal');
             } catch(e) { console.error("Save profile error:", e); }
         }
         
         async function uploadAvatar(input) {
             if(!input.files[0]) return;
-            const fd = new FormData(); 
-            fd.append("file", input.files[0]);
-            try {
-                await fetch('/api/update_avatar', { method: 'POST', body: fd });
-                loadProfile(); 
-            } catch(e) { console.error("Avatar upload error:", e); }
+            const fd = new FormData(); fd.append("file", input.files[0]);
+            try { await fetch('/api/update_avatar', { method: 'POST', body: fd }); loadProfile(); } catch(e) { console.error("Avatar upload error:", e); }
         }
 
-        // --- CHAT & SENDING ---
+        // --- CHAT & IMAGE ---
         function setMode(mode, btn) {
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
             const placeholders = {
-                'chat': 'Message Shanvika...',
-                'coding': 'Ask for code help...',
-                'image_gen': 'Describe image to generate...',
-                'research': 'What do you want to research?...',
-                'anime': 'Ask about anime...',
-                'video': 'Describe your video idea...'
+                'chat': 'Message Shanvika...', 'coding': 'Ask for code help...',
+                'image_gen': 'Describe image to generate...', 'research': 'What do you want to research?...',
+                'anime': 'Ask about anime...', 'video': 'Describe your video idea...'
             };
-            
             document.getElementById('user-input').placeholder = placeholders[mode] || 'Message Shanvika...';
         }
 
-        // 🔥 FIXED: Isme change kiya hai (Welcome Screen Re-create logic added)
+        // 🖼️ HANDLE FILE SELECTION
+        function handleFileUpload(input) { 
+            const file = input.files[0];
+            if(!file) return;
+
+            // Convert to Base64
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedImageBase64 = e.target.result;
+                // UI feedback
+                const btn = document.querySelector('.fa-paperclip').parentElement;
+                btn.style.color = '#4ade80'; // Green color
+                document.getElementById('user-input').placeholder = "Image selected! Type question & send...";
+                document.getElementById('user-input').focus();
+            };
+            reader.readAsDataURL(file);
+        }
+
         async function createNewChat() {
-            console.log("Creating new chat...");
-            
             try {
                 const res = await fetch('/api/new_chat');
-                if (!res.ok) throw new Error('Failed to create new chat');
-                
                 const data = await res.json();
                 currentSessionId = data.session_id;
                 
-                // --- FIX STARTS HERE ---
-                // Hum pura box clear kar rahe hain, isliye Welcome Screen ko DOBARA banana padega
-                const chatBox = document.getElementById('chat-box');
-                chatBox.innerHTML = `
+                document.getElementById('chat-box').innerHTML = `
                     <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-60 text-center">
                         <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl mb-4 shadow-2xl">🌸</div>
                         <h2 class="text-2xl font-bold">Namaste!</h2>
                         <p>Select a mode below to start.</p>
-                    </div>
-                `;
-                // --- FIX ENDS HERE ---
-                
-                console.log("New session ID:", currentSessionId);
+                    </div>`;
                 await loadHistory();
-                
-            } catch(e) { 
-                console.error("Create chat error:", e); 
-                alert("Failed to create new chat. Please check if server is running.");
-            }
+            } catch(e) { console.error("Create chat error:", e); }
         }
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
             const msg = input.value.trim();
             
-            if(!msg) return;
+            if(!msg && !selectedImageBase64) return; // Msg or Image required
             
             if(!currentSessionId) {
                 await createNewChat();
                 await new Promise(r => setTimeout(r, 200)); 
             }
 
-            appendMessage(msg, 'user');
+            // Show User Message with Image Preview if exists
+            let userDisplayHtml = msg;
+            if(selectedImageBase64) {
+                userDisplayHtml += `<br><img src="${selectedImageBase64}" class="mt-2 rounded-lg max-h-40 border border-white/20">`;
+            }
+            appendMessage(userDisplayHtml, 'user');
+            
             input.value = '';
+            
+            // Reset Upload Button
+            const btn = document.querySelector('.fa-paperclip').parentElement;
+            btn.style.color = ''; 
 
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST', 
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
-                        message: msg, 
+                        message: msg || "Analyze this image", // Fallback text if empty
                         session_id: currentSessionId, 
-                        mode: currentMode 
+                        mode: currentMode,
+                        image: selectedImageBase64 // 👈 Sending Image
                     })
                 });
                 
+                // Clear selected image after sending
+                selectedImageBase64 = null;
+                document.getElementById('file-upload').value = ""; // Clear input
+
                 if (!res.ok) throw new Error(`Server error: ${res.status}`);
-                
                 const data = await res.json();
                 appendMessage(data.reply, 'ai');
                 loadHistory(); 
                 
             } catch(e) { 
                 console.error("Send message error:", e);
-                appendMessage("⚠️ Error: Could not connect to Shanvika. Check if server is running.", 'ai'); 
+                appendMessage("⚠️ Error: Could not connect to Shanvika.", 'ai'); 
             }
         }
 
-        function appendMessage(text, role) {
-            // Safe check for welcome screen
+        function appendMessage(htmlContent, role) {
             const welcome = document.getElementById('welcome-screen');
             if(welcome) welcome.style.display = 'none';
 
@@ -354,17 +358,11 @@
                 '<div class="w-8 h-8 rounded-full bg-pink-600 flex items-center justify-center text-xs text-white">🌸</div>' : 
                 '<div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white">U</div>';
             
-            div.innerHTML = `${avatar}<div class="${role === 'ai' ? 'msg-ai' : 'msg-user'} p-3 px-4 max-w-[85%] text-sm leading-relaxed shadow-md">${text}</div>`;
+            div.innerHTML = `${avatar}<div class="${role === 'ai' ? 'msg-ai' : 'msg-user'} p-3 px-4 max-w-[85%] text-sm leading-relaxed shadow-md">${htmlContent}</div>`;
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
 
-        function handleFileUpload(input) { 
-            if(input.files[0]) {
-                alert(`File selected: ${input.files[0].name}\n\nNote: File upload feature will be implemented soon!`); 
-            }
-        }
-        
         // --- HISTORY ---
         async function loadHistory() {
             try {
@@ -372,25 +370,14 @@
                 const data = await res.json();
                 const list = document.getElementById('history-list');
                 list.innerHTML = "";
-                
                 data.history.forEach(chat => {
                     const div = document.createElement('div');
                     div.className = "p-3 rounded-lg flex items-center justify-between cursor-pointer hover:bg-white/5 mb-1 group transition";
                     div.onclick = (e) => { if(!e.target.closest('button')) loadChat(chat.id); };
-                    div.innerHTML = `
-                        <div class="flex items-center gap-3 overflow-hidden">
-                            <i class="far fa-comment-alt text-gray-500"></i>
-                            <span class="nav-label text-gray-400 text-sm truncate w-32 group-hover:text-white transition">${chat.title}</span>
-                        </div>
-                        <button class="text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition" onclick="showMenu(event, '${chat.id}')">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </button>
-                    `;
+                    div.innerHTML = `<div class="flex items-center gap-3 overflow-hidden"><i class="far fa-comment-alt text-gray-500"></i><span class="nav-label text-gray-400 text-sm truncate w-32 group-hover:text-white transition">${chat.title}</span></div><button class="text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition" onclick="showMenu(event, '${chat.id}')"><i class="fas fa-ellipsis-h"></i></button>`;
                     list.appendChild(div);
                 });
-            } catch(e){ 
-                console.error("Load history error:", e); 
-            }
+            } catch(e){ console.error(e); }
         }
         
         async function loadChat(sid) {
@@ -398,16 +385,9 @@
                 currentSessionId = sid;
                 const res = await fetch(`/api/chat/${sid}`);
                 const data = await res.json();
-                
-                // Clear Box - Hum Welcome Screen nahi banayenge yaha kyunki messages load hone wale hain
                 document.getElementById('chat-box').innerHTML = '';
-                
-                data.messages.forEach(m => {
-                    appendMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-                });
-            } catch(e) {
-                console.error("Load chat error:", e);
-            }
+                data.messages.forEach(m => { appendMessage(m.content, m.role === 'user' ? 'user' : 'ai'); });
+            } catch(e) { console.error(e); }
         }
 
         // Modals & Menu
@@ -419,43 +399,11 @@
         function showMenu(e, sid) {
             e.stopPropagation();
             const rect = e.currentTarget.getBoundingClientRect();
-            dd.style.top = rect.bottom + 'px'; 
-            dd.style.left = rect.left + 'px';
-            dd.style.display = 'block';
-            
-            document.getElementById('act-rename').onclick = async () => { 
-                const t = prompt("Enter new name for chat:"); 
-                if(t) {
-                    await fetch('/api/rename_chat', { 
-                        method: 'POST', 
-                        headers: {'Content-Type': 'application/json'}, 
-                        body: JSON.stringify({session_id: sid, new_title: t}) 
-                    }); 
-                    loadHistory(); 
-                }
-                dd.style.display = 'none'; 
-            };
-            
-            document.getElementById('act-delete').onclick = async () => { 
-                if(confirm("Delete this chat?")) {
-                    await fetch(`/api/delete_chat/${sid}`, {method:'DELETE'}); 
-                    if(currentSessionId === sid) {
-                        currentSessionId = null;
-                        document.getElementById('chat-box').innerHTML = '';
-                        // Re-add welcome screen if deleted
-                        createNewChat();
-                    }
-                    loadHistory(); 
-                }
-                dd.style.display = 'none'; 
-            };
+            dd.style.top = rect.bottom + 'px'; dd.style.left = rect.left + 'px'; dd.style.display = 'block';
+            document.getElementById('act-rename').onclick = async () => { const t = prompt("Rename:"); if(t) { await fetch('/api/rename_chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: sid, new_title: t}) }); loadHistory(); } dd.style.display = 'none'; };
+            document.getElementById('act-delete').onclick = async () => { if(confirm("Delete?")) { await fetch(`/api/delete_chat/${sid}`, {method:'DELETE'}); if(currentSessionId === sid) { currentSessionId = null; createNewChat(); } loadHistory(); } dd.style.display = 'none'; };
         }
-        
-        window.onclick = (e) => { 
-            if(!dd.contains(e.target) && !e.target.closest('.fa-ellipsis-h')) {
-                dd.style.display = 'none'; 
-            }
-        }
+        window.onclick = (e) => { if(!dd.contains(e.target) && !e.target.closest('.fa-ellipsis-h')) { dd.style.display = 'none'; } }
     </script>
 </body>
 </html>
