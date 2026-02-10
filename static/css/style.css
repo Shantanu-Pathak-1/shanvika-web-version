@@ -1,15 +1,21 @@
-/* Purane style mein body ka height fix karo */
+/* =========================================
+   CORE STYLES
+   ========================================= */
 body { 
     font-family: 'Segoe UI', sans-serif; 
     overflow: hidden; 
-    transition: 0.3s; 
+    transition: background-color 0.3s, color 0.3s; 
     background: transparent;
-    /* Mobile Browser Address Bar Fix */
     height: 100vh; /* Fallback */
-    height: 100dvh; /* Asli Mobile Height */
+    height: 100dvh; /* Mobile Height Fix */
 }
 
-/* Input Container ko Fixed kar denge taaki wo hile nahi */
+/* Z-Index Layering */
+aside { position: relative; z-index: 50; }
+main { position: relative; z-index: 10; }
+.modal, .dropdown-menu { position: relative; z-index: 100; }
+
+/* Input Fixed Bottom Area */
 .input-fixed-bottom {
     position: fixed;
     bottom: 0;
@@ -17,177 +23,189 @@ body {
     width: 100%;
     z-index: 50;
     padding: 1rem;
-    background: linear-gradient(to top, #000000, rgba(0,0,0,0.9), transparent);
+    pointer-events: none; /* Click through allowed on gradient */
 }
 
-/* THEMES */
-body.dark-mode { color: #e0e0e0; }
-body.dark-mode input { color: white; }
-body.dark-mode .sidebar-style { background: rgba(0,0,0,0.8); border-right: 1px solid rgba(255,255,255,0.1); }
+.input-wrapper {
+    max-width: 48rem;
+    margin: 0 auto;
+    position: relative;
+    pointer-events: auto; /* Buttons clickable */
+}
 
-body.light-mode { background-color: #f8f9fa !important; color: #1a1a1a !important; }
-body.light-mode canvas { display: none !important; }
-body.light-mode .sidebar-style { background: #ffffff !important; border-right: 1px solid #e5e7eb !important; box-shadow: 2px 0 15px rgba(0,0,0,0.05); }
-body.light-mode .nav-label { color: #333 !important; }
-body.light-mode .text-gray-400 { color: #666 !important; }
-body.light-mode header { background: #ffffff !important; border-bottom: 1px solid #e5e7eb; }
+/* Input Container (Common) */
+.input-container {
+    border-radius: 24px;
+    backdrop-filter: blur(10px);
+    z-index: 50;
+    transition: 0.3s;
+}
 
-/* Messages & Input Light Mode */
-body.light-mode .input-container { background: #ffffff; border: 1px solid #d1d5db; color: black; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-body.light-mode input { color: #1a1a1a !important; }
-body.light-mode input::placeholder { color: #6b7280; }
-body.light-mode .msg-ai { background: #ffffff; color: #1f2937; border: 1px solid #e5e7eb; }
+/* Mode Scrollbar Hide */
+.mode-scroll::-webkit-scrollbar { display: none; }
 
-/* VANTA */
-body.dark-mode canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+/* Mode Buttons (Common) */
+.mode-btn {
+    white-space: nowrap; padding: 6px 16px; border-radius: 20px; font-size: 13px; 
+    cursor: pointer; transition: 0.2s;
+}
 
-/* Z-INDEX LAYERING - FIXED */
-aside { position: relative; z-index: 50; }
-main { position: relative; z-index: 10; }
-.modal, .dropdown-menu { position: relative; z-index: 100; }
-
-/* SIDEBAR */
+/* Sidebar (Common) */
 #sidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); width: 4.5rem; display: flex; flex-direction: column; }
-@media (min-width: 768px) { #sidebar:hover, #sidebar.locked { width: 18rem; } }
+.nav-label { margin-left: 12px; white-space: nowrap; }
+
+/* Mobile Sidebar */
 @media (max-width: 767px) { 
     #sidebar { position: fixed; left: -100%; top:0; bottom:0; width: 80%; z-index: 60; }
     #sidebar.mobile-open { left: 0; }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) { 
+    #sidebar:hover, #sidebar.locked { width: 18rem; }
     #sidebar:not(:hover):not(.locked) .nav-label, 
     #sidebar:not(:hover):not(.locked) .profile-info { display: none; }
     #sidebar:not(:hover):not(.locked) .sidebar-content { justify-content: center; }
 }
-.nav-label { margin-left: 12px; white-space: nowrap; }
 
-/* CHAT BUBBLES */
-.msg-user { background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 18px 18px 0 18px; color: white; }
-.msg-ai { background: rgba(30,30,30,0.8); border-radius: 18px 18px 18px 0; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px); }
-
-/* INPUT AREA */
-.input-wrapper { max-width: 48rem; margin: 0 auto; position: relative; }
-.input-container { background: rgba(30,30,30,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; backdrop-filter: blur(10px); z-index: 50; }
-
-.mode-scroll::-webkit-scrollbar { display: none; }
-.mode-btn {
-    white-space: nowrap; padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: 0.2s;
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #ccc;
-}
-.mode-btn.active { background: linear-gradient(to right, #ec4899, #8b5cf6); border: none; color: white; font-weight: bold; }
-body.light-mode .mode-btn { background: #e5e7eb; border: 1px solid #d1d5db; color: #4b5563; }
-body.light-mode .mode-btn.active { color: white; background: linear-gradient(to right, #ec4899, #8b5cf6); border: none; }
-
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100; }
-.modal-content { background: #1e1e1e; margin: 15% auto; padding: 20px; border-radius: 16px; width: 90%; max-width: 400px; border: 1px solid #333; color: white; }
-body.light-mode .modal-content { background: white; color: black; border: 1px solid #ccc; }
-
-.dropdown-menu { display: none; position: fixed; z-index: 9999; background: #222; border-radius: 10px; padding: 5px; border: 1px solid #444; }
-.dropdown-menu.show { display: block; }
-.dropdown-item { padding: 8px 12px; cursor: pointer; color: #eee; display: flex; gap: 10px; border-radius: 6px; }
-.dropdown-item:hover { background: #333; }
 /* =========================================
-   🌞 LIGHT MODE FINAL FIXES
+   🌑 DARK MODE STYLES
    ========================================= */
+body.dark-mode { color: #e0e0e0; }
+body.dark-mode input { color: white; }
+body.dark-mode canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
 
-/* 1. Bottom Gradient ko White karo */
-body.light-mode .input-fixed-bottom {
-    background: linear-gradient(to top, #ffffff, rgba(255,255,255,0.95), transparent) !important;
+/* Dark Mode Input Area */
+body.dark-mode .input-fixed-bottom {
+    background: linear-gradient(to top, #000000 30%, rgba(0,0,0,0.9) 70%, transparent);
+}
+body.dark-mode .input-container {
+    background: rgba(30,30,30,0.9);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+body.dark-mode .mode-btn {
+    background: rgba(255,255,255,0.1); 
+    border: 1px solid rgba(255,255,255,0.1); 
+    color: #ccc;
+}
+body.dark-mode .sidebar-style { 
+    background: rgba(0,0,0,0.8); 
+    border-right: 1px solid rgba(255,255,255,0.1); 
 }
 
-/* 2. Settings Modal ke Input Boxes ko Light Banao */
+/* Dark Mode Modal */
+body.dark-mode .modal-content {
+    background: #1e1e1e; color: white; border: 1px solid #333;
+}
+
+/* =========================================
+   🌞 LIGHT MODE STYLES
+   ========================================= */
+body.light-mode { background-color: #f8f9fa !important; color: #1a1a1a !important; }
+body.light-mode canvas { display: none !important; }
+
+/* Light Mode Input Area */
+body.light-mode .input-fixed-bottom {
+    background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent);
+}
+body.light-mode .input-container {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+body.light-mode input { color: #000 !important; }
+body.light-mode input::placeholder { color: #6b7280; }
+
+/* Light Mode Sidebar */
+body.light-mode .sidebar-style {
+    background: #ffffff; border-right: 1px solid #e5e7eb;
+}
+body.light-mode .nav-label { color: #333 !important; }
+body.light-mode header { background: #ffffff !important; border-bottom: 1px solid #e5e7eb; color: #000; }
+body.light-mode .text-gray-400 { color: #666 !important; }
+
+/* Light Mode Buttons */
+body.light-mode .mode-btn {
+    background: #e5e7eb; border: 1px solid #d1d5db; color: #4b5563;
+}
+body.light-mode .mode-btn.active {
+    background: linear-gradient(to right, #ec4899, #8b5cf6); border: none; color: white;
+}
+
+/* Light Mode Modal */
+body.light-mode .modal-content {
+    background: #ffffff; color: #000; border: 1px solid #e5e7eb;
+}
 body.light-mode .modal-content textarea,
 body.light-mode .modal-content input {
-    background-color: #f3f4f6 !important; /* Light Gray Background */
-    color: #000000 !important;            /* Black Text */
-    border: 1px solid #d1d5db !important; /* Light Border */
+    background-color: #f3f4f6; color: #000; border: 1px solid #d1d5db;
+}
+body.light-mode .modal-content button.text-gray-400 { color: #000 !important; }
+
+/* =========================================
+   💬 CHAT BUBBLES
+   ========================================= */
+.msg-user {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    border-radius: 18px 18px 0 18px;
+    align-self: flex-end;
+    margin-left: auto;
+    width: fit-content;
+    max-width: 85%;
+    word-wrap: break-word;
 }
 
-/* 3. Settings Labels ko Dark karo */
-body.light-mode .modal-content label,
-body.light-mode .modal-content span, 
-body.light-mode .text-gray-400 {
-    color: #374151 !important; /* Dark Grey Text */
+.msg-ai {
+    border-radius: 18px 18px 18px 0;
+    width: fit-content;
+    max-width: 85%;
+    margin-right: auto;
+    word-wrap: break-word;
 }
 
-/* 4. Close Button ko visible karo */
-body.light-mode .modal-content button.text-gray-400 {
-    color: #000 !important;
+/* AI Bubble Colors */
+body.dark-mode .msg-ai {
+    background: rgba(30,30,30,0.8);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #e0e0e0;
+}
+body.light-mode .msg-ai {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #1f2937;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 /* =========================================
-   💻 CODE BLOCK STYLING
+   💻 CODE BLOCKS
    ========================================= */
 pre {
-    background: #1e1e1e; /* Dark background */
-    padding: 15px;
+    background: #1e1e1e !important; /* Always dark for code */
+    padding: 1rem;
     border-radius: 10px;
-    overflow-x: auto; /* Scroll agar line lambi ho */
-    margin-top: 10px;
-    margin-bottom: 10px;
-    position: relative; /* Copy button ke liye */
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    position: relative;
     border: 1px solid #333;
 }
+code { font-family: 'Consolas', monospace; font-size: 0.9em; }
 
-code {
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.9rem;
-}
-
-/* Copy Button Style */
 .copy-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background: #444;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 12px;
-    cursor: pointer;
-    opacity: 0.7;
-    transition: 0.2s;
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: none; padding: 4px 8px; border-radius: 4px;
+    font-size: 0.75rem; cursor: pointer; transition: 0.2s;
 }
-
-.copy-btn:hover {
-    opacity: 1;
-    background: #2563eb;
-}
-/* Status Text Pulse Animation */
-#status-text {
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 0.5; }
-    50% { opacity: 1; }
-    100% { opacity: 0.5; }
-}
+.copy-btn:hover { background: rgba(255,255,255,0.2); }
 
 /* =========================================
-   🌑 DARK MODE FINAL FIX (Force Black Bottom)
+   ✨ ANIMATIONS
    ========================================= */
-body.dark-mode .input-fixed-bottom {
-    background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.9) 60%, transparent) !important;
-}
-
-body.dark-mode .input-container {
-    background: rgba(30,30,30,0.9) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-}
-
-/* Typing/Thinking Animation inside Chat */
 .typing-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: #aaa;
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background-color: #888; margin: 0 2px;
     animation: typing 1.4s infinite ease-in-out both;
-    margin: 0 2px;
 }
-
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
@@ -195,11 +213,7 @@ body.dark-mode .input-container {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
 }
-/* User Message Fix (Taaki wo faile nahi) */
-.msg-user {
-    align-self: flex-end; /* Right side force karo */
-    margin-left: auto;    /* Left side space chodo */
-    width: fit-content;   /* Sirf utni jagah lo jitna text hai */
-    max-width: 85%;       /* Screen se bahar na jaye */
-    word-wrap: break-word; /* Lambe words tode */
-}
+
+/* Modal Overlay */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); }
+.modal-content { margin: 10% auto; padding: 20px; border-radius: 16px; width: 90%; max-width: 450px; }
