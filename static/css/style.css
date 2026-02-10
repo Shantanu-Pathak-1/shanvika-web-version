@@ -1,22 +1,21 @@
 /* =========================================
-   CORE & LAYOUT
+   1. CORE & LAYOUT
    ========================================= */
 body { 
     font-family: 'Segoe UI', sans-serif; 
     margin: 0; padding: 0;
     background-color: #000;
+    color: #e0e0e0;
+    overflow: hidden; /* Scroll sirf chat box karega */
 }
 
 /* Vanta Canvas Layer */
 canvas.vanta-canvas {
-    position: fixed !important;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 0 !important;
-    pointer-events: none;
+    position: fixed !important; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 0 !important; pointer-events: none;
 }
 
-/* 🔥 Z-INDEX HIERARCHY (The Master Fix) 🔥 */
+/* Z-INDEX HIERARCHY (Corrected) */
 #sidebar { z-index: 100; }
 main { position: relative; z-index: 10; }
 .input-fixed-bottom { z-index: 50; }
@@ -24,11 +23,10 @@ main { position: relative; z-index: 10; }
 .dropdown-menu { z-index: 210 !important; }
 
 /* =========================================
-   SIDEBAR STYLING
+   2. SIDEBAR STYLING
    ========================================= */
 #sidebar { 
-    position: fixed; 
-    left: 0; top: 0; bottom: 0;
+    position: fixed; left: 0; top: 0; bottom: 0;
     display: flex; flex-direction: column;
     background: rgba(10, 10, 10, 0.6); 
     border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -37,12 +35,9 @@ main { position: relative; z-index: 10; }
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Text Visibility Logic */
+/* Text Visibility Logic (Icons only mode) */
 .nav-label {
-    white-space: nowrap;
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
+    white-space: nowrap; opacity: 0; width: 0; overflow: hidden;
     transition: all 0.2s ease-in-out;
 }
 
@@ -64,13 +59,38 @@ main { position: relative; z-index: 10; }
     #sidebar:not(:hover) .h-16 { justify-content: center; padding: 0; }
 }
 
-/* Scrollbars */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
 /* =========================================
-   INPUT AREA
+   3. LIGHT MODE RESTORED
+   ========================================= */
+body.light-mode { background-color: #f8f9fa !important; color: #1a1a1a !important; }
+body.light-mode canvas.vanta-canvas { display: none !important; }
+
+body.light-mode #sidebar { background: #ffffff; border-right: 1px solid #e5e7eb; }
+body.light-mode .nav-label { color: #333 !important; }
+body.light-mode .text-gray-400 { color: #666 !important; }
+body.light-mode .text-white { color: #333 !important; } /* Fix sidebar text color */
+
+body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
+body.light-mode .input-container { background: #ffffff; border: 1px solid #d1d5db; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+body.light-mode input { color: #000 !important; }
+body.light-mode input::placeholder { color: #6b7280; }
+
+body.light-mode .mode-btn { background: #e5e7eb; border: 1px solid #d1d5db; color: #4b5563; }
+body.light-mode .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white !important; }
+
+body.light-mode .modal-content { background: #ffffff; color: #000; border: 1px solid #e5e7eb; }
+body.light-mode .modal-content textarea, 
+body.light-mode .modal-content input { background-color: #f3f4f6; color: #000; border: 1px solid #d1d5db; }
+body.light-mode .modal-content button.text-gray-400 { color: #666 !important; }
+
+/* Light Mode Messages */
+body.light-mode .msg-ai { background: #ffffff; border: 1px solid #e5e7eb; color: #1f2937; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+body.light-mode pre { background: #2d2d2d !important; color: #f8f8f2; } 
+
+/* =========================================
+   4. INPUT AREA
    ========================================= */
 .input-fixed-bottom {
     position: fixed; bottom: 0; left: 0; width: 100%; padding: 1rem;
@@ -78,7 +98,7 @@ main { position: relative; z-index: 10; }
     background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.8) 50%, transparent);
 }
 .input-wrapper { pointer-events: auto; }
-@media (min-width: 768px) { .input-wrapper { margin-left: 5rem; } } /* Sidebar Offset */
+@media (min-width: 768px) { .input-wrapper { margin-left: 5rem; } }
 
 /* Mode Buttons */
 .mode-scroll::-webkit-scrollbar { display: none; }
@@ -91,22 +111,78 @@ main { position: relative; z-index: 10; }
 .mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
 
 /* =========================================
-   MESSAGES & UTILS
+   5. MESSAGES & UTILS (Ye raha wo missing part!)
    ========================================= */
-.msg-user { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border-radius: 18px 18px 0 18px; width: fit-content; max-width: 85%; margin-left: auto; word-wrap: break-word; }
-.msg-ai { background: rgba(30,30,30,0.8); border: 1px solid rgba(255,255,255,0.1); color: #e0e0e0; border-radius: 18px 18px 18px 0; width: fit-content; max-width: 85%; word-wrap: break-word; }
+#chat-box { max-width: 1000px; margin: 0 auto; width: 100%; }
 
-pre { background: #111 !important; padding: 1rem; border-radius: 8px; border: 1px solid #333; overflow-x: auto; position: relative; }
-code { font-family: 'Consolas', monospace; color: #d4d4d4; }
-.copy-btn { position: absolute; top: 5px; right: 5px; background: #333; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
+.msg-user { 
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
+    color: white; 
+    border-radius: 18px 18px 0 18px; 
+    width: fit-content; max-width: 80%; 
+    padding: 12px 16px; 
+    margin-left: auto; /* Right align */
+    word-wrap: break-word; 
+    margin-bottom: 10px;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+}
 
-/* Modal & Dropdown */
+.msg-ai { 
+    background: rgba(30,30,30,0.8); 
+    border: 1px solid rgba(255,255,255,0.1); 
+    color: #e0e0e0; 
+    border-radius: 18px 18px 18px 0; 
+    width: fit-content; max-width: 80%; 
+    padding: 12px 16px; 
+    margin-right: auto; /* Left align */
+    word-wrap: break-word; 
+    margin-bottom: 10px;
+}
+
+/* Code Blocks Styling */
+pre { 
+    background: #111 !important; 
+    padding: 1rem; 
+    border-radius: 8px; 
+    border: 1px solid #333; 
+    overflow-x: auto; 
+    position: relative; 
+    margin-top: 10px;
+}
+code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.9em; }
+
+/* Copy Button Styling */
+.copy-btn { 
+    position: absolute; top: 5px; right: 5px; 
+    background: rgba(255,255,255,0.1); 
+    color: #fff; padding: 4px 8px; 
+    border-radius: 4px; font-size: 0.75rem; 
+    cursor: pointer; border: none;
+    transition: 0.2s;
+}
+.copy-btn:hover { background: rgba(255,255,255,0.2); }
+
+/* =========================================
+   6. MODALS & DROPDOWNS
+   ========================================= */
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
-.modal-content { padding: 20px; border-radius: 16px; margin: auto; max-height: 90vh; overflow-y: auto; }
-.dropdown-menu { display: none; padding: 5px; min-width: 140px; border-radius: 8px; position: fixed; }
+
+/* Settings Modal Fixed Size */
+.modal-content { 
+    width: 90%; max-width: 450px; 
+    padding: 20px; border-radius: 16px; 
+    background: #1e1e1e; border: 1px solid #333; 
+    margin: auto; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.dropdown-menu { display: none; padding: 5px; min-width: 140px; border-radius: 8px; position: fixed; background: #222; border: 1px solid #444; }
 .dropdown-menu.show { display: block; }
-.dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; }
+.dropdown-item { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; color: #eee; }
+.dropdown-item:hover { background: #333; }
 
 /* Typing Animation */
 .typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #aaa; margin: 0 2px; animation: typing 1.4s infinite; }
-@keyframes typing { 0%, 100% { transform: scale(0.2); } 50% { transform: scale(1); } }
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+@keyframes typing { 0%, 100% { transform: scale(0.5); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
