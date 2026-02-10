@@ -118,57 +118,86 @@ async function createNewChat() {
     } catch(e) { console.error("Create chat error:", e); }
 }
 
+// 👇 GLOBAL VARIABLE (Request Rokne ke liye)
+let abortController = null; 
+
 async function sendMessage() {
-    const input = document.getElementById('user-input');
-    const msg = input.value.trim();
-    
-    if(!msg && !selectedImageBase64) return; // Msg or Image required
-    
-    if(!currentSessionId) {
-        await createNewChat();
-        await new Promise(r => setTimeout(r, 200)); 
+    const inputField = document.getElementById('user-input');
+    const sendBtnIcon = document.querySelector('button[type="submit"] i'); // Send Button Icon
+    const statusText = document.getElementById('status-text'); // Status Line
+    const message = inputField.value.trim();
+
+    // 🛑 STOP LOGIC: Agar AI pehle se soch raha hai, to use ROK DO
+    if (abortController) {
+        abortController.abort(); // Request Cancel
+        abortController = null;
+        
+        // UI Reset
+        sendBtnIcon.className = "fas fa-arrow-up"; // Wapas Arrow bana do
+        statusText.style.opacity = "0"; // Status chupao
+        return; // Function yahin khatam
     }
 
-    // Show User Message with Image Preview if exists
-    let userDisplayHtml = msg;
-    if(selectedImageBase64) {
-        userDisplayHtml += `<br><img src="${selectedImageBase64}" class="mt-2 rounded-lg max-h-40 border border-white/20">`;
+    if (!message) return;
+
+    // UI Update: Message Bheja
+    appendMessage('user', message);
+    inputField.value = '';
+    
+    // 🟢 START LOGIC: Naya Request Shuru
+    abortController = new AbortController(); // Naya Controller
+    const signal = abortController.signal;
+
+    // 1. Button ko STOP banao
+    sendBtnIcon.className = "fas fa-stop"; 
+    sendBtnIcon.parentElement.classList.add("bg-red-500", "hover:bg-red-600"); // Red Color (Optional)
+
+    // 2. Status Text Set karo (Mode ke hisaab se)
+    statusText.style.opacity = "1";
+    if (currentMode === 'coding') {
+        statusText.innerText = "💻 Shanvika is coding...";
+    } else if (currentMode === 'image_gen') {
+        statusText.innerText = "🎨 Shanvika is painting...";
+    } else if (currentMode === 'research') {
+        statusText.innerText = "🔍 Shanvika is researching...";
+    } else {
+        statusText.innerText = "🌸 Shanvika is thinking...";
     }
-    appendMessage(userDisplayHtml, 'user');
-    
-    input.value = '';
-    
-    // Reset Upload Button
-    const btn = document.querySelector('.fa-paperclip').parentElement;
-    btn.style.color = ''; 
 
     try {
-        const res = await fetch('/api/chat', {
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'},
+        // Backend Call (Signal ke saath)
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                message: msg || "Analyze this image", // Fallback text if empty
-                session_id: currentSessionId, 
-                mode: currentMode,
-                image: selectedImageBase64 // 👈 Sending Image
-            })
+                message: message, 
+                session_id: currentSessionId,
+                mode: currentMode 
+            }),
+            signal: signal // 👈 Ye link hai rokne ke liye
         });
-        
-        // Clear selected image after sending
-        selectedImageBase64 = null;
-        document.getElementById('file-upload').value = ""; // Clear input
 
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
-        const data = await res.json();
-        appendMessage(data.reply, 'ai');
-        loadHistory(); 
+        const data = await response.json();
         
-    } catch(e) { 
-        console.error("Send message error:", e);
-        appendMessage("⚠️ Error: Could not connect to Shanvika.", 'ai'); 
+        // Reply aane par
+        appendMessage('shanvika', data.reply);
+
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            // Agar user ne roka
+            appendMessage('shanvika', "🛑 *Generation stopped by user.*");
+        } else {
+            console.error('Error:', error);
+            appendMessage('shanvika', "⚠️ Error: Could not connect.");
+        }
+    } finally {
+        // 🏁 FINISH: Sab kuch wapas normal karo
+        abortController = null;
+        sendBtnIcon.className = "fas fa-arrow-up"; // Wapas Arrow
+        sendBtnIcon.parentElement.classList.remove("bg-red-500", "hover:bg-red-600"); // Remove Red Color
+        statusText.style.opacity = "0"; // Status chupao
     }
 }
-
 // 👇 REPLACE THIS WHOLE FUNCTION 👇
 function appendMessage(sender, text) {
     const chatBox = document.getElementById('chat-box');
