@@ -26,14 +26,14 @@ import tempfile
 # ==========================================
 # 🔑 KEYS & CONFIG
 # ==========================================
-ADMIN_EMAIL = "shantanupathak94@gmail.com"
+ADMIN_EMAIL = "shantanupathak94@gmail.com" # YOUR EMAIL
 
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# AI Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") 
 MONGO_URL = os.getenv("MONGO_URL")
@@ -62,7 +62,7 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# DB & Static
+# DB
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.shanvika_db
 users_collection = db.users
@@ -73,52 +73,12 @@ if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- HELPER FUNCTIONS ---
+# --- HELPER ---
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 async def get_current_user(request: Request): return request.session.get('user')
 
 # ==========================================
-# 🧠 MEMORY MANAGEMENT ROUTES (NEW)
-# ==========================================
-class MemoryRequest(BaseModel):
-    memory_text: str
-
-@app.get("/api/memories")
-async def get_memories(request: Request):
-    user = await get_current_user(request)
-    if not user: return {"memories": []}
-    db_user = await users_collection.find_one({"email": user['email']})
-    return {"memories": db_user.get("memories", [])}
-
-@app.post("/api/add_memory")
-async def add_memory(req: MemoryRequest, request: Request):
-    user = await get_current_user(request)
-    if user: 
-        await users_collection.update_one(
-            {"email": user['email']}, 
-            {"$push": {"memories": req.memory_text}}
-        )
-    return {"status": "ok"}
-
-@app.post("/api/delete_memory")
-async def delete_memory(req: MemoryRequest, request: Request):
-    user = await get_current_user(request)
-    if user:
-        await users_collection.update_one(
-            {"email": user['email']},
-            {"$pull": {"memories": req.memory_text}}
-        )
-    return {"status": "ok"}
-
-@app.delete("/api/delete_all_chats")
-async def delete_all_chats(request: Request):
-    user = await get_current_user(request)
-    if user:
-        await chats_collection.delete_many({"user_email": user['email']})
-    return {"status": "ok"}
-
-# ==========================================
-# 🎨 GENERATORS (Image/Anime/Converter)
+# 🎨 GENERATORS (Standard)
 # ==========================================
 async def generate_image_hf(prompt):
     try:
@@ -142,20 +102,17 @@ async def perform_conversion(file_data, file_type, prompt):
         if "," in file_data: header, encoded = file_data.split(",", 1)
         else: encoded = file_data
         file_bytes = base64.b64decode(encoded)
-        
         prompt = prompt.lower()
         target = "pdf"
         if "word" in prompt or "docx" in prompt: target = "docx"
         elif "png" in prompt: target = "png"
         elif "jpg" in prompt: target = "jpeg"
         elif "webp" in prompt: target = "webp"
-        
         should_compress = "compress" in prompt or "size" in prompt
         
         if "image" in file_type:
             img = PIL.Image.open(io.BytesIO(file_bytes))
             if img.mode in ("RGBA", "P") and target in ["jpeg", "pdf"]: img = img.convert("RGB")
-            
             out = io.BytesIO()
             if should_compress:
                 img.save(out, format=target.upper(), optimize=True, quality=30)
@@ -163,11 +120,10 @@ async def perform_conversion(file_data, file_type, prompt):
             else:
                 img.save(out, format=target.upper(), quality=95)
                 msg_text = f"✅ **Converted to {target.upper()}!**"
-            
             out_b64 = base64.b64encode(out.getvalue()).decode("utf-8")
             mime = "application/pdf" if target == "pdf" else f"image/{target}"
             return f"""{msg_text}<br><a href="data:{mime};base64,{out_b64}" download="converted.{target}" class="inline-block bg-green-600 text-white px-4 py-2 rounded mt-2">Download File</a>"""
-
+        
         elif "pdf" in file_type and target == "docx":
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(file_bytes)
@@ -183,8 +139,7 @@ async def perform_conversion(file_data, file_type, prompt):
             finally:
                 if os.path.exists(tmp_path): os.remove(tmp_path)
                 if os.path.exists(docx_path): os.remove(docx_path)
-        
-        return "⚠️ Specify format (png, jpg, pdf, word)."
+        return "⚠️ Specify format."
     except Exception as e: return f"⚠️ Error: {str(e)}"
 
 async def perform_research_task(query):
@@ -219,6 +174,9 @@ class ProfileRequest(BaseModel):
 class InstructionRequest(BaseModel):
     instruction: str
 
+class MemoryRequest(BaseModel):
+    memory_text: str
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
 
@@ -236,7 +194,14 @@ async def auth_callback(request: Request):
         if user_info:
             request.session['user'] = dict(user_info)
             if not await users_collection.find_one({"email": user_info.get('email')}):
-                await users_collection.insert_one({"email": user_info.get('email'), "name": user_info.get('name'), "picture": user_info.get('picture'), "custom_instruction": "", "memories": []})
+                await users_collection.insert_one({
+                    "email": user_info.get('email'), 
+                    "name": user_info.get('name'), 
+                    "picture": user_info.get('picture'), 
+                    "custom_instruction": "", 
+                    "memories": [],
+                    "is_banned": False # New users are not banned
+                })
         return RedirectResponse(url="/")
     except: return RedirectResponse(url="/login")
 
@@ -251,6 +216,7 @@ async def read_root(request: Request):
     if not user: return RedirectResponse(url="/login")
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
+# --- USER API ---
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
@@ -303,42 +269,103 @@ async def delete_chat(session_id: str, request: Request):
     await chats_collection.delete_one({"session_id": session_id, "user_email": user['email']})
     return {"status": "ok"}
 
+@app.delete("/api/delete_all_chats")
+async def delete_all_chats(request: Request):
+    user = await get_current_user(request)
+    if user: await chats_collection.delete_many({"user_email": user['email']})
+    return {"status": "ok"}
+
+@app.get("/api/memories")
+async def get_memories(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"memories": []}
+    db_user = await users_collection.find_one({"email": user['email']})
+    return {"memories": db_user.get("memories", [])}
+
+@app.post("/api/add_memory")
+async def add_memory(req: MemoryRequest, request: Request):
+    user = await get_current_user(request)
+    if user: await users_collection.update_one({"email": user['email']}, {"$push": {"memories": req.memory_text}})
+    return {"status": "ok"}
+
+@app.post("/api/delete_memory")
+async def delete_memory(req: MemoryRequest, request: Request):
+    user = await get_current_user(request)
+    if user: await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
+    return {"status": "ok"}
+
 # ==========================================
-# 👑 ADMIN PANEL
+# 👑 SUPER ADMIN ROUTES (Secure)
 # ==========================================
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     user = await get_current_user(request)
+    # Check if admin
     if not user or user['email'] != ADMIN_EMAIL:
         return RedirectResponse(url="/")
     
-    all_users = await users_collection.find().to_list(length=1000)
-    total_users = await users_collection.count_documents({})
+    # Fetch Data
+    users_cursor = users_collection.find()
+    users_list = []
+    banned_count = 0
+    
+    async for u in users_cursor:
+        # Count Chats for Usage Stats
+        msg_count = await chats_collection.count_documents({"user_email": u['email']})
+        u['msg_count'] = msg_count
+        if u.get('is_banned', False): banned_count += 1
+        users_list.append(u)
+        
+    total_users = len(users_list)
     total_chats = await chats_collection.count_documents({})
     
     return templates.TemplateResponse("admin.html", {
-        "request": request, "users": all_users, "total_users": total_users, "total_chats": total_chats, "admin_email": ADMIN_EMAIL
+        "request": request,
+        "users": users_list,
+        "total_users": total_users,
+        "total_chats": total_chats,
+        "banned_count": banned_count,
+        "admin_email": ADMIN_EMAIL
     })
 
-@app.post("/admin/delete_user")
-async def delete_user(request: Request, email: str = Form(...)):
+# BAN USER (Soft Delete)
+@app.post("/admin/ban_user")
+async def ban_user(request: Request, email: str = Form(...)):
     user = await get_current_user(request)
     if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    await users_collection.delete_one({"email": email})
-    await chats_collection.delete_many({"user_email": email})
+    
+    # Set banned flag to True
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": True}})
+    return RedirectResponse(url="/admin", status_code=303)
+
+# UNBAN USER (Recover)
+@app.post("/admin/unban_user")
+async def unban_user(request: Request, email: str = Form(...)):
+    user = await get_current_user(request)
+    if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
+    
+    # Set banned flag to False
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
     return RedirectResponse(url="/admin", status_code=303)
 
 # ==========================================
-# 🤖 CHAT CONTROLLER (With Memory Injection)
+# 🤖 CHAT CONTROLLER (Banned Check Added)
 # ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     try:
         user = await get_current_user(request)
         if not user: return {"reply": "⚠️ Please Login first."}
+        
+        # 👇 SECURITY CHECK: Is User Banned?
+        db_user_check = await users_collection.find_one({"email": user['email']})
+        if db_user_check.get("is_banned", False):
+            return {"reply": "🚫 **ACCOUNT SUSPENDED**<br>Your account has been banned by the Administrator due to policy violation. Contact support to recover."}
+
         sid, mode, msg = req.session_id, req.mode, req.message
         
-        # 1. File Handling
+        # ... (Rest of the Chat Logic Same as before) ...
+        # File Parsing
         file_text = ""
         vision_object = None
         if req.file_data:
@@ -356,27 +383,24 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     msg += " [Image Attached]"
             except Exception as e: return {"reply": f"⚠️ File Error: {e}"}
 
-        # 2. PROMPT ENGINEERING (Injecting Memory)
-        db_user = await users_collection.find_one({"email": user['email']})
-        custom_instr = db_user.get("custom_instruction", "")
-        memories = db_user.get("memories", [])
+        # Prompt & Memory
+        custom_instr = db_user_check.get("custom_instruction", "")
+        memories = db_user_check.get("memories", [])
         
         base_system = "You are Shanvika AI."
         if custom_instr: base_system += f"\nUser Settings: {custom_instr}"
-        
-        # Inject Memories
         if memories:
-            base_system += "\n\n[USER MEMORIES (Remember these facts)]:\n"
+            base_system += "\n\n[USER MEMORIES]:\n"
             for m in memories: base_system += f"- {m}\n"
 
         if mode == "coding": base_system += " You are an Expert Coder."
         
-        # DB Updates
+        # Save Chat
         if not await chats_collection.find_one({"session_id": sid}):
             await chats_collection.insert_one({"session_id": sid, "user_email": user['email'], "title": msg[:30], "messages": []})
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg + file_text}}})
 
-        # 3. ROUTING
+        # Routing
         reply = ""
         if mode == "image_gen": reply = await generate_image_hf(msg)
         elif mode == "converter":

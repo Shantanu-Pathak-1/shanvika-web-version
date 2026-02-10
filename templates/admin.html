@@ -3,63 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shanvika Admin Panel</title>
+    <title>Shanvika Admin • Fortress</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style> body { background-color: #111; color: white; font-family: sans-serif; } </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { background-color: #050505; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        .glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        .neon-text { text-shadow: 0 0 10px rgba(236, 72, 153, 0.7); }
+        
+        /* Table Styling */
+        tr { transition: 0.3s; }
+        tr:hover { background: rgba(255, 255, 255, 0.05); }
+        
+        /* Password Overlay */
+        #lock-screen { position: fixed; inset: 0; z-index: 50; background: #000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        
+        /* Animations */
+        @keyframes pulse-border { 0% { border-color: rgba(236, 72, 153, 0.4); } 50% { border-color: rgba(236, 72, 153, 1); } 100% { border-color: rgba(236, 72, 153, 0.4); } }
+        .animate-border { animation: pulse-border 2s infinite; }
+    </style>
 </head>
-<body class="p-10">
-    <div class="max-w-6xl mx-auto">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-pink-500"><i class="fas fa-crown"></i> Shanvika Admin</h1>
-            <a href="/" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-white">Back to Chat</a>
-        </div>
+<body class="min-h-screen bg-[url('https://res.cloudinary.com/dovr8s3s5/image/upload/v1709586737/abstract-bg_dark.jpg')] bg-cover bg-fixed">
 
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-10">
-            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                <div class="text-gray-400">Total Users</div>
-                <div class="text-4xl font-bold mt-2">{{ total_users }}</div>
-            </div>
-            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                <div class="text-gray-400">Total Conversations</div>
-                <div class="text-4xl font-bold mt-2 text-green-400">{{ total_chats }}</div>
-            </div>
-        </div>
-
-        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-            <table class="w-full text-left">
-                <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
-                    <tr>
-                        <th class="px-6 py-4">User</th>
-                        <th class="px-6 py-4">Email</th>
-                        <th class="px-6 py-4">Action</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-700">
-                    {% for user in users %}
-                    <tr class="hover:bg-gray-700/50">
-                        <td class="px-6 py-4 flex items-center gap-3">
-                            <img src="{{ user.picture }}" class="w-8 h-8 rounded-full">
-                            <span>{{ user.name }}</span>
-                        </td>
-                        <td class="px-6 py-4 text-gray-400">{{ user.email }}</td>
-                        <td class="px-6 py-4">
-                            {% if user.email != admin_email %}
-                            <form action="/admin/delete_user" method="post" onsubmit="return confirm('Ban this user?');">
-                                <input type="hidden" name="email" value="{{ user.email }}">
-                                <button type="submit" class="text-red-400 hover:text-white bg-red-900/30 hover:bg-red-600 px-3 py-1 rounded transition text-sm">
-                                    <i class="fas fa-trash"></i> Ban
-                                </button>
-                            </form>
-                            {% else %}
-                            <span class="text-green-500 text-xs border border-green-500 px-2 py-1 rounded">ADMIN</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div id="lock-screen">
+        <div class="text-center">
+            <div class="text-6xl mb-4 text-pink-500 animate-bounce"><i class="fas fa-fingerprint"></i></div>
+            <h2 class="text-2xl font-bold mb-4 tracking-widest text-white">SYSTEM LOCKED</h2>
+            <input type="password" id="admin-pass" placeholder="Enter Access Code" 
+                class="bg-gray-900 border border-gray-700 text-white px-4 py-2 rounded-lg text-center focus:border-pink-500 outline-none w-64 tracking-widest">
+            <button onclick="unlockPanel()" class="block w-full mt-4 bg-pink-600 hover:bg-pink-500 text-white py-2 rounded-lg font-bold transition">UNLOCK</button>
         </div>
     </div>
+
+    <div id="dashboard" class="max-w-7xl mx-auto p-6 hidden opacity-0 transition-opacity duration-1000">
+        
+        <div class="flex justify-between items-center mb-10 glass p-4 rounded-2xl">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-2xl shadow-lg animate-border border-2 border-transparent">👑</div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-wide">Shanvika <span class="text-pink-500 neon-text">God Mode</span></h1>
+                    <p class="text-xs text-gray-400">System Status: <span class="text-green-400">ONLINE</span></p>
+                </div>
+            </div>
+            <a href="/" class="bg-gray-800 hover:bg-gray-700 px-5 py-2 rounded-full text-white text-sm font-bold border border-gray-600 transition hover:scale-105">
+                <i class="fas fa-arrow-left mr-2"></i> Return to Chat
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="glass p-6 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-6 -top-6 text-8xl text-pink-500/10 group-hover:scale-110 transition"><i class="fas fa-users"></i></div>
+                <div class="text-gray-400 text-sm uppercase tracking-wider">Total Users</div>
+                <div class="text-5xl font-bold mt-2 text-white">{{ total_users }}</div>
+            </div>
+            <div class="glass p-6 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-6 -top-6 text-8xl text-blue-500/10 group-hover:scale-110 transition"><i class="fas fa-comments"></i></div>
+                <div class="text-gray-400 text-sm uppercase tracking-wider">Total Messages</div>
+                <div class="text-5xl font-bold mt-2 text-blue-400">{{ total_chats }}</div>
+            </div>
+            <div class="glass p-6 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-6 -top-6 text-8xl text-red-500/10 group-hover:scale-110 transition"><i class="fas fa-ban"></i></div>
+                <div class="text-gray-400 text-sm uppercase tracking-wider">Banned Users</div>
+                <div class="text-5xl font-bold mt-2 text-red-400">{{ banned_count }}</div>
+            </div>
+        </div>
+
+        <div class="glass rounded-2xl overflow-hidden">
+            <div class="p-4 border-b border-white/10 bg-white/5">
+                <h3 class="font-bold text-lg"><i class="fas fa-database mr-2 text-pink-500"></i> User Database</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-black/40 text-gray-400 uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Identity</th>
+                            <th class="px-6 py-4">Usage (Msgs)</th>
+                            <th class="px-6 py-4">Status</th>
+                            <th class="px-6 py-4 text-right">Control</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        {% for user in users %}
+                        <tr class="hover:bg-white/5">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <img src="{{ user.picture }}" class="w-10 h-10 rounded-full border-2 border-gray-700">
+                                    <div>
+                                        <div class="font-bold text-white">{{ user.name }}</div>
+                                        <div class="text-xs text-gray-500">{{ user.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-gray-800 text-white px-3 py-1 rounded-full text-xs font-bold border border-gray-600">
+                                    {{ user.msg_count }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if user.is_banned %}
+                                    <span class="text-red-400 text-xs font-bold bg-red-900/20 px-2 py-1 rounded border border-red-900"><i class="fas fa-circle text-[8px] mr-1"></i> BANNED</span>
+                                {% else %}
+                                    <span class="text-green-400 text-xs font-bold bg-green-900/20 px-2 py-1 rounded border border-green-900"><i class="fas fa-circle text-[8px] mr-1"></i> ACTIVE</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                {% if user.email != admin_email %}
+                                    {% if user.is_banned %}
+                                        <button onclick="confirmAction('unban', '{{ user.email }}')" class="bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition border border-green-600/50">
+                                            <i class="fas fa-unlock"></i> RECOVER
+                                        </button>
+                                    {% else %}
+                                        <button onclick="confirmAction('ban', '{{ user.email }}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition border border-red-600/50">
+                                            <i class="fas fa-ban"></i> BAN
+                                        </button>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-gray-500 text-xs italic">SUPER ADMIN</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SECRET_PASS = "Shan@1234";
+
+        // 1. Entry Security
+        function unlockPanel() {
+            const input = document.getElementById('admin-pass').value;
+            if (input === SECRET_PASS) {
+                const lock = document.getElementById('lock-screen');
+                const dash = document.getElementById('dashboard');
+                
+                lock.style.transition = "opacity 0.5s ease";
+                lock.style.opacity = "0";
+                setTimeout(() => lock.remove(), 500);
+                
+                dash.classList.remove('hidden');
+                setTimeout(() => dash.classList.remove('opacity-0'), 100);
+            } else {
+                alert("ACCESS DENIED: Incorrect Password");
+                document.getElementById('admin-pass').value = "";
+            }
+        }
+
+        // 2. Action Security (Ban/Unban)
+        async function confirmAction(action, email) {
+            const { value: password } = await Swal.fire({
+                title: 'Security Check',
+                text: `Enter password to ${action.toUpperCase()} this user`,
+                input: 'password',
+                inputPlaceholder: 'Enter Shan@1234',
+                background: '#111',
+                color: '#fff',
+                confirmButtonColor: '#ec4899',
+                showCancelButton: true
+            });
+
+            if (password === SECRET_PASS) {
+                // Form submit logic dynamically
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/admin/${action}_user`;
+                
+                const emailField = document.createElement('input');
+                emailField.type = 'hidden';
+                emailField.name = 'email';
+                emailField.value = email;
+                
+                form.appendChild(emailField);
+                document.body.appendChild(form);
+                form.submit();
+            } else if (password) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Wrong Password!',
+                    background: '#111',
+                    color: '#fff'
+                });
+            }
+        }
+        
+        // Enter key support for login
+        document.getElementById('admin-pass').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") unlockPanel();
+        });
+    </script>
 </body>
 </html>
