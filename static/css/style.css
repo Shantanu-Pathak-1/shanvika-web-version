@@ -177,3 +177,30 @@ body.dark-mode .input-container {
     background: rgba(30,30,30,0.8) !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
 }
+/* Typing/Thinking Animation */
+.typing-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #aaa;
+    animation: typing 1.4s infinite ease-in-out both;
+    margin: 0 2px;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+/* User Message Fix (Taaki wo faile nahi) */
+.msg-user {
+    align-self: flex-end; /* Right side force karo */
+    margin-left: auto;    /* Left side space chodo */
+    width: fit-content;   /* Sirf utni jagah lo jitna text hai */
+    max-width: 85%;       /* Screen se bahar na jaye */
+    word-wrap: break-word; /* Lambe words tode */
+}

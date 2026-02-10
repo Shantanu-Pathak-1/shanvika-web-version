@@ -119,98 +119,112 @@ async function createNewChat() {
 }
 
 // 👇 GLOBAL VARIABLE (Request Rokne ke liye)
+// 👇 Global Variable
 let abortController = null; 
 
 async function sendMessage() {
     const inputField = document.getElementById('user-input');
-    const sendBtnIcon = document.querySelector('button[type="submit"] i'); // Send Button Icon
-    const statusText = document.getElementById('status-text'); // Status Line
+    const sendBtnIcon = document.querySelector('button[type="submit"] i');
     const message = inputField.value.trim();
 
-    // 🛑 STOP LOGIC: Agar AI pehle se soch raha hai, to use ROK DO
+    // 🛑 STOP LOGIC
     if (abortController) {
-        abortController.abort(); // Request Cancel
+        abortController.abort(); 
         abortController = null;
         
-        // UI Reset
-        sendBtnIcon.className = "fas fa-arrow-up"; // Wapas Arrow bana do
-        statusText.style.opacity = "0"; // Status chupao
-        return; // Function yahin khatam
+        // Thinking Bubble Hatao agar user ne roka
+        const loadingBubble = document.getElementById("loading-bubble");
+        if(loadingBubble) loadingBubble.remove();
+        
+        sendBtnIcon.className = "fas fa-arrow-up";
+        appendMessage('shanvika', "🛑 *Stopped.*");
+        return;
     }
 
     if (!message) return;
 
-    // UI Update: Message Bheja
+    // 1. User Message Show karo
     appendMessage('user', message);
     inputField.value = '';
+
+    // 2. Start Processing
+    abortController = new AbortController();
+    sendBtnIcon.className = "fas fa-stop"; // Button ko Stop banao
+    sendBtnIcon.parentElement.classList.add("bg-red-500");
+
+    // 👇 3. THINKING BUBBLE ADD KARO (Chat ke andar)
+    const loadingId = "loading-bubble";
+    const chatBox = document.getElementById('chat-box');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = loadingId;
+    loadingDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 w-fit mr-auto border border-gray-700 flex items-center gap-2";
     
-    // 🟢 START LOGIC: Naya Request Shuru
-    abortController = new AbortController(); // Naya Controller
-    const signal = abortController.signal;
-
-    // 1. Button ko STOP banao
-    sendBtnIcon.className = "fas fa-stop"; 
-    sendBtnIcon.parentElement.classList.add("bg-red-500", "hover:bg-red-600"); // Red Color (Optional)
-
-    // 2. Status Text Set karo (Mode ke hisaab se)
-    statusText.style.opacity = "1";
-    if (currentMode === 'coding') {
-        statusText.innerText = "💻 Shanvika is coding...";
-    } else if (currentMode === 'image_gen') {
-        statusText.innerText = "🎨 Shanvika is painting...";
-    } else if (currentMode === 'research') {
-        statusText.innerText = "🔍 Shanvika is researching...";
-    } else {
-        statusText.innerText = "🌸 Shanvika is thinking...";
-    }
+    // Status Text based on Mode
+    let statusText = "Thinking";
+    if (currentMode === 'coding') statusText = "Coding";
+    else if (currentMode === 'image_gen') statusText = "Painting";
+    
+    loadingDiv.innerHTML = `<i class="fas fa-robot text-pink-500"></i> <span class="text-gray-400 text-sm">${statusText}</span> <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+    
+    chatBox.appendChild(loadingDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
-        // Backend Call (Signal ke saath)
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                message: message, 
-                session_id: currentSessionId,
-                mode: currentMode 
-            }),
-            signal: signal // 👈 Ye link hai rokne ke liye
+            body: JSON.stringify({ message, session_id: currentSessionId, mode: currentMode }),
+            signal: abortController.signal
         });
 
         const data = await response.json();
-        
-        // Reply aane par
-        appendMessage('shanvika', data.reply);
+
+        // 👇 4. REPLY AANE PAR THINKING BUBBLE HATA DO
+        const currentLoader = document.getElementById(loadingId);
+        if (currentLoader) currentLoader.remove();
+
+        // 5. Asli Jawab Dikhao
+        if (data.reply) {
+            appendMessage('shanvika', data.reply);
+        } else {
+            appendMessage('shanvika', "⚠️ Empty response from AI.");
+        }
 
     } catch (error) {
-        if (error.name === 'AbortError') {
-            // Agar user ne roka
-            appendMessage('shanvika', "🛑 *Generation stopped by user.*");
-        } else {
-            console.error('Error:', error);
-            appendMessage('shanvika', "⚠️ Error: Could not connect.");
+        // Error handling
+        const currentLoader = document.getElementById(loadingId);
+        if (currentLoader) currentLoader.remove();
+
+        if (error.name !== 'AbortError') {
+            console.error(error);
+            appendMessage('shanvika', "⚠️ Error: Could not connect to server.");
         }
     } finally {
-        // 🏁 FINISH: Sab kuch wapas normal karo
         abortController = null;
-        sendBtnIcon.className = "fas fa-arrow-up"; // Wapas Arrow
-        sendBtnIcon.parentElement.classList.remove("bg-red-500", "hover:bg-red-600"); // Remove Red Color
-        statusText.style.opacity = "0"; // Status chupao
+        sendBtnIcon.className = "fas fa-arrow-up";
+        sendBtnIcon.parentElement.classList.remove("bg-red-500");
     }
 }
 // 👇 REPLACE THIS WHOLE FUNCTION 👇
-function appendMessage(sender, text) {
+function appendMessage(sender, text, msgId = null) {
     const chatBox = document.getElementById('chat-box');
     const msgDiv = document.createElement('div');
     
-    // 👇 UPDATE: Added 'w-fit' and 'break-words' to fix stretching
-    msgDiv.className = `p-4 mb-4 max-w-[85%] rounded-2xl w-fit break-words ${sender === 'user' ? 'msg-user ml-auto' : 'msg-ai mr-auto'}`;
-    
-    if (sender === 'shanvika') {
-        // AI Logic (Markdown + Copy Btn)
+    // Agar msgId diya hai (Thinking bubble ke liye), to set karo
+    if (msgId) msgDiv.id = msgId;
+
+    // 👇 CLASSES FIXED: 'w-fit', 'max-w-[85%]', 'break-words'
+    if (sender === 'user') {
+        msgDiv.className = "p-3 mb-4 rounded-2xl bg-blue-600 text-white w-fit max-w-[85%] ml-auto break-words shadow-lg";
+        msgDiv.innerText = text;
+    } else {
+        msgDiv.className = "p-4 mb-4 rounded-2xl bg-gray-800 text-gray-200 w-fit max-w-[85%] mr-auto break-words border border-gray-700 shadow-lg";
+        
+        // Markdown Logic
         msgDiv.innerHTML = marked.parse(text);
         msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
         
+        // Copy Button Logic
         msgDiv.querySelectorAll('pre').forEach((pre) => {
             const btn = document.createElement('button');
             btn.className = 'copy-btn';
@@ -223,9 +237,6 @@ function appendMessage(sender, text) {
             });
             pre.appendChild(btn);
         });
-    } else {
-        // User Logic
-        msgDiv.innerText = text;
     }
 
     chatBox.appendChild(msgDiv);
