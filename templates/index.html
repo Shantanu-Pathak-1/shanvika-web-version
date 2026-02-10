@@ -8,6 +8,27 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
+        /* Purane style mein body ka height fix karo */
+body { 
+    font-family: 'Segoe UI', sans-serif; 
+    overflow: hidden; 
+    transition: 0.3s; 
+    background: transparent;
+    /* Mobile Browser Address Bar Fix */
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* Asli Mobile Height */
+}
+
+/* Input Container ko Fixed kar denge taaki wo hile nahi */
+.input-fixed-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 50;
+    padding: 1rem;
+    background: linear-gradient(to top, #000000, rgba(0,0,0,0.9), transparent);
+}
         body { font-family: 'Segoe UI', sans-serif; overflow: hidden; transition: 0.3s; background: transparent; }
         
         /* THEMES */
