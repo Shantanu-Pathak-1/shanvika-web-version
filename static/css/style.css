@@ -164,3 +164,16 @@ code {
     50% { opacity: 1; }
     100% { opacity: 0.5; }
 }
+/* =========================================
+   🌑 DARK MODE BOTTOM FIX (Force Black)
+   ========================================= */
+
+body.dark-mode .input-fixed-bottom {
+    background: linear-gradient(to top, #000000, rgba(0,0,0,0.9), transparent) !important;
+}
+
+/* Ensure Input Box stays Dark in Dark Mode */
+body.dark-mode .input-container {
+    background: rgba(30,30,30,0.8) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}

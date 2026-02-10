@@ -203,39 +203,28 @@ function appendMessage(sender, text) {
     const chatBox = document.getElementById('chat-box');
     const msgDiv = document.createElement('div');
     
-    // Style classes
-    msgDiv.className = `p-4 mb-4 max-w-[85%] rounded-2xl ${sender === 'user' ? 'msg-user ml-auto' : 'msg-ai mr-auto'}`;
+    // 👇 UPDATE: Added 'w-fit' and 'break-words' to fix stretching
+    msgDiv.className = `p-4 mb-4 max-w-[85%] rounded-2xl w-fit break-words ${sender === 'user' ? 'msg-user ml-auto' : 'msg-ai mr-auto'}`;
     
-    // Markdown Convert Logic (Sirf AI ke liye)
     if (sender === 'shanvika') {
-        // 1. Markdown ko HTML banao
+        // AI Logic (Markdown + Copy Btn)
         msgDiv.innerHTML = marked.parse(text);
+        msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
         
-        // 2. Code Blocks ko Highlight karo
-        msgDiv.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightElement(block);
-        });
-
-        // 3. Har Code Block par COPY Button lagao
         msgDiv.querySelectorAll('pre').forEach((pre) => {
-            // Button create karo
             const btn = document.createElement('button');
             btn.className = 'copy-btn';
             btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
-            
-            // Button click logic
             btn.addEventListener('click', () => {
                 const code = pre.querySelector('code').innerText;
                 navigator.clipboard.writeText(code);
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.innerHTML = '<i class="fas fa-check"></i>';
                 setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copy', 2000);
             });
-            
-            pre.appendChild(btn); // Button ko code block mein daalo
+            pre.appendChild(btn);
         });
-
     } else {
-        // User ka message normal text rahega
+        // User Logic
         msgDiv.innerText = text;
     }
 

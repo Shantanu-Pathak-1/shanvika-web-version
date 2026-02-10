@@ -8,9 +8,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <link href="/static/css/style.css" rel="stylesheet">
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css](https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css)">
-<script src="[https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js](https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js)"></script>
-<script src="[https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js](https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js)"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 </head>
 <body id="vanta-bg" class="flex h-screen w-full dark-mode">
 
@@ -54,68 +54,69 @@
         </div>
 
        <div class="input-fixed-bottom">
-    <div class="input-wrapper flex flex-col gap-3 mx-auto max-w-4xl">
-        
-        <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 justify-start md:justify-center px-2">
-            <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
-            <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
-            <div class="mode-btn flex-shrink-0" onclick="setMode('image_gen', this)">🎨 Image Gen</div>
-            <div class="mode-btn flex-shrink-0" onclick="setMode('research', this)">🔍 Research</div>
-            <div class="mode-btn flex-shrink-0" onclick="setMode('anime', this)">🌸 Anime</div>
-            <div class="mode-btn flex-shrink-0" onclick="setMode('video', this)">🎥 Video</div>
+            <div class="input-wrapper flex flex-col gap-3 mx-auto max-w-4xl">
+                
+                <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 justify-start md:justify-center px-2">
+                    <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('image_gen', this)">🎨 Image Gen</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('research', this)">🔍 Research</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('anime', this)">🌸 Anime</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('video', this)">🎥 Video</div>
+                </div>
+
+                <div id="status-text" class="text-pink-500 text-xs font-bold ml-4 h-4 transition-all opacity-0"></div>
+
+                <form class="input-container flex items-center p-2 pr-2 shadow-2xl bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
+                    <button type="button" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 flex-shrink-0 transition" onclick="document.getElementById('file-upload').click()">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <input type="file" id="file-upload" class="hidden" onchange="handleFileUpload(this)">
+
+                    <input type="text" id="user-input" class="flex-1 bg-transparent border-none outline-none px-3 py-3 text-white min-w-0" placeholder="Message Shanvika..." autocomplete="off">
+                    
+                    <button type="submit" class="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 shadow-md transition transform active:scale-95 flex-shrink-0">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                </form>
+                
+                <p class="text-center text-[10px] text-gray-500 mt-1">Shanvika v5.0 • All Systems Active</p>
+            </div>
         </div>
-
-        <form class="input-container flex items-center p-2 pr-2 shadow-2xl bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
-            <button type="button" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 flex-shrink-0 transition" onclick="document.getElementById('file-upload').click()">
-                <i class="fas fa-paperclip"></i>
-            </button>
-            <input type="file" id="file-upload" class="hidden" onchange="handleFileUpload(this)">
-
-            <input type="text" id="user-input" class="flex-1 bg-transparent border-none outline-none px-3 py-3 text-white min-w-0" placeholder="Message Shanvika..." autocomplete="off">
-            
-            <button type="submit" class="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 shadow-md transition transform active:scale-95 flex-shrink-0">
-                <i class="fas fa-arrow-up"></i>
-            </button>
-        </form>
-        
-        <div id="status-text" class="text-pink-500 text-xs font-bold ml-4 h-4 transition-all opacity-0"></div>
-        
-        <p class="text-center text-[10px] text-gray-500 mt-1">Shanvika v5.0 • All Systems Active</p>
-    </div>
-</div>
     </main>
 
-   <div id="settings-modal" class="modal">
-    <div class="modal-content w-full max-w-lg"> <div class="flex justify-between mb-4 border-b border-gray-700 pb-2">
-            <h2 class="text-xl font-bold">Settings & Personality</h2>
-            <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
-        </div>
-        
-        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg mb-4">
-            <span>Theme</span>
-            <button onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-sm">Dark</button>
-        </div>
-
-        <div class="mb-4">
-            <label class="block text-sm text-gray-400 mb-2">Custom Instructions (How should AI behave?)</label>
-            <textarea id="custom-instruction-box" maxlength="1000" rows="4" 
-                class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-pink-500 outline-none resize-none"
-                placeholder="Ex: Speak in Hinglish, be funny, act like a programmer friend..."></textarea>
-            <div class="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Supports Hindi, Hinglish, English</span>
-                <span id="char-count">0/1000</span>
+    <div id="settings-modal" class="modal">
+        <div class="modal-content w-full max-w-lg"> 
+            <div class="flex justify-between mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-xl font-bold">Settings & Personality</h2>
+                <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <button onclick="saveInstructions()" class="mt-2 text-pink-400 hover:text-pink-300 text-sm font-bold">
-                <i class="fas fa-save"></i> Save Instructions
-            </button>
+            
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg mb-4">
+                <span>Theme</span>
+                <button onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-sm">Dark</button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-2">Custom Instructions (How should AI behave?)</label>
+                <textarea id="custom-instruction-box" maxlength="1000" rows="4" 
+                    class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-pink-500 outline-none resize-none"
+                    placeholder="Ex: Speak in Hinglish, be funny, act like a programmer friend..."></textarea>
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Supports Hindi, Hinglish, English</span>
+                    <span id="char-count">0/1000</span>
+                </div>
+                <button onclick="saveInstructions()" class="mt-2 text-pink-400 hover:text-pink-300 text-sm font-bold">
+                    <i class="fas fa-save"></i> Save Instructions
+                </button>
+            </div>
+            <hr class="border-gray-700 my-4">
+            
+            <a href="/logout" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-all font-bold">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
         </div>
-        <hr class="border-gray-700 my-4">
-        
-        <a href="/logout" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-all font-bold">
-            <i class="fas fa-sign-out-alt"></i> Logout
-        </a>
     </div>
-</div>
 
     <div id="profile-modal" class="modal">
         <div class="modal-content text-center">
