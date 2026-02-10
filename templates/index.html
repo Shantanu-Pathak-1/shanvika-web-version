@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shanvika 🌸 AI</title>
+    
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
@@ -64,13 +70,8 @@
                 <form class="input-container flex items-center p-2 pr-2 shadow-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
                     <button type="button" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 flex-shrink-0 transition" onclick="document.getElementById('file-upload').click()"><i class="fas fa-paperclip"></i></button>
                     <input type="file" id="file-upload" class="hidden" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" onchange="handleFileUpload(this)">
-                    
                     <input type="text" id="user-input" class="flex-1 bg-transparent border-none outline-none px-3 py-3 text-white min-w-0 placeholder-gray-500" placeholder="Message Shanvika..." autocomplete="off">
-                    
-                    <button type="button" id="mic-btn" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-pink-500 hover:bg-white/10 flex-shrink-0 transition mr-1" onclick="toggleRecording()">
-                        <i class="fas fa-microphone"></i>
-                    </button>
-
+                    <button type="button" id="mic-btn" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-pink-500 hover:bg-white/10 flex-shrink-0 transition mr-1" onclick="toggleRecording()"><i class="fas fa-microphone"></i></button>
                     <button type="submit" class="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 shadow-md transition transform active:scale-95 flex-shrink-0"><i class="fas fa-arrow-up"></i></button>
                 </form>
                 <p class="text-center text-[10px] text-gray-500 mt-1">Shanvika v10.0 • Voice Input & Output Enabled</p>
@@ -84,13 +85,19 @@
                 <h2 class="text-xl font-bold">Settings</h2>
                 <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
+
+            <div id="install-container" class="hidden mb-4 p-3 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg flex justify-between items-center shadow-lg">
+                <span class="font-bold flex items-center gap-2"><i class="fas fa-mobile-alt"></i> Install App</span>
+                <button onclick="installPWA()" class="bg-white text-pink-600 px-3 py-1 rounded text-sm font-bold hover:bg-gray-200">Install</button>
+            </div>
+
             <div class="space-y-3 mb-6">
                 <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                     <span>Theme</span>
                     <button onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-500">Switch</button>
                 </div>
                 <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                    <span>🗣️ Voice Reply (Bolne wali Shanvika)</span>
+                    <span>🗣️ Voice Reply</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="voice-toggle" class="sr-only peer" onchange="toggleVoice()">
                         <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:bg-pink-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
@@ -98,7 +105,7 @@
                 </div>
             </div>
             <div class="mb-6">
-                <label class="block text-sm text-gray-400 mb-2">Custom Instructions (Personality)</label>
+                <label class="block text-sm text-gray-400 mb-2">Custom Instructions</label>
                 <textarea id="custom-instruction-box" maxlength="1000" rows="3" class="w-full bg-black/30 border border-gray-600 rounded-lg p-3 text-white text-sm focus:border-pink-500 outline-none resize-none" placeholder="Ex: Speak like a girlfriend..."></textarea>
                 <button onclick="saveInstructions(this)" class="mt-2 w-full bg-pink-600/20 text-pink-400 border border-pink-600 hover:bg-pink-600 hover:text-white py-2 rounded font-bold transition text-sm flex items-center justify-center gap-2"><i class="fas fa-save"></i> Save Personality</button>
             </div>
@@ -111,8 +118,7 @@
                 <div id="memory-list" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
             </div>
             <div class="border-t border-gray-700 pt-4">
-                <label class="block text-sm text-red-400 mb-2">Danger Zone</label>
-                <button onclick="deleteAllChats()" class="w-full bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-700 hover:text-white py-2 rounded font-bold transition text-sm mb-3"><i class="fas fa-trash-alt"></i> Delete All Chat History</button>
+                <button onclick="deleteAllChats()" class="w-full bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-700 hover:text-white py-2 rounded font-bold transition text-sm mb-3"><i class="fas fa-trash-alt"></i> Delete All History</button>
                 <a href="/logout" class="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold text-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </div>
