@@ -6,15 +6,15 @@ body {
     margin: 0; padding: 0;
     background-color: #000;
     color: #e0e0e0;
-    overflow: hidden; /* Prevent body scroll, let containers scroll */
+    overflow: hidden; 
 }
 canvas.vanta-canvas { position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; z-index: 0 !important; pointer-events: none; }
 
-/* Z-INDEX STACK */
+/* Z-INDEX */
 #sidebar { z-index: 100; }
 main { position: relative; z-index: 10; }
 .input-fixed-bottom { z-index: 50; }
-.modal { z-index: 999 !important; } /* Highest Priority */
+.modal { z-index: 200 !important; }
 .dropdown-menu { z-index: 210 !important; position: fixed; }
 
 /* Scrollbars */
@@ -24,7 +24,7 @@ main { position: relative; z-index: 10; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
 /* =========================================
-   2. SIDEBAR STYLING
+   3. SIDEBAR STYLING
    ========================================= */
 #sidebar { 
     position: fixed; left: 0; top: 0; bottom: 0;
@@ -33,7 +33,7 @@ main { position: relative; z-index: 10; }
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(20px);
     width: 5rem;
-    transition: left 0.3s ease; /* Smooth slide for mobile */
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-label { white-space: nowrap; opacity: 0; width: 0; overflow: hidden; transition: all 0.2s ease-in-out; }
@@ -45,100 +45,82 @@ main { position: relative; z-index: 10; }
     #sidebar.mobile-open .nav-label { opacity: 1; width: auto; }
 }
 
-/* Desktop Hover Logic */
+/* Desktop Logic */
 @media (min-width: 768px) { 
     #sidebar:hover { width: 18rem; background: rgba(5, 5, 5, 0.98); }
     #sidebar:hover .nav-label { opacity: 1; width: auto; margin-left: 10px; }
-    #sidebar:not(:hover) .w-10 { margin: 0 auto; }
+    #sidebar:not(:hover) .w-10, #sidebar:not(:hover) .w-9 { margin: 0 auto; }
     #sidebar:not(:hover) .sidebar-header { justify-content: center; padding: 0; }
     #sidebar:not(:hover) .sidebar-header button { display: none; }
 }
 
-/* =========================================
-   3. CHAT AREA & CODE BLOCKS (FIXED)
-   ========================================= */
-#chat-box { 
-    width: 100%; 
-    max-width: 100%; 
-    padding: 20px 15px; 
-    padding-bottom: 240px !important; /* Space for input area */
-    flex: 1; 
-    overflow-y: auto; 
-    -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+.history-item {
+    display: flex; align-items: center; height: 42px;
+    padding: 0 10px; margin-bottom: 4px; border-radius: 12px;
+    cursor: pointer; transition: 0.2s; color: #d1d5db; position: relative;
 }
+.history-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.history-icon { width: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.1rem; color: #6b7280; }
+.history-item:hover .history-icon { color: #ec4899; }
 
+/* =========================================
+   4. LAYOUT & INPUT
+   ========================================= */
+#chat-box { width: 100%; max-width: 100%; padding: 20px 15px; padding-bottom: 240px !important; flex: 1; overflow-y: auto; }
 @media (min-width: 768px) { #chat-box { padding-left: 7rem; padding-right: 2rem; } }
 
-/* CODE BLOCK FIX - Horizontal Scroll */
-pre { 
-    background: #1e1e1e !important; 
-    padding: 1rem; 
-    border-radius: 12px; 
-    border: 1px solid #333; 
-    overflow-x: auto !important; /* Forces scroll bar if code is long */
-    max-width: 100%;
-    margin-top: 10px; 
-    white-space: pre; /* Keeps code formatting */
-}
-code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.85em; }
-
-/* =========================================
-   4. INPUT AREA
-   ========================================= */
+/* Input Fixed Bottom - Mobile Optimized */
 .input-fixed-bottom { 
     position: fixed; bottom: 0; left: 5rem; right: 0; 
     width: auto; padding: 1rem 2rem; pointer-events: none; 
-    background: linear-gradient(to top, #000000 30%, rgba(0,0,0,0.8) 70%, transparent); 
-    padding-bottom: 20px; padding-top: 40px; 
+    background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.8) 60%, transparent); 
+    padding-bottom: 25px; padding-top: 50px; 
 }
-.input-wrapper { pointer-events: auto; width: 100%; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.input-wrapper { pointer-events: auto; width: 100%; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
 
+/* Mobile Input Fixes */
 @media (max-width: 767px) { 
-    .input-fixed-bottom { left: 0; padding: 10px; padding-bottom: 15px; background: #000; } 
+    .input-fixed-bottom { left: 0; padding: 1rem; padding-bottom: 1.5rem; background: linear-gradient(to top, #000000 40%, transparent); } 
     .input-container { border-radius: 20px; }
 }
 
-.input-container { width: 100%; background: rgba(20, 20, 20, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px; backdrop-filter: blur(20px); transition: 0.3s; box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
+.input-container { width: 100%; background: rgba(20, 20, 20, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px; backdrop-filter: blur(20px); transition: 0.3s; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
 
 /* =========================================
-   5. MODAL FIXES (Settings Cut-off fix)
+   5. MESSAGES & MODES
    ========================================= */
-.modal { 
-    display: none; 
-    position: fixed; 
-    inset: 0; 
-    background: rgba(0,0,0,0.85); 
-    backdrop-filter: blur(5px); 
-    align-items: center; 
-    justify-content: center; 
-    z-index: 999; 
-    padding: 20px; /* Safe space from edges */
-}
-
-.modal-content { 
-    width: 100%; 
-    max-width: 450px; 
-    padding: 20px; 
-    border-radius: 20px; 
-    background: #18181b; 
-    border: 1px solid #333; 
-    box-shadow: 0 10px 50px rgba(0,0,0,0.8); 
-    
-    /* SCROLL FIX FOR SMALL SCREENS */
-    max-height: 80vh; 
-    overflow-y: auto; 
-    margin-top: auto; 
-    margin-bottom: auto;
-}
-
-/* =========================================
-   6. MESSAGE BUBBLES
-   ========================================= */
-.msg-user { background: linear-gradient(135deg, #2563eb, #9333ea); color: white; border-radius: 20px 20px 4px 20px; width: fit-content; max-width: 88%; padding: 10px 16px; margin-left: auto; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); font-size: 0.95rem; line-height: 1.4; }
-.msg-ai { background: rgba(40, 40, 40, 0.9); border: 1px solid rgba(255,255,255,0.08); color: #ececec; border-radius: 20px 20px 20px 4px; width: fit-content; max-width: 92%; padding: 12px 16px; margin-right: auto; margin-bottom: 15px; font-size: 0.95rem; line-height: 1.5; }
+.msg-user { background: linear-gradient(135deg, #2563eb, #9333ea); color: white; border-radius: 20px 20px 4px 20px; width: fit-content; max-width: 90%; padding: 10px 16px; margin-left: auto; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3); font-size: 0.9rem; line-height: 1.5; }
+.msg-ai { background: rgba(35, 35, 35, 0.9); border: 1px solid rgba(255,255,255,0.08); color: #ececec; border-radius: 20px 20px 20px 4px; width: fit-content; max-width: 90%; padding: 12px 18px; margin-right: auto; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.6; }
 .msg-ai img, .msg-user img { max-width: 100%; border-radius: 12px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.1); }
 
-/* Mode Buttons Scroll */
-.mode-scroll { mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent); }
-.mode-btn { padding: 6px 14px; border-radius: 99px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #bbb; white-space: nowrap; }
-.mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; }
+.mode-scroll { mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
+.mode-btn { padding: 6px 14px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.2s; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #aaa; white-space: nowrap; }
+.mode-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); color: white; }
+.mode-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 0 15px rgba(236,72,153,0.4); }
+
+/* =========================================
+   6. LIGHT MODE & UTILS
+   ========================================= */
+body.light-mode { background-color: #f8fafc !important; color: #1e293b !important; }
+body.light-mode #sidebar { background: rgba(255, 255, 255, 0.9); border-right: 1px solid #e2e8f0; }
+body.light-mode .text-white { color: #1e293b !important; }
+body.light-mode .text-gray-400 { color: #64748b !important; }
+body.light-mode .input-fixed-bottom { background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); }
+body.light-mode .input-container { background: rgba(255, 255, 255, 0.98); border: 1px solid #cbd5e1; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+body.light-mode input { color: #000 !important; }
+body.light-mode .msg-ai { background: #ffffff; border: 1px solid #e2e8f0; color: #334155; }
+body.light-mode .msg-user { color: white !important; }
+body.light-mode .modal-content { background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; }
+body.light-mode .modal-content input, body.light-mode .modal-content textarea { background: #f1f5f9; color: #000; border: 1px solid #cbd5e1; }
+
+pre { background: #1e1e1e !important; padding: 1rem; border-radius: 12px; border: 1px solid #333; overflow-x: auto; margin-top: 10px; }
+code { font-family: 'Consolas', monospace; color: #d4d4d4; font-size: 0.85em; }
+.copy-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.15); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; border: none; }
+
+/* Modals & Dropdown */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 999; }
+/* Mobile specific modal adjustments */
+.modal-content { width: 95%; max-width: 480px; padding: 20px; border-radius: 24px; background: #18181b; border: 1px solid #333; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); max-height: 85vh; overflow-y: auto; }
+
+.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
