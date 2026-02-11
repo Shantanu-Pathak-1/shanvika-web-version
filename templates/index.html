@@ -96,7 +96,7 @@
         </div>
     </main>
 
-    <div id="settings-modal" class="modal flex items-center justify-center p-4">
+    <div id="settings-modal" class="modal flex items-center justify-center p-4" style="display: none;">
         <div class="modal-content w-[95%] max-w-md bg-[#1e1e1e] border border-gray-700 text-white max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl"> 
             
             <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2 sticky top-0 bg-[#1e1e1e] z-10">
@@ -157,7 +157,7 @@
         </div>
     </div>
 
-    <div id="profile-modal" class="modal flex items-center justify-center p-4">
+    <div id="profile-modal" class="modal flex items-center justify-center p-4" style="display: none;">
         <div class="modal-content w-[90%] max-w-sm text-center bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl p-6">
             <h2 class="text-xl font-bold mb-4">Edit Profile</h2>
             <div class="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-blue-500 shadow-lg"><img id="profile-img-modal" src="" class="w-full h-full object-cover"></div>
@@ -166,12 +166,12 @@
         </div>
     </div>
 
-    <div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl z-50">
-        <div class="dropdown-item hover:bg-gray-700 rounded-md" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div>
-        <div class="dropdown-item hover:bg-gray-700 text-red-400 rounded-md" id="act-delete"><i class="fas fa-trash"></i> Delete</div>
-    </div>
+<div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl z-50" style="display: none;">
+    <div class="dropdown-item hover:bg-gray-700 rounded-md" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div>
+    <div class="dropdown-item hover:bg-gray-700 text-red-400 rounded-md" id="act-delete"><i class="fas fa-trash"></i> Delete</div>
+</div>
 
-    <div id="payment-modal" class="modal flex items-center justify-center p-4">
+    <div id="payment-modal" class="modal flex items-center justify-center p-4" style="display: none;">
         <div class="modal-content w-[95%] max-w-md bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl relative overflow-hidden shadow-2xl">
             <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-4 text-center">
                 <h2 class="text-xl font-bold text-white"><i class="fas fa-secure"></i> Secure Payment</h2>
