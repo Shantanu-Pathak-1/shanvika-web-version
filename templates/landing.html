@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shanvika AI • Your Intelligent Companion</title>
+    
     <meta name="description" content="Shanvika AI - Your intelligent companion with Voice, Vision, and Memory capabilities. Built by Shan Pathak.">
     <meta name="keywords" content="AI, Chatbot, Voice Assistant, Python, Shanvika, Shan Pathak, Portfolio">
     <meta name="author" content="Shan Pathak">
@@ -10,16 +13,15 @@
     <meta property="og:url" content="https://shanvika-web-version.onrender.com/">
     <meta property="og:title" content="Shanvika AI • Next-Gen Assistant">
     <meta property="og:description" content="Experience Voice, Vision, and Coding assistance with Shanvika AI. Create, Chat, and Explore.">
-    <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/3466/3466006.png"> <meta property="twitter:card" content="summary_large_image">
+    <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/3466/3466006.png">
+
+    <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:title" content="Shanvika AI • Created by Shan Pathak">
     <meta property="twitter:description" content="The AI that listens, remembers, and creates. Try it now.">
     <meta property="twitter:image" content="https://cdn-icons-png.flaticon.com/512/3466/3466006.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shanvika AI • Your Intelligent Companion</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
     <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.59/build/spline-viewer.js"></script>
     
     <style>
@@ -50,33 +52,38 @@
         }
 
         body { 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Segoe UI', sans-serif; 
             background-color: var(--bg-color); 
             color: var(--text-main); 
             overflow-x: hidden; 
             transition: background-color 0.3s ease, color 0.3s ease;
         }
         
-        /* 3D Background Layer */
+        /* 3D Background Layer (Desktop Only) */
         spline-viewer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; 
             filter: brightness(0.7) contrast(1.1);
             transition: opacity 0.3s;
         }
 
-        /* 📱 MOBILE OPTIMIZATION: Hide 3D Model on Small Screens */
+        /* 📱 MOBILE OPTIMIZATION */
         @media (max-width: 768px) {
+            /* Hide 3D Model to save battery & lag */
             spline-viewer { display: none !important; }
-            body { background-color: var(--bg-color); } /* Simple Background */
+            
+            /* Add Gradient Background for Mobile (So it's not boring black) */
+            body { 
+                background: linear-gradient(180deg, var(--bg-color) 0%, #1a1a1a 100%);
+                background-attachment: fixed;
+            }
         }
 
-        /* LIGHT MODE SPECIFIC TWEAKS */
-        body.light-mode spline-viewer { opacity: 0.1; filter: grayscale(1); } /* Light mode mein robot halka dikhega */
+        /* LIGHT MODE TWEAKS */
+        body.light-mode spline-viewer { opacity: 0.1; filter: grayscale(1); } 
         body.light-mode .text-gray-300, 
-        body.light-mode .text-gray-400,
-        body.light-mode .text-gray-500 { color: var(--text-sub) !important; }
+        body.light-mode .text-gray-400 { color: var(--text-sub) !important; }
 
-        /* Glassmorphism Cards */
+        /* Glassmorphism */
         .glass {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -100,7 +107,7 @@
         .delay-300 { animation-delay: 0.5s; }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
-        /* Gradient Text */
+        /* Text Gradient */
         .text-gradient {
             background: linear-gradient(to right, #ec4899, #8b5cf6);
             -webkit-background-clip: text;
@@ -114,19 +121,19 @@
 
     <spline-viewer url="https://prod.spline.design/yszqHxvXsSsuMZq5/scene.splinecode"></spline-viewer>
 
-    <nav class="fixed w-full z-50 p-6">
-        <div class="max-w-7xl mx-auto flex justify-between items-center glass px-6 py-3 rounded-full">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-lg shadow-lg text-white">🌸</div>
-                <span class="font-bold text-xl tracking-wide">Shanvika</span>
+    <nav class="fixed w-full z-50 p-4 md:p-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center glass px-4 md:px-6 py-2 md:py-3 rounded-full">
+            <div class="flex items-center gap-2 md:gap-3">
+                <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-lg shadow-lg text-white">🌸</div>
+                <span class="font-bold text-lg md:text-xl tracking-wide">Shanvika</span>
             </div>
             
-            <div class="flex items-center gap-4">
-                <button onclick="toggleTheme()" class="w-9 h-9 rounded-full glass flex items-center justify-center hover:scale-110 transition text-yellow-400">
-                    <i id="theme-icon" class="fas fa-sun"></i>
+            <div class="flex items-center gap-3 md:gap-4">
+                <button onclick="toggleTheme()" class="w-8 h-8 md:w-9 md:h-9 rounded-full glass flex items-center justify-center hover:scale-110 transition text-yellow-400">
+                    <i id="theme-icon" class="fas fa-sun text-sm md:text-base"></i>
                 </button>
 
-                <a href="/auth/login" class="bg-white text-black hover:bg-gray-200 px-6 py-2 rounded-full font-bold text-sm transition transform hover:scale-105 shadow-lg">
+                <a href="/auth/login" class="bg-white text-black hover:bg-gray-200 px-4 md:px-6 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition transform hover:scale-105 shadow-lg whitespace-nowrap">
                     Login / Signup
                 </a>
             </div>
@@ -136,116 +143,14 @@
     <section class="min-h-screen flex items-center justify-center px-4 pt-20 relative">
         <div class="text-center max-w-5xl mx-auto">
             
-            <div class="inline-block px-4 py-1 rounded-full badge text-xs font-bold uppercase tracking-widest mb-6 fade-in-up backdrop-blur-md">
+            <div class="inline-block px-3 py-1 md:px-4 rounded-full badge text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6 fade-in-up backdrop-blur-md">
                 v10.0 • Now with Voice & Vision
             </div>
             
-            <h1 class="text-5xl md:text-7xl font-bold mb-6 fade-in-up delay-100 leading-tight drop-shadow-2xl">
+            <h1 class="text-4xl md:text-7xl font-bold mb-4 md:mb-6 fade-in-up delay-100 leading-tight drop-shadow-2xl">
                 Your Personal AI <br>
                 <span class="text-gradient">That Truly Understands</span>
             </h1>
             
-            <p class="text-gray-300 text-lg md:text-xl mb-10 max-w-2xl mx-auto fade-in-up delay-200 drop-shadow-md">
-                Experience the next generation of conversational AI. Shanvika listens, remembers, creates art, and codes alongside you.
-            </p>
-            
-            <div class="flex flex-col md:flex-row gap-4 justify-center fade-in-up delay-300">
-                <a href="/auth/login" class="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg shadow-purple-500/30 transition transform hover:scale-105 flex items-center justify-center gap-2">
-                    <span>Talk to Shanvika</span>
-                    <i class="fas fa-arrow-right"></i>
-                </a>
-                <a href="#features" class="glass px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition backdrop-blur-md">
-                    Explore Capabilities
-                </a>
-            </div>
-        </div>
-        
-        <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce opacity-50">
-            <i class="fas fa-chevron-down text-2xl"></i>
-        </div>
-    </section>
-
-    <section id="features" class="py-24 px-4">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-5xl font-bold mb-4">Beyond Simple Chat</h2>
-                <p class="text-gray-300 text-lg">Everything you need in one intelligent workspace.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="glass p-8 rounded-3xl hover:-translate-y-2 transition duration-300 group cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-pink-500/20 text-pink-400 flex items-center justify-center text-3xl mb-6 border border-pink-500/20">
-                        <i class="fas fa-microphone-alt"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-3">Voice Interaction</h3>
-                    <p class="text-gray-400 leading-relaxed">
-                        Don't just type. Talk to Shanvika naturally. She listens with high-accuracy speech recognition and replies with a human-like voice.
-                    </p>
-                </div>
-
-                <div class="glass p-8 rounded-3xl hover:-translate-y-2 transition duration-300 group cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-3xl mb-6 border border-purple-500/20">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-3">Long-Term Memory</h3>
-                    <p class="text-gray-400 leading-relaxed">
-                        Shanvika remembers details about you. From your coding style to your favorite movies, conversations feel continuous and personal.
-                    </p>
-                </div>
-
-                <div class="glass p-8 rounded-3xl hover:-translate-y-2 transition duration-300 group cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-3xl mb-6 border border-blue-500/20">
-                        <i class="fas fa-magic"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-3">Creative Studio</h3>
-                    <p class="text-gray-400 leading-relaxed">
-                        Generate high-quality images, anime art, or convert files instantly. Powered by the latest Flux models for superior visuals.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="py-10 border-t border-white/10 text-center text-gray-500 text-sm">
-        <p>&copy; 2026 Shanvika AI. Created with ❤️ by <a href="/about" class="text-pink-500 hover:underline">Shan Pathak</a>.</p>
-    </footer>
-
-    <script>
-        // 1. THEME TOGGLE LOGIC
-        function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            const icon = document.getElementById('theme-icon');
-            
-            if (document.body.classList.contains('light-mode')) {
-                icon.classList.remove('fa-sun');
-                icon.classList.add('fa-moon');
-                icon.parentElement.classList.replace('text-yellow-400', 'text-gray-600');
-            } else {
-                icon.classList.remove('fa-moon');
-                icon.classList.add('fa-sun');
-                icon.parentElement.classList.replace('text-gray-600', 'text-yellow-400');
-            }
-        }
-
-        // 2. 💥 NUCLEAR OPTION: Find and Destroy Spline Logo (Mobile Safe)
-        const killLogo = setInterval(() => {
-            const viewer = document.querySelector('spline-viewer');
-            
-            if (viewer && viewer.shadowRoot) {
-                const logo = viewer.shadowRoot.querySelector('#logo');
-                if (logo) {
-                    logo.remove();
-                    // Extra CSS Injection
-                    const style = document.createElement('style');
-                    style.textContent = '#logo { display: none !important; width: 0 !important; height: 0 !important; opacity: 0 !important; }';
-                    viewer.shadowRoot.appendChild(style);
-                    console.log("🚫 Spline Logo Destroyed!");
-                    clearInterval(killLogo);
-                }
-            }
-        }, 50);
-
-        setTimeout(() => clearInterval(killLogo), 5000);
-    </script>
-</body>
-</html>
+            <p class="text-gray-300 text-base md:text-xl mb-8 md:mb-10 max-w-2xl mx-auto fade-in-up delay-200 drop-shadow-md px-2">
+                Experience the next generation of conversational AI. Shan
