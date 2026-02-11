@@ -605,7 +605,11 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     except Exception as e:
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ **Server Error:** {str(e)}"}
-
+# ==========================================
+# 🚀 SERVER START (RENDER FIX)
+# ==========================================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    # ⚠️ CRITICAL RENDER FIX: Use the PORT environment variable
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
