@@ -18,5 +18,5 @@ python-docx
 pillow
 pdf2docx
 opencv-python-headless
-pinecone-client
+pinecone
 numpy
