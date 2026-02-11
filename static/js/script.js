@@ -143,3 +143,45 @@ function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function openProfileModal() { document.getElementById('profile-modal').style.display = 'block'; }
 async function saveProfile() { closeModal('profile-modal'); }
 async function saveInstructions(btn) { const text = document.getElementById('custom-instruction-box').value; const originalHTML = btn.innerHTML; const originalClasses = btn.className; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; await fetch('/api/update_instructions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ instruction: text }) }); btn.className = "mt-2 w-full bg-green-600 text-white border border-green-600 py-2 rounded font-bold transition text-sm flex items-center justify-center gap-2"; btn.innerHTML = '<i class="fas fa-check"></i> Saved!'; setTimeout(() => { btn.className = originalClasses; btn.innerHTML = originalHTML; }, 2000); }
+// ==========================================
+// 💳 FAKE PAYMENT LOGIC (Demo Only)
+// ==========================================
+
+// 1. Open the Modal (Upgrade button calls this)
+function startPayment() {
+    document.getElementById('payment-modal').style.display = 'flex';
+}
+
+// 2. Process the "Fake" Transaction
+async function processFakePayment() {
+    const btn = document.getElementById('pay-btn');
+    const loader = document.getElementById('pay-loader');
+    
+    // UI: Show Loading
+    btn.classList.add('hidden');
+    loader.classList.remove('hidden');
+
+    // Fake Delay (2 Seconds) to feel real
+    setTimeout(async () => {
+        try {
+            // Call simple backend route to update DB
+            const res = await fetch('/api/upgrade_plan', { method: 'POST' });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                // Success UI
+                loader.innerHTML = '<i class="fas fa-check-circle text-4xl text-green-500 scale-125 transition"></i><p class="text-white font-bold mt-2">Payment Successful!</p>';
+                
+                // Wait 1 second then reload
+                setTimeout(() => {
+                    alert("🎉 Welcome to Shanvika Pro!");
+                    location.reload(); 
+                }, 1500);
+            }
+        } catch (e) {
+            alert("Payment Error (Fake): " + e);
+            loader.classList.add('hidden');
+            btn.classList.remove('hidden');
+        }
+    }, 2000);
+}

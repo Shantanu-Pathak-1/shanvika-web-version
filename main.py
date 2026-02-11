@@ -255,8 +255,10 @@ async def get_profile(request: Request):
     
     db_user = await users_collection.find_one({"email": user['email']})
     
-    # Check if user is Admin
-    plan_name = "Pro Plan" if user['email'] == ADMIN_EMAIL else "Free Plan"
+    # Logic: Admin OR User ne Payment kiya ho
+    is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
+    
+    plan_name = "Pro Plan" if is_pro else "Free Plan"
     
     return {
         "name": db_user.get("name"), 
@@ -334,6 +336,19 @@ async def delete_memory(req: MemoryRequest, request: Request):
     user = await get_current_user(request)
     if user: await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
     return {"status": "ok"}
+
+# 👇 FAKE PAYMENT ROUTE (No Razorpay needed)
+@app.post("/api/upgrade_plan")
+async def upgrade_plan(request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"error": "Login required"}, status_code=401)
+    
+    # Database mein user ko PRO bana do
+    await users_collection.update_one(
+        {"email": user['email']}, 
+        {"$set": {"plan_type": "pro", "is_pro": True}}
+    )
+    return {"status": "success", "message": "Plan Upgraded to Pro!"}
 
 # ==========================================
 # 👑 SUPER ADMIN ROUTES (Secure)
