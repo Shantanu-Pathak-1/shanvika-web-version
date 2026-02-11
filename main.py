@@ -397,6 +397,32 @@ async def unban_user(request: Request, email: str = Form(...)):
     await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
     return RedirectResponse(url="/admin", status_code=303)
 
+    # 👇 ADMIN: GIVE PRO STATUS
+@app.post("/admin/promote_user")
+async def promote_user(request: Request, email: str = Form(...)):
+    user = await get_current_user(request)
+    if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
+    
+    # User ko PRO banao
+    await users_collection.update_one(
+        {"email": email}, 
+        {"$set": {"is_pro": True, "plan_type": "pro"}}
+    )
+    return RedirectResponse(url="/admin", status_code=303)
+
+# 👇 ADMIN: REVOKE PRO STATUS (Remove Plan)
+@app.post("/admin/demote_user")
+async def demote_user(request: Request, email: str = Form(...)):
+    user = await get_current_user(request)
+    if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
+    
+    # User ko FREE banao
+    await users_collection.update_one(
+        {"email": email}, 
+        {"$set": {"is_pro": False, "plan_type": "free"}}
+    )
+    return RedirectResponse(url="/admin", status_code=303)
+
 # ==========================================
 # 🤖 CHAT CONTROLLER (Gallery Logic Added)
 # ==========================================

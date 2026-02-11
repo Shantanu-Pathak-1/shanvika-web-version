@@ -78,7 +78,8 @@
                     <thead class="bg-black/40 text-gray-400 uppercase text-xs tracking-wider">
                         <tr>
                             <th class="px-6 py-4">Identity</th>
-                            <th class="px-6 py-4">Usage (Msgs)</th>
+                            <th class="px-6 py-4">Plan</th>
+                            <th class="px-6 py-4">Usage</th>
                             <th class="px-6 py-4">Status</th>
                             <th class="px-6 py-4 text-right">Control</th>
                         </tr>
@@ -95,11 +96,25 @@
                                     </div>
                                 </div>
                             </td>
+                            
+                            <td class="px-6 py-4">
+                                {% if user.email == admin_email %}
+                                    <span class="text-purple-400 text-xs font-bold border border-purple-500/30 px-2 py-1 rounded bg-purple-500/10">OWNER</span>
+                                {% elif user.is_pro %}
+                                    <span class="text-yellow-400 text-xs font-bold border border-yellow-500/30 px-2 py-1 rounded bg-yellow-500/10 flex items-center w-fit gap-1">
+                                        <i class="fas fa-crown text-[10px]"></i> PRO
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400 text-xs font-bold border border-gray-600/30 px-2 py-1 rounded bg-gray-800/30">FREE</span>
+                                {% endif %}
+                            </td>
+
                             <td class="px-6 py-4">
                                 <span class="bg-gray-800 text-white px-3 py-1 rounded-full text-xs font-bold border border-gray-600">
-                                    {{ user.msg_count }}
+                                    {{ user.msg_count }} msgs
                                 </span>
                             </td>
+
                             <td class="px-6 py-4">
                                 {% if user.is_banned %}
                                     <span class="text-red-400 text-xs font-bold bg-red-900/20 px-2 py-1 rounded border border-red-900"><i class="fas fa-circle text-[8px] mr-1"></i> BANNED</span>
@@ -107,17 +122,32 @@
                                     <span class="text-green-400 text-xs font-bold bg-green-900/20 px-2 py-1 rounded border border-green-900"><i class="fas fa-circle text-[8px] mr-1"></i> ACTIVE</span>
                                 {% endif %}
                             </td>
+
                             <td class="px-6 py-4 text-right">
                                 {% if user.email != admin_email %}
-                                    {% if user.is_banned %}
-                                        <button onclick="confirmAction('unban', '{{ user.email }}')" class="bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition border border-green-600/50">
-                                            <i class="fas fa-unlock"></i> RECOVER
-                                        </button>
-                                    {% else %}
-                                        <button onclick="confirmAction('ban', '{{ user.email }}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition border border-red-600/50">
-                                            <i class="fas fa-ban"></i> BAN
-                                        </button>
-                                    {% endif %}
+                                    <div class="flex justify-end gap-2">
+                                        
+                                        {% if user.is_pro %}
+                                            <button onclick="confirmAction('demote', '{{ user.email }}')" title="Revoke Pro" class="w-8 h-8 rounded-lg bg-yellow-600/20 hover:bg-yellow-600 border border-yellow-600/50 text-yellow-400 hover:text-white transition flex items-center justify-center">
+                                                <i class="fas fa-level-down-alt"></i>
+                                            </button>
+                                        {% else %}
+                                            <button onclick="confirmAction('promote', '{{ user.email }}')" title="Grant Pro" class="w-8 h-8 rounded-lg bg-blue-600/20 hover:bg-blue-600 border border-blue-600/50 text-blue-400 hover:text-white transition flex items-center justify-center">
+                                                <i class="fas fa-crown"></i>
+                                            </button>
+                                        {% endif %}
+
+                                        {% if user.is_banned %}
+                                            <button onclick="confirmAction('unban', '{{ user.email }}')" title="Unban User" class="w-8 h-8 rounded-lg bg-green-600/20 hover:bg-green-600 border border-green-600/50 text-green-400 hover:text-white transition flex items-center justify-center">
+                                                <i class="fas fa-unlock"></i>
+                                            </button>
+                                        {% else %}
+                                            <button onclick="confirmAction('ban', '{{ user.email }}')" title="Ban User" class="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600 border border-red-600/50 text-red-400 hover:text-white transition flex items-center justify-center">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        {% endif %}
+
+                                    </div>
                                 {% else %}
                                     <span class="text-gray-500 text-xs italic">SUPER ADMIN</span>
                                 {% endif %}
@@ -152,23 +182,30 @@
             }
         }
 
-        // 2. Action Security (Ban/Unban)
+        // 2. Action Security (Ban/Unban/Promote/Demote)
         async function confirmAction(action, email) {
+            let actionText = action.toUpperCase();
+            let confirmColor = '#3085d6';
+
+            if(action === 'ban') confirmColor = '#d33';
+            if(action === 'demote') confirmColor = '#d97706'; // Yellow for demote
+            if(action === 'promote') confirmColor = '#2563eb'; // Blue for promote
+
             const { value: password } = await Swal.fire({
                 title: 'Security Check',
-                text: `Enter password to ${action.toUpperCase()} this user`,
+                text: `Enter password to ${actionText} this user`,
                 input: 'password',
                 inputPlaceholder: 'Enter Shan@1234',
                 background: '#111',
                 color: '#fff',
-                confirmButtonColor: '#ec4899',
+                confirmButtonColor: confirmColor,
                 showCancelButton: true
             });
 
             if (password === SECRET_PASS) {
-                // Form submit logic dynamically
                 const form = document.createElement('form');
                 form.method = 'POST';
+                // Automatically creates route like /admin/promote_user, /admin/ban_user
                 form.action = `/admin/${action}_user`;
                 
                 const emailField = document.createElement('input');
@@ -189,7 +226,6 @@
             }
         }
         
-        // Enter key support for login
         document.getElementById('admin-pass').addEventListener("keypress", function(event) {
             if (event.key === "Enter") unlockPanel();
         });
