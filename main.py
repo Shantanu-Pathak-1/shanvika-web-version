@@ -23,6 +23,8 @@ import random
 import re 
 from pdf2docx import Converter 
 import tempfile 
+from pinecone import Pinecone, ServerlessSpec
+import numpy as np
 
 # ==========================================
 # 🔑 KEYS & CONFIG
@@ -38,6 +40,24 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") 
 MONGO_URL = os.getenv("MONGO_URL")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "YOUR_PINECONE_KEY_HERE")
+
+# 👇 Initialize Pinecone
+pc = Pinecone(api_key=PINECONE_API_KEY)
+index_name = "shanvika-memory"
+
+# (Optional: Auto-create index if not exists)
+if index_name not in pc.list_indexes().names():
+    try:
+        pc.create_index(
+            name=index_name,
+            dimension=768, # Gemini Embedding Dimension
+            metric='cosine',
+            spec=ServerlessSpec(cloud='aws', region='us-east-1')
+        )
+    except: pass
+
+index = pc.Index(index_name)
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -157,6 +177,74 @@ async def generate_gemini(prompt, system_instr):
         return model.generate_content(f"System: {system_instr}\nUser: {prompt}").text
     except: return "⚠️ Gemini Error."
 
+# ==========================================
+# 🧠 RAG / VECTOR MEMORY FUNCTIONS
+# ==========================================
+
+def get_embedding(text):
+    try:
+        result = genai.embed_content(
+            model="models/embedding-001",
+            content=text,
+            task_type="retrieval_document",
+            title="Shanvika Memory"
+        )
+        return result['embedding']
+    except Exception as e:
+        print(f"Embedding Error: {e}")
+        return []
+
+def split_text(text, chunk_size=500):
+    words = text.split()
+    chunks = []
+    current_chunk = []
+    current_size = 0
+    
+    for word in words:
+        current_chunk.append(word)
+        current_size += len(word) + 1
+        if current_size >= chunk_size:
+            chunks.append(" ".join(current_chunk))
+            current_chunk = []
+            current_size = 0
+    if current_chunk: chunks.append(" ".join(current_chunk))
+    return chunks
+
+def save_to_vector_db(session_id, text):
+    chunks = split_text(text)
+    vectors = []
+    
+    for i, chunk in enumerate(chunks):
+        vector = get_embedding(chunk)
+        if vector:
+            vectors.append({
+                "id": f"{session_id}_{i}",
+                "values": vector,
+                "metadata": {"text": chunk, "session_id": session_id}
+            })
+    
+    if vectors:
+        index.upsert(vectors=vectors)
+        return True
+    return False
+
+def search_vector_db(query, session_id):
+    query_vector = get_embedding(query)
+    if not query_vector: return ""
+    
+    results = index.query(
+        vector=query_vector,
+        top_k=3,
+        include_metadata=True,
+        filter={"session_id": session_id}
+    )
+    
+    context = ""
+    for match in results['matches']:
+        context += match['metadata']['text'] + "\n\n"
+    
+    return context
+
 # --- STANDARD ROUTES ---
 class ChatRequest(BaseModel):
     message: str
@@ -187,12 +275,10 @@ async def login(request: Request):
     if "onrender.com" in redirect_uri: redirect_uri = redirect_uri.replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
-# 👇 ABOUT / CREATOR PAGE ROUTE
 @app.get("/about", response_class=HTMLResponse)
 async def about_page(request: Request):
     return templates.TemplateResponse("about.html", {"request": request})
 
-# 👇 GALLERY ROUTES (Add in main.py)
 @app.get("/gallery", response_class=HTMLResponse)
 async def gallery_page(request: Request):
     user = await get_current_user(request)
@@ -229,7 +315,7 @@ async def auth_callback(request: Request):
                     "picture": user_info.get('picture'), 
                     "custom_instruction": "", 
                     "memories": [],
-                    "gallery": [], # Initialize gallery
+                    "gallery": [],
                     "is_banned": False 
                 })
         return RedirectResponse(url="/")
@@ -247,17 +333,13 @@ async def read_root(request: Request):
         return templates.TemplateResponse("index.html", {"request": request, "user": user})
     return templates.TemplateResponse("landing.html", {"request": request})
 
-# --- USER API ---
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {}
     
     db_user = await users_collection.find_one({"email": user['email']})
-    
-    # Logic: Admin OR User ne Payment kiya ho
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
-    
     plan_name = "Pro Plan" if is_pro else "Free Plan"
     
     return {
@@ -337,13 +419,10 @@ async def delete_memory(req: MemoryRequest, request: Request):
     if user: await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
     return {"status": "ok"}
 
-# 👇 FAKE PAYMENT ROUTE (No Razorpay needed)
 @app.post("/api/upgrade_plan")
 async def upgrade_plan(request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"error": "Login required"}, status_code=401)
-    
-    # Database mein user ko PRO bana do
     await users_collection.update_one(
         {"email": user['email']}, 
         {"$set": {"plan_type": "pro", "is_pro": True}}
@@ -351,16 +430,14 @@ async def upgrade_plan(request: Request):
     return {"status": "success", "message": "Plan Upgraded to Pro!"}
 
 # ==========================================
-# 👑 SUPER ADMIN ROUTES (Secure)
+# 👑 SUPER ADMIN ROUTES
 # ==========================================
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     user = await get_current_user(request)
-    # Check if admin
     if not user or user['email'] != ADMIN_EMAIL:
         return RedirectResponse(url="/")
     
-    # Fetch Data
     users_cursor = users_collection.find()
     users_list = []
     banned_count = 0
@@ -397,34 +474,22 @@ async def unban_user(request: Request, email: str = Form(...)):
     await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
     return RedirectResponse(url="/admin", status_code=303)
 
-    # 👇 ADMIN: GIVE PRO STATUS
 @app.post("/admin/promote_user")
 async def promote_user(request: Request, email: str = Form(...)):
     user = await get_current_user(request)
     if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    
-    # User ko PRO banao
-    await users_collection.update_one(
-        {"email": email}, 
-        {"$set": {"is_pro": True, "plan_type": "pro"}}
-    )
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": True, "plan_type": "pro"}})
     return RedirectResponse(url="/admin", status_code=303)
 
-# 👇 ADMIN: REVOKE PRO STATUS (Remove Plan)
 @app.post("/admin/demote_user")
 async def demote_user(request: Request, email: str = Form(...)):
     user = await get_current_user(request)
     if not user or user['email'] != ADMIN_EMAIL: return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    
-    # User ko FREE banao
-    await users_collection.update_one(
-        {"email": email}, 
-        {"$set": {"is_pro": False, "plan_type": "free"}}
-    )
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": False, "plan_type": "free"}})
     return RedirectResponse(url="/admin", status_code=303)
 
 # ==========================================
-# 🤖 CHAT CONTROLLER (Gallery Logic Added)
+# 🤖 CHAT CONTROLLER (RAG & Gallery Logic Fixed)
 # ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
@@ -448,7 +513,10 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 if "pdf" in (req.file_type or ""):
                     try:
                         reader = PyPDF2.PdfReader(io.BytesIO(decoded))
-                        file_text = "\n[PDF]:\n" + "\n".join([p.extract_text() for p in reader.pages])
+                        raw_text = "\n".join([p.extract_text() for p in reader.pages])
+                        # 👇 VECTOR SAVE TRIGGER
+                        save_to_vector_db(sid, raw_text)
+                        file_text = " [System: PDF content saved to Long-Term Memory (Vector DB). I will search it for answers.]"
                     except: file_text = "[PDF attached]"
                 elif "image" in (req.file_type or ""):
                     vision_object = PIL.Image.open(io.BytesIO(decoded))
@@ -473,7 +541,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         # Routing
         reply = ""
         
-        # 👇 UPDATED LOGIC: Image & Anime (Save to Gallery)
         if mode == "image_gen" or mode == "anime":
             prompt_query = msg
             if mode == "image_gen": 
@@ -481,7 +548,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             else: 
                 reply = await convert_to_anime(req.file_data, prompt_query)
             
-            # Extract URL to save in Gallery
             try:
                 url_match = re.search(r"src='([^']+)'", reply)
                 if url_match:
@@ -518,10 +584,17 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             else:
                 client = get_groq()
                 if client:
+                    # 👇 VECTOR SEARCH TRIGGER
+                    context_data = search_vector_db(msg, sid)
+                    system_prompt = base_system
+                    if context_data:
+                        system_prompt += f"\n\n[RELEVANT INFORMATION FROM UPLOADED PDF]:\n{context_data}\n\nUse this context to answer the user query."
+
                     chat_data = await chats_collection.find_one({"session_id": sid})
                     history = chat_data.get("messages", [])[-6:]
-                    msgs = [{"role": "system", "content": base_system}] + history
-                    msgs.append({"role": "user", "content": msg + file_text})
+                    msgs = [{"role": "system", "content": system_prompt}] + history
+                    msgs.append({"role": "user", "content": msg}) 
+                    
                     completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
                     reply = completion.choices[0].message.content
                 else: reply = "⚠️ API Error."
