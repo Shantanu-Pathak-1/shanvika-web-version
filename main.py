@@ -203,6 +203,7 @@ async def generate_image_hf(user_prompt):
     except Exception as e: return f"⚠️ Image Error: {str(e)}"
 
 # 3. Anime Generator (Qwen Model - Face Match)
+# 👇 3. ANIME GENERATOR (Safe & Smart Version)
 async def generate_anime_qwen(img_data, user_prompt):
     try:
         if "," in img_data: header, encoded = img_data.split(",", 1)
@@ -215,9 +216,20 @@ async def generate_anime_qwen(img_data, user_prompt):
 
         print("🚀 Connecting to Qwen Anime Space...")
         
+        # 👇 YAHAN HAI MAGIC FIX
+        # Hum check karenge ki library token leti hai ya nahi
         token = os.getenv("HF_TOKEN")
-        client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast", hf_token=token)
+        space_id = "prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast"
         
+        try:
+            # Pehle Token ke sath try karo (Fast Lane)
+            client = Client(space_id, hf_token=token)
+            print("✅ Connected with HF Token!")
+        except TypeError:
+            # Agar purani library hai, toh bina token ke connect karo (Standard Lane)
+            print("⚠️ Old Gradio Client detected. Connecting without token...")
+            client = Client(space_id)
+
         result = client.predict(
             image=tmp_path,
             prompt=user_prompt or "Turn this into anime style",
@@ -241,7 +253,8 @@ async def generate_anime_qwen(img_data, user_prompt):
         """
     except Exception as e:
         print(f"Anime Error: {e}")
-        return f"⚠️ Server Busy. Error: {str(e)}"
+        # Error ko user-friendly banaya
+        return f"⚠️ Anime Server Busy. Please try again in 1 minute. (Error: {str(e)[:50]}...)"
 
 # ... (Standard Converters & Research) ...
 async def perform_conversion(file_data, file_type, prompt):
