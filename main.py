@@ -28,9 +28,8 @@ import numpy as np
 import hashlib 
 from passlib.context import CryptContext
 from datetime import datetime
-import edge_tts # 👈 NEW
-from fastapi.responses import StreamingResponse # 👈 NEW
-# ... baaki purane imports same rahenge
+import edge_tts 
+from fastapi.responses import StreamingResponse 
 
 # 👇 IMPORT ALL 15 TOOLS
 from tools_lab import (
@@ -39,7 +38,7 @@ from tools_lab import (
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,
     solve_math_problem, smart_todo_maker, build_pro_resume,
-    sing_with_me_tool # 👈 New
+    sing_with_me_tool 
 )
 
 # ==========================================
@@ -53,6 +52,9 @@ MONGO_URL = os.getenv("MONGO_URL")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 MAIL_USERNAME = os.getenv("MAIL_USERNAME") 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+
+# 👇 DEFAULT SYSTEM INSTRUCTIONS (Ye tab chalega jab user ne apna kuch nahi likha ho)
+DEFAULT_SYSTEM_INSTRUCTIONS = """You are an adaptive conversational AI designed to make users feel understood, comfortable, and respected. Your core personality must remain stable: always respectful, clear, honest, logically consistent, and emotionally balanced. You must never flatter excessively, never fake agreement, never validate incorrect assumptions, and never sacrifice truth just to please the user. Avoid sounding robotic, overly dramatic, preachy, or morally superior. During the first few interactions, carefully observe the user's tone, language style, message length, emotional intensity, and level of formality. Gradually adjust your communication style to subtly align with the user's preferences while maintaining your core principles. If the user is formal, respond formally. If the user is casual, respond casually. If the user is concise, keep responses concise. If the user is expressive or emotional, respond with warmth but remain composed. If the user uses humor, mirror it lightly without overacting. Always match energy levels subtly, never extremely. Maintain a neutral-friendly default tone and shift only slightly based on user behavior. Ensure responses feel natural and varied in structure rather than repetitive or scripted. Correct misinformation gently and respectfully when necessary. Your goal is not to impress or manipulate the user, but to create a genuine, adaptive, and trustworthy interaction experience that feels personalized without losing authenticity."""
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -170,7 +172,7 @@ async def verify_otp_endpoint(req: OTPVerifyRequest):
 @app.post("/api/complete_signup")
 async def complete_signup(req: SignupRequest, request: Request):
     if await users_collection.find_one({"username": req.username}): return JSONResponse({"status": "error"}, 400)
-    await users_collection.insert_one({"email": req.email, "username": req.username, "password_hash": get_password_hash(req.password), "name": req.full_name, "picture": "", "memories": []})
+    await users_collection.insert_one({"email": req.email, "username": req.username, "password_hash": get_password_hash(req.password), "name": req.full_name, "picture": "", "memories": [], "custom_instruction": ""})
     request.session['user'] = {"email": req.email, "name": req.full_name}
     return {"status": "success"}
 @app.post("/api/login_manual")
@@ -192,29 +194,43 @@ async def auth_callback(request: Request):
 async def logout(request: Request): request.session.pop('user', None); return RedirectResponse("/")
 @app.get("/")
 async def read_root(request: Request): return templates.TemplateResponse("index.html", {"request": request, "user": request.session.get('user')})
+
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {}
     db_user = await users_collection.find_one({"email": user['email']}) or {}
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
-    return {"name": db_user.get("name", "User"), "avatar": db_user.get("picture"), "plan": "Pro Plan" if is_pro else "Free Plan"}
-# main.py ke andar is function ko dhoondo aur replace kar do:
+    # 👇 Return existing instruction so frontend can show it
+    return {
+        "name": db_user.get("name", "User"), 
+        "avatar": db_user.get("picture"), 
+        "plan": "Pro Plan" if is_pro else "Free Plan",
+        "custom_instruction": db_user.get("custom_instruction", "") 
+    }
+
+# 👇 NEW: API TO SAVE INSTRUCTIONS
+@app.post("/api/save_instruction")
+async def save_instruction(req: InstructionRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
+    
+    await users_collection.update_one(
+        {"email": user['email']},
+        {"$set": {"custom_instruction": req.instruction}}
+    )
+    return {"status": "success"}
 
 @app.get("/api/history")
 async def get_history(request: Request):
     user = await get_current_user(request)
     if not user: return {"history": []}
-    
-    # Database se chats nikalo (Newest first)
     cursor = chats_collection.find({"user_email": user['email']}).sort("_id", -1).limit(50)
     history = []
     async for chat in cursor:
-        history.append({
-            "id": chat["session_id"],
-            "title": chat.get("title", "New Chat")
-        })
+        history.append({"id": chat["session_id"], "title": chat.get("title", "New Chat")})
     return {"history": history}
+
 @app.get("/api/new_chat")
 async def create_chat(request: Request): return {"session_id": str(uuid.uuid4())[:8], "messages": []}
 @app.get("/api/chat/{session_id}")
@@ -233,8 +249,6 @@ async def delete_memory(req: MemoryRequest): return {"status": "ok"}
 # ==========================================
 # 🤖 CHAT ROUTER
 # ==========================================
-# main.py ke andar 'chat_endpoint' function ko isse replace karo:
-
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     try:
@@ -243,33 +257,35 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
-        # 1️⃣ HISTORY CHECK & CREATE
+        # 1️⃣ FETCH USER & INSTRUCTIONS (DYNAMIC LOGIC)
+        # DB se user data nikalo
+        db_user = await users_collection.find_one({"email": user['email']})
+        
+        # Logic: Agar user ka custom instruction hai, toh wo lo. Nahi toh Default.
+        user_custom_prompt = db_user.get("custom_instruction", "")
+        FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
+
+        # 2️⃣ HISTORY CHECK & CREATE
         chat_doc = await chats_collection.find_one({"session_id": sid})
         if not chat_doc:
-            # New chat title based on Mode
             title_prefix = "Chat"
             if mode != "chat": title_prefix = f"Tool: {mode.replace('_', ' ').title()}"
-            
             await chats_collection.insert_one({
                 "session_id": sid, 
                 "user_email": user['email'], 
-                "title": f"{title_prefix} - {msg[:15]}...", # Better Title
+                "title": f"{title_prefix} - {msg[:15]}...",
                 "messages": []
             })
-            chat_doc = {"messages": []} # Empty for now
+            chat_doc = {"messages": []}
 
-        # 2️⃣ SAVE USER MESSAGE
+        # 3️⃣ SAVE USER MESSAGE
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
 
         reply = ""
-        
-        # 3️⃣ PREPARE CONTEXT (For Singing Mode)
         context_history = ""
         if mode == "sing_with_me":
-            # Pichle 4 messages uthao taaki AI ko song ka context yaad rahe
             recent_msgs = chat_doc.get("messages", [])[-4:] 
-            for m in recent_msgs:
-                context_history += f"{m['role']}: {m['content']} | "
+            for m in recent_msgs: context_history += f"{m['role']}: {m['content']} | "
 
         # 4️⃣ TOOLS ROUTING
         if mode == "image_gen": reply = await generate_image_hf(msg)
@@ -287,24 +303,38 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         elif mode == "smart_todo": reply = await smart_todo_maker(msg)
         elif mode == "resume_builder": reply = await build_pro_resume(msg)
         
-        # 👇 Updated Call with Context
         elif mode == "sing_with_me": 
             reply = await sing_with_me_tool(msg, context_history) 
 
         elif mode == "research":
             data = await perform_research_task(msg)
             client = get_groq()
-            if client: reply = client.chat.completions.create(messages=[{"role": "system", "content": "You are Shanvika."}, {"role": "user", "content": f"Context: {data}\nQ: {msg}"}], model="llama-3.3-70b-versatile").choices[0].message.content
+            if client: 
+                # 👇 Using FINAL_SYSTEM_PROMPT (Dynamic)
+                reply = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": FINAL_SYSTEM_PROMPT},
+                        {"role": "user", "content": f"Context: {data}\nQ: {msg}"}
+                    ], 
+                    model="llama-3.3-70b-versatile"
+                ).choices[0].message.content
             else: reply = data
-        else: # Chat/Coding
+        else: # Chat & Coding
             client = get_groq()
-            if client: reply = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": msg}]).choices[0].message.content
+            if client: 
+                # 👇 Using FINAL_SYSTEM_PROMPT (Dynamic)
+                reply = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile", 
+                    messages=[
+                        {"role": "system", "content": FINAL_SYSTEM_PROMPT},
+                        {"role": "user", "content": msg}
+                    ]
+                ).choices[0].message.content
             else: reply = "⚠️ API Error."
 
-        # 5️⃣ SAVE AI REPLY (CRITICAL FOR HISTORY)
+        # 5️⃣ SAVE AI REPLY
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
         
-        # 6️⃣ OPTIONAL: Update Title if it was generic "New Chat"
         if len(chat_doc['messages']) < 2 and mode != "chat":
              new_title = f"Tool: {mode.replace('_', ' ').title()}"
              await chats_collection.update_one({"session_id": sid}, {"$set": {"title": new_title}})
@@ -314,35 +344,22 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     except Exception as e:
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ Server Error: {str(e)}"}
-    
-    # ==========================================
-# 🗣️ VOICE SYSTEM (Edge TTS - Free & Human Like)
+
+# ==========================================
+# 🗣️ VOICE SYSTEM
 # ==========================================
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:
         data = await request.json()
         text = data.get("text", "")
-        
-        # Emoji aur symbols hatao taaki voice clean rahe
         clean_text = re.sub(r'[*#_`]', '', text) 
-        
-        # 🗣️ VOICE SELECTION
-        # "en-IN-NeerjaNeural" = Best Indian English Female Voice
-        # "hi-IN-SwaraNeural" = Best Hindi Female Voice
         voice = "en-IN-NeerjaNeural" 
-        
-        # Communicate object create karo
         communicate = edge_tts.Communicate(clean_text, voice)
-        
-        # Audio Stream Generate karo
         async def audio_stream():
             async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    yield chunk["data"]
-
+                if chunk["type"] == "audio": yield chunk["data"]
         return StreamingResponse(audio_stream(), media_type="audio/mp3")
-
     except Exception as e:
         print(f"TTS Error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
