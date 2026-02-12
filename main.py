@@ -1,3 +1,5 @@
+# Isse copy karke main.py mein pura purana code uda kar paste karo
+
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -5,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 import uuid
@@ -43,9 +45,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGO_URL = os.getenv("MONGO_URL")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
-# 👇 EMAIL CONFIG (Add these to Render Env Vars)
+# 👇 EMAIL CONFIG
 MAIL_USERNAME = os.getenv("MAIL_USERNAME") 
-BREVO_API_KEY = os.getenv("BREVO_API_KEY") # Ensure this is added in Render
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
 # Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -158,9 +160,7 @@ def send_email(to_email: str, subject: str, body: str):
         print(f"❌ API Connection Error: {e}")
         return False
 
-# ==========================================
-# 🎨 GENERATORS
-# ==========================================
+# ... (GENERATORS: generate_image_hf, convert_to_anime, etc. SAME AS BEFORE) ...
 async def generate_image_hf(prompt):
     try:
         seed = random.randint(1, 100000)
@@ -237,9 +237,6 @@ async def generate_gemini(prompt, system_instr):
         return model.generate_content(f"System: {system_instr}\nUser: {prompt}").text
     except: return "⚠️ Gemini Error."
 
-# ==========================================
-# 🧠 RAG / VECTOR MEMORY
-# ==========================================
 def get_embedding(text):
     try:
         result = genai.embed_content(
@@ -289,7 +286,6 @@ def search_vector_db(query, session_id):
     if not index: return ""
     query_vector = get_embedding(query)
     if not query_vector: return ""
-    
     results = index.query(
         vector=query_vector,
         top_k=3,
@@ -322,19 +318,19 @@ class InstructionRequest(BaseModel):
 class MemoryRequest(BaseModel):
     memory_text: str
 
-# 👇 AUTH MODELS
+# 👇 AUTH MODELS (Updated to 'str' to be safe)
 class SignupRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     full_name: str
     dob: str
     username: str
 
 class OTPRequest(BaseModel):
-    email: EmailStr
+    email: str
 
 class OTPVerifyRequest(BaseModel):
-    email: EmailStr
+    email: str
     otp: str
 
 class LoginRequest(BaseModel):
@@ -392,35 +388,42 @@ async def verify_otp_endpoint(req: OTPVerifyRequest):
 
 @app.post("/api/complete_signup")
 async def complete_signup(req: SignupRequest, request: Request):
-    if await users_collection.find_one({"username": req.username}):
-        return JSONResponse({"status": "error", "message": "Username taken!"}, status_code=400)
+    try:
+        # Debugging Print
+        print(f"Attempting signup for: {req.username} | {req.email}")
+
+        if await users_collection.find_one({"username": req.username}):
+            return JSONResponse({"status": "error", "message": "Username taken!"}, status_code=400)
+            
+        hashed_pass = get_password_hash(req.password)
         
-    hashed_pass = get_password_hash(req.password)
-    
-    new_user = {
-        "email": req.email,
-        "name": req.full_name,
-        "username": req.username,
-        "dob": req.dob,
-        "password_hash": hashed_pass,
-        "picture": f"https://ui-avatars.com/api/?name={req.full_name}&background=random",
-        "custom_instruction": "",
-        "memories": [],
-        "gallery": [],
-        "is_banned": False,
-        "is_pro": False,
-        "joined_at": datetime.utcnow()
-    }
-    
-    await users_collection.insert_one(new_user)
-    
-    request.session['user'] = {
-        "email": new_user['email'], 
-        "name": new_user['name'], 
-        "picture": new_user['picture'],
-        "username": new_user['username']
-    }
-    return {"status": "success"}
+        new_user = {
+            "email": req.email,
+            "name": req.full_name,
+            "username": req.username,
+            "dob": req.dob,
+            "password_hash": hashed_pass,
+            "picture": f"https://ui-avatars.com/api/?name={req.full_name}&background=random",
+            "custom_instruction": "",
+            "memories": [],
+            "gallery": [],
+            "is_banned": False,
+            "is_pro": False,
+            "joined_at": datetime.utcnow()
+        }
+        
+        await users_collection.insert_one(new_user)
+        
+        request.session['user'] = {
+            "email": new_user['email'], 
+            "name": new_user['name'], 
+            "picture": new_user['picture'],
+            "username": new_user['username']
+        }
+        return {"status": "success"}
+    except Exception as e:
+        print(f"SIGNUP ERROR: {e}")
+        return JSONResponse({"status": "error", "message": f"Server Error: {str(e)}"}, status_code=500)
 
 @app.post("/api/login_manual")
 async def login_manual(req: LoginRequest, request: Request):
@@ -451,7 +454,6 @@ async def auth_callback(request: Request):
             email = user_info.get('email')
             db_user = await users_collection.find_one({"email": email})
             
-            # Onboarding Check
             if not db_user:
                 request.session['user'] = dict(user_info) 
                 return RedirectResponse(url="/onboarding") 
@@ -470,60 +472,33 @@ async def auth_callback(request: Request):
         print(e)
         return RedirectResponse(url="/login")
 
+# ... (REMAINING ROUTES - Profile, Onboarding, Chat, etc. SAME AS BEFORE) ...
 @app.post("/api/complete_google_onboarding")
 async def complete_google_onboarding(request: Request):
     data = await request.json()
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error"}, status_code=401)
-    
-    await users_collection.update_one(
-        {"email": user['email']},
-        {"$set": {
-            "dob": data.get("dob"),
-            "username": data.get("username"),
-        }},
-        upsert=True
-    )
-    
+    await users_collection.update_one({"email": user['email']}, {"$set": {"dob": data.get("dob"), "username": data.get("username")}}, upsert=True)
     if not await users_collection.find_one({"email": user['email']}):
-         await users_collection.insert_one({
-            "email": user['email'],
-            "name": user.get('name'),
-            "picture": user.get('picture'),
-            "dob": data.get("dob"),
-            "username": data.get("username"),
-            "custom_instruction": "",
-            "memories": [],
-            "gallery": [],
-            "is_banned": False
-        })
-    
+         await users_collection.insert_one({"email": user['email'], "name": user.get('name'), "picture": user.get('picture'), "dob": data.get("dob"), "username": data.get("username"), "custom_instruction": "", "memories": [], "gallery": [], "is_banned": False})
     return {"status": "success"}
 
 @app.get("/about", response_class=HTMLResponse)
-async def about_page(request: Request):
-    return templates.TemplateResponse("about.html", {"request": request})
+async def about_page(request: Request): return templates.TemplateResponse("about.html", {"request": request})
 
 @app.get("/gallery", response_class=HTMLResponse)
 async def gallery_page(request: Request):
     user = await get_current_user(request)
     if not user: return RedirectResponse(url="/")
-    
     db_user = await users_collection.find_one({"email": user['email']})
     images = db_user.get("gallery", [])
-    
     return templates.TemplateResponse("gallery.html", {"request": request, "images": reversed(images)})
 
 @app.post("/api/delete_gallery_item")
 async def delete_gallery_item(request: Request):
     user = await get_current_user(request)
     data = await request.json()
-    img_url = data.get("url")
-    
-    await users_collection.update_one(
-        {"email": user['email']},
-        {"$pull": {"gallery": {"url": img_url}}}
-    )
+    await users_collection.update_one({"email": user['email']}, {"$pull": {"gallery": {"url": data.get("url")}}})
     return {"status": "ok"}
 
 @app.get("/logout")
@@ -534,25 +509,16 @@ async def logout(request: Request):
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     user = await get_current_user(request)
-    if user: 
-        return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    if user: return templates.TemplateResponse("index.html", {"request": request, "user": user})
     return templates.TemplateResponse("landing.html", {"request": request})
 
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {}
-    
     db_user = await users_collection.find_one({"email": user['email']})
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
-    plan_name = "Pro Plan" if is_pro else "Free Plan"
-    
-    return {
-        "name": db_user.get("name"), 
-        "avatar": db_user.get("picture"), 
-        "custom_instruction": db_user.get("custom_instruction", ""),
-        "plan": plan_name 
-    }
+    return {"name": db_user.get("name"), "avatar": db_user.get("picture"), "custom_instruction": db_user.get("custom_instruction", ""), "plan": "Pro Plan" if is_pro else "Free Plan"}
 
 @app.post("/api/update_profile_name")
 async def update_name(req: ProfileRequest, request: Request):
@@ -628,42 +594,24 @@ async def delete_memory(req: MemoryRequest, request: Request):
 async def upgrade_plan(request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"error": "Login required"}, status_code=401)
-    await users_collection.update_one(
-        {"email": user['email']}, 
-        {"$set": {"plan_type": "pro", "is_pro": True}}
-    )
+    await users_collection.update_one({"email": user['email']}, {"$set": {"plan_type": "pro", "is_pro": True}})
     return {"status": "success", "message": "Plan Upgraded to Pro!"}
 
-# ==========================================
-# 👑 SUPER ADMIN ROUTES
-# ==========================================
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     user = await get_current_user(request)
-    if not user or user['email'] != ADMIN_EMAIL:
-        return RedirectResponse(url="/")
-    
+    if not user or user['email'] != ADMIN_EMAIL: return RedirectResponse(url="/")
     users_cursor = users_collection.find()
     users_list = []
     banned_count = 0
-    
     async for u in users_cursor:
         msg_count = await chats_collection.count_documents({"user_email": u['email']})
         u['msg_count'] = msg_count
         if u.get('is_banned', False): banned_count += 1
         users_list.append(u)
-        
     total_users = len(users_list)
     total_chats = await chats_collection.count_documents({})
-    
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "users": users_list,
-        "total_users": total_users,
-        "total_chats": total_chats,
-        "banned_count": banned_count,
-        "admin_email": ADMIN_EMAIL
-    })
+    return templates.TemplateResponse("admin.html", {"request": request, "users": users_list, "total_users": total_users, "total_chats": total_chats, "banned_count": banned_count, "admin_email": ADMIN_EMAIL})
 
 @app.post("/admin/ban_user")
 async def ban_user(request: Request, email: str = Form(...)):
@@ -693,9 +641,6 @@ async def demote_user(request: Request, email: str = Form(...)):
     await users_collection.update_one({"email": email}, {"$set": {"is_pro": False, "plan_type": "free"}})
     return RedirectResponse(url="/admin", status_code=303)
 
-# ==========================================
-# 🤖 CHAT CONTROLLER
-# ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     try:
@@ -704,10 +649,9 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         db_user_check = await users_collection.find_one({"email": user['email']})
         if db_user_check.get("is_banned", False):
-            return {"reply": "🚫 **ACCOUNT SUSPENDED**<br>Your account has been banned by the Administrator due to policy violation. Contact support to recover."}
+            return {"reply": "🚫 **ACCOUNT SUSPENDED**<br>Contact admin."}
 
         sid, mode, msg = req.session_id, req.mode, req.message
-        
         file_text = ""
         vision_object = None
         if req.file_data:
@@ -720,7 +664,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                         reader = PyPDF2.PdfReader(io.BytesIO(decoded))
                         raw_text = "\n".join([p.extract_text() for p in reader.pages])
                         save_to_vector_db(sid, raw_text)
-                        file_text = " [System: PDF content saved to Long-Term Memory (Vector DB). I will search it for answers.]"
+                        file_text = " [System: PDF content saved to Memory]"
                     except: file_text = "[PDF attached]"
                 elif "image" in (req.file_type or ""):
                     vision_object = PIL.Image.open(io.BytesIO(decoded))
@@ -729,13 +673,11 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
         custom_instr = db_user_check.get("custom_instruction", "")
         memories = db_user_check.get("memories", [])
-        
         base_system = "You are Shanvika AI."
         if custom_instr: base_system += f"\nUser Settings: {custom_instr}"
         if memories:
             base_system += "\n\n[USER MEMORIES]:\n"
             for m in memories: base_system += f"- {m}\n"
-
         if mode == "coding": base_system += " You are an Expert Coder."
         
         if not await chats_collection.find_one({"session_id": sid}):
@@ -743,38 +685,26 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg + file_text}}})
 
         reply = ""
-        
         if mode == "image_gen" or mode == "anime":
             prompt_query = msg
-            if mode == "image_gen": 
-                reply = await generate_image_hf(prompt_query)
-            else: 
-                reply = await convert_to_anime(req.file_data, prompt_query)
+            if mode == "image_gen": reply = await generate_image_hf(prompt_query)
+            else: reply = await convert_to_anime(req.file_data, prompt_query)
             try:
                 url_match = re.search(r"src='([^']+)'", reply)
                 if url_match:
                     img_url = url_match.group(1)
-                    await users_collection.update_one(
-                        {"email": user['email']},
-                        {"$push": {"gallery": {"url": img_url, "prompt": prompt_query, "mode": mode}}}
-                    )
+                    await users_collection.update_one({"email": user['email']}, {"$push": {"gallery": {"url": img_url, "prompt": prompt_query, "mode": mode}}})
             except Exception as e: print(e)
-
         elif mode == "converter":
             if req.file_data: reply = await perform_conversion(req.file_data, req.file_type, msg)
             else: reply = "⚠️ Upload file to convert."
-            
         elif mode == "research":
             research_data = await perform_research_task(msg)
             client = get_groq()
             if client:
-                completion = client.chat.completions.create(
-                    messages=[{"role": "system", "content": base_system}, {"role": "user", "content": f"Data: {research_data}\nQuery: {msg}\nSummarize."}],
-                    model="llama-3.3-70b-versatile"
-                )
+                completion = client.chat.completions.create(messages=[{"role": "system", "content": base_system}, {"role": "user", "content": f"Data: {research_data}\nQuery: {msg}\nSummarize."}], model="llama-3.3-70b-versatile")
                 reply = completion.choices[0].message.content
             else: reply = research_data
-            
         else:
             if mode == "coding" or vision_object:
                 if vision_object:
@@ -787,21 +717,17 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 if client:
                     context_data = search_vector_db(msg, sid)
                     system_prompt = base_system
-                    if context_data:
-                        system_prompt += f"\n\n[RELEVANT INFORMATION FROM UPLOADED PDF]:\n{context_data}\n\nUse this context to answer the user query."
-
+                    if context_data: system_prompt += f"\n\n[RELEVANT INFO]:\n{context_data}"
                     chat_data = await chats_collection.find_one({"session_id": sid})
                     history = chat_data.get("messages", [])[-6:]
                     msgs = [{"role": "system", "content": system_prompt}] + history
                     msgs.append({"role": "user", "content": msg}) 
-                    
                     completion = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=msgs)
                     reply = completion.choices[0].message.content
                 else: reply = "⚠️ API Error."
 
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
         return {"reply": reply}
-
     except Exception as e:
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ **Server Error:** {str(e)}"}

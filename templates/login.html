@@ -37,13 +37,13 @@
         .hidden { display: none; }
         .otp-sent { color: green; font-size: 0.8rem; margin-top: 5px; }
         
-        /* LOADING SPINNER */
+        /* 🔥 LOADING SPINNER ANIMATION 🔥 */
         .spinner {
             border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             border-top: 3px solid #ffffff;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -99,14 +99,14 @@
     // Vanta Background
     VANTA.FOG({ el: "#vanta-bg", highlightColor: 0xffc3e0, midtoneColor: 0xff80bf, lowlightColor: 0xa855f7, baseColor: 0xffffff, blurFactor: 0.60, speed: 1.20, zoom: 0.80 });
 
-    // Helper for Button Loading State
+    // ✅ BUTTON ANIMATION FUNCTION
     function setLoading(btn, isLoading, text) {
         if (isLoading) {
             btn.disabled = true;
-            btn.innerHTML = `<div class="spinner"></div> ${text}`;
+            btn.innerHTML = `<div class="spinner"></div> Processing...`;
         } else {
             btn.disabled = false;
-            btn.innerText = text;
+            btn.innerHTML = text;
         }
     }
 
@@ -133,7 +133,7 @@
         const email = document.getElementById('reg-email').value;
         if(!email) return Swal.fire('Oops!', 'Please enter your email.', 'warning');
         
-        setLoading(btn, true, 'Sending Code...');
+        setLoading(btn, true);
         
         try {
             const res = await fetch('/api/send_otp', {
@@ -148,7 +148,7 @@
             } else {
                 Swal.fire('Error', data.message, 'error');
             }
-        } catch(e) { Swal.fire('Error', 'Something went wrong. Try again.', 'error'); }
+        } catch(e) { Swal.fire('Error', 'Server error. Check logs.', 'error'); }
         
         setLoading(btn, false, 'Send Verification Code');
     }
@@ -158,7 +158,7 @@
         const otp = document.getElementById('reg-otp').value;
         if(!otp) return Swal.fire('Oops!', 'Please enter the code.', 'warning');
         
-        setLoading(btn, true, 'Verifying...');
+        setLoading(btn, true);
         
         try {
             const res = await fetch('/api/verify_otp', {
@@ -192,9 +192,8 @@
             return Swal.fire('Hold up!', 'Please fill in all fields.', 'warning');
         }
         
-        setLoading(btn, true, 'Creating Account...');
-        console.log("Sending Signup Payload:", payload); // Debugging
-
+        setLoading(btn, true);
+        
         try {
             const res = await fetch('/api/complete_signup', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -210,11 +209,12 @@
                     confirmButtonColor: '#ec4899'
                 }).then(() => window.location.href = '/');
             } else {
-                Swal.fire('Error', data.message, 'error');
+                // Show ACTUAL server error now
+                Swal.fire('Error', data.message || 'Signup failed', 'error');
             }
         } catch(e) { 
             console.error("Signup Error:", e);
-            Swal.fire('Error', 'Account creation failed. Check console.', 'error'); 
+            Swal.fire('Error', 'Connection failed. Check console for details.', 'error'); 
         }
 
         setLoading(btn, false, 'Create Account 🎉');
@@ -225,7 +225,7 @@
         const password = document.getElementById('login-pass').value;
         if(!identifier || !password) return Swal.fire('Oops!', 'Enter your credentials.', 'warning');
         
-        setLoading(btn, true, 'Logging in...');
+        setLoading(btn, true);
         
         try {
             const res = await fetch('/api/login_manual', {
