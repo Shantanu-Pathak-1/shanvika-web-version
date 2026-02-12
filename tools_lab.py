@@ -7,12 +7,11 @@ import qrcode
 import PyPDF2
 import secrets 
 import string
-import re  # New Import
+import re
 import sympy 
 import google.generativeai as genai
 from duckduckgo_search import DDGS
 from youtube_transcript_api import YouTubeTranscriptApi
-from lyricsgenius import Genius # New Import for perfect lyrics
 
 # --- Helper: Key Rotation ---
 def get_tool_gemini_key():
@@ -22,18 +21,21 @@ def get_tool_gemini_key():
     return random.choice(keys_list) if keys_list else None
 
 # ==========================================
-# 🎤 BATCH 6: ENTERTAINMENT (UPGRADED)
+# 🎤 BATCH 6: ENTERTAINMENT (SAFE MODE)
 # ==========================================
 
 async def sing_with_me_tool(user_lyric, context_history=""):
     try:
-        # 1. SETUP GENIUS API
+        # 1. SETUP GENIUS API (Inside try-block to prevent server crash)
         genius_token = os.getenv("GENIUS_ACCESS_TOKEN")
         lyrics_reply = ""
         found_perfect_match = False
         
         if genius_token:
             try:
+                # 👇 Import yaha kiya hai taaki agar library na ho toh crash na ho
+                from lyricsgenius import Genius 
+                
                 genius = Genius(genius_token)
                 genius.verbose = False
                 
@@ -45,7 +47,7 @@ async def sing_with_me_tool(user_lyric, context_history=""):
                     
                     if song:
                         # Lyrics cleaning logic
-                        clean_lyrics = re.sub(r'\[.*?\]', '', song.lyrics) # Remove [Chorus] etc
+                        clean_lyrics = re.sub(r'\[.*?\]', '', song.lyrics) 
                         lines = [line.strip() for line in clean_lyrics.split('\n') if line.strip()]
                         
                         for i, line in enumerate(lines):
@@ -56,9 +58,10 @@ async def sing_with_me_tool(user_lyric, context_history=""):
                                     found_perfect_match = True
                                     break
             except Exception as e:
-                print(f"Genius Error: {e}")
+                print(f"Genius Module/API Error: {e}") 
+                # Agar library missing hai, toh ye silently fail hoke Gemini pe jayega
 
-        # 2. FALLBACK TO GEMINI (With Extra Cleaning 🧹)
+        # 2. FALLBACK TO GEMINI (Agar Genius fail ho ya Library na ho)
         if not found_perfect_match:
             api_key = get_tool_gemini_key()
             if api_key: genai.configure(api_key=api_key)
@@ -71,11 +74,11 @@ async def sing_with_me_tool(user_lyric, context_history=""):
             )
             response = model.generate_content(f"{sys_prompt}\nUser line: '{user_lyric}'\nNext line:")
             
-            # 👇 MAIN FIX: Newlines ko space bana do aur quotes hata do
-            lyrics_reply = response.text.strip().replace('"', '').replace('\n', ' ')
+            # Cleaning quotes and newlines
+            if response.text:
+                lyrics_reply = response.text.strip().replace('"', '').replace('\n', ' ')
 
         # 3. HTML OUTPUT
-        # Agar reply khali hai toh error dikhao
         if not lyrics_reply: lyrics_reply = "Hmm... aage kya tha? 🤔"
 
         return f"""<div class="glass p-4 rounded-xl border border-pink-500/40 text-center relative overflow-hidden">
