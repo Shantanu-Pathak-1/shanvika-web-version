@@ -27,63 +27,57 @@ def get_tool_gemini_key():
 
 async def sing_with_me_tool(user_lyric, context_history=""):
     try:
-        # 1. SETUP GENIUS API (Perfect Lyrics ke liye)
-        genius_token = os.getenv("GENIUS_ACCESS_TOKEN") # .env mein daalna padega
+        # 1. SETUP GENIUS API
+        genius_token = os.getenv("GENIUS_ACCESS_TOKEN")
         lyrics_reply = ""
         found_perfect_match = False
         
         if genius_token:
             try:
                 genius = Genius(genius_token)
-                genius.verbose = False # Console spam band karne ke liye
+                genius.verbose = False
                 
-                # User ki line se song search karo
+                # Search song
                 song_search = genius.search_songs(user_lyric)
-                
                 if song_search and song_search['hits']:
-                    # Best match uthao
                     best_hit = song_search['hits'][0]['result']
-                    song_id = best_hit['id']
-                    song_title = best_hit['title']
-                    artist_name = best_hit['primary_artist']['name']
+                    song = genius.search_song(song_id=best_hit['id'])
                     
-                    # Lyrics fetch karo
-                    song = genius.search_song(song_id=song_id)
                     if song:
-                        lyrics = song.lyrics
-                        
-                        # CLEANING: Genius metadata hatana (e.g., [Chorus])
-                        clean_lyrics = re.sub(r'\[.*?\]', '', lyrics)
+                        # Lyrics cleaning logic
+                        clean_lyrics = re.sub(r'\[.*?\]', '', song.lyrics) # Remove [Chorus] etc
                         lines = [line.strip() for line in clean_lyrics.split('\n') if line.strip()]
                         
-                        # MATCHING LOGIC: User ki line dhundo
                         for i, line in enumerate(lines):
-                            # Fuzzy matching (case insensitive & spaces remove karke)
+                            # Fuzzy match remove spaces and case
                             if user_lyric.lower().replace(" ", "") in line.lower().replace(" ", ""):
-                                # Agar match mila, toh NEXT line uthao
                                 if i + 1 < len(lines):
                                     lyrics_reply = lines[i + 1]
                                     found_perfect_match = True
                                     break
             except Exception as e:
-                print(f"Genius API Error: {e}") # Fallback to Gemini if Genius fails
+                print(f"Genius Error: {e}")
 
-        # 2. FALLBACK TO GEMINI (Agar Genius fail hua ya key nahi hai)
+        # 2. FALLBACK TO GEMINI (With Extra Cleaning 🧹)
         if not found_perfect_match:
             api_key = get_tool_gemini_key()
             if api_key: genai.configure(api_key=api_key)
             model = genai.GenerativeModel('gemini-2.5-flash')
             
             sys_prompt = (
-                "You are a Bollywood Singing Partner. "
-                "Task: Identify the song from user's line and reply with the EXACT NEXT line only."
-                "Do not explain. Just sing the next line."
+                "You are a singing partner. Identify the Bollywood song from the user's line. "
+                "Reply with the EXACT NEXT line only. Do not add quotes. Do not add explanations."
                 f"Context: {context_history}"
             )
-            response = model.generate_content(f"{sys_prompt}\nUser sings: '{user_lyric}'\nYour Next Line:")
-            lyrics_reply = response.text.strip().replace('"', '')
+            response = model.generate_content(f"{sys_prompt}\nUser line: '{user_lyric}'\nNext line:")
+            
+            # 👇 MAIN FIX: Newlines ko space bana do aur quotes hata do
+            lyrics_reply = response.text.strip().replace('"', '').replace('\n', ' ')
 
-        # 3. HTML OUTPUT (UI Same rahega)
+        # 3. HTML OUTPUT
+        # Agar reply khali hai toh error dikhao
+        if not lyrics_reply: lyrics_reply = "Hmm... aage kya tha? 🤔"
+
         return f"""<div class="glass p-4 rounded-xl border border-pink-500/40 text-center relative overflow-hidden">
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent opacity-50"></div>
         <div class="mb-2 animate-bounce inline-block"><span class="text-2xl">🎤</span><span class="text-xl">🎶</span></div>
