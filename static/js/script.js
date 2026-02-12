@@ -160,12 +160,24 @@ async function sendMessage() {
     } 
 }
 
+// static/js/script.js
+
 function appendMessage(sender, text) { 
     const box = document.getElementById('chat-box'); 
     const div = document.createElement('div'); 
     div.className = sender === 'user' ? "msg-user" : "msg-ai"; 
-    if (text.includes("<img") || text.includes("<div class=\"glass\"")) div.innerHTML = text; 
-    else { div.innerHTML = marked.parse(text); div.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b)); } 
+    
+    // 👇 FIX: Check agar text HTML card hai (Glass Effect wala)
+    // Hum spaces hata kar check kar rahe hain taaki galti na ho
+    if (text.trim().startsWith('<div class="glass')) {
+        div.innerHTML = text; 
+    } 
+    else { 
+        // Normal text ke liye Markdown
+        div.innerHTML = marked.parse(text); 
+        div.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b)); 
+    } 
+    
     box.appendChild(div); 
     box.scrollTop = box.scrollHeight; 
 }

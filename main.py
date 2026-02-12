@@ -199,8 +199,22 @@ async def get_profile(request: Request):
     db_user = await users_collection.find_one({"email": user['email']}) or {}
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
     return {"name": db_user.get("name", "User"), "avatar": db_user.get("picture"), "plan": "Pro Plan" if is_pro else "Free Plan"}
+# main.py ke andar is function ko dhoondo aur replace kar do:
+
 @app.get("/api/history")
-async def get_history(request: Request): return {"history": []} 
+async def get_history(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"history": []}
+    
+    # Database se chats nikalo (Newest first)
+    cursor = chats_collection.find({"user_email": user['email']}).sort("_id", -1).limit(50)
+    history = []
+    async for chat in cursor:
+        history.append({
+            "id": chat["session_id"],
+            "title": chat.get("title", "New Chat")
+        })
+    return {"history": history}
 @app.get("/api/new_chat")
 async def create_chat(request: Request): return {"session_id": str(uuid.uuid4())[:8], "messages": []}
 @app.get("/api/chat/{session_id}")

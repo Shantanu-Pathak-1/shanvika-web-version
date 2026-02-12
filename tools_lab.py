@@ -25,34 +25,29 @@ def get_tool_gemini_key():
 
 # tools_lab.py mein 'sing_with_me_tool' ko isse replace karo:
 
+# tools_lab.py
+
 async def sing_with_me_tool(user_lyric, context_history=""):
     try:
         api_key = get_tool_gemini_key()
         if api_key: genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         
-        # 👇 IMPROVED PROMPT WITH CONTEXT
+        # 👇 STRICT PROMPT
         sys_prompt = (
-            "You are an expert Bollywood & English singer partner. "
-            "Your Goal: Maintain the flow of the song perfectly."
-            "CONTEXT RULES:"
-            f"1. Previous lines sung in this session: '{context_history}' (Use this to know which song is playing)."
-            "2. Identify the song based on User's current line AND context."
-            "3. If the user continues the song correctly, you sing the NEXT line."
-            "4. If the user switches the song, start the new song."
-            "5. Output ONLY the lyrics + romantic emojis. No explanations."
+            "You are a Lyrics Completion Engine. Do not converse. Do not explain."
+            "Task: Identify the Bollywood/English song from the user's line and output the EXACT IMMEDIATE NEXT 2 lines."
+            "Context Rule: Use this history to stay on the same song: " + context_history +
+            "If the user's line is correct, continue the flow. If incorrect, correct it gently."
+            "Output Format: Just the lyrics + emojis. No extra text."
         )
         
-        response = model.generate_content(f"{sys_prompt}\n\nUser just sang: '{user_lyric}'\nYour next line:")
+        response = model.generate_content(f"{sys_prompt}\n\nInput Line: '{user_lyric}'\nNext Lines:")
+        lyric_reply = response.text.strip().replace('"', '') # Clean quotes
         
-        return f"""
-        <div class="glass p-4 rounded-xl border border-pink-500/40 text-center relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent opacity-50"></div>
-            <div class="mb-2 animate-bounce inline-block"><span class="text-2xl">🎤</span><span class="text-xl">🎶</span></div>
-            <h3 class="text-lg font-serif text-pink-300 italic leading-relaxed">"{response.text.strip()}"</h3>
-            <p class="text-[10px] text-gray-500 mt-3">Next line tum gao... 😉</p>
-        </div>
-        """
+        # 👇 FIX: HTML ek line mein (No Indentation) taaki Raw Code na dikhe
+        return f"""<div class="glass p-4 rounded-xl border border-pink-500/40 text-center relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent opacity-50"></div><div class="mb-2 animate-bounce inline-block"><span class="text-2xl">🎤</span><span class="text-xl">🎶</span></div><h3 class="text-lg font-serif text-pink-300 italic leading-relaxed">"{lyric_reply}"</h3><p class="text-[10px] text-gray-500 mt-3">Next line tum gao... 😉</p></div>"""
+    
     except Exception as e: return f"⚠️ Singing Error: {str(e)}"
 
 # ==========================================
