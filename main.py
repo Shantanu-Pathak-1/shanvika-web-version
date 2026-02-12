@@ -11,6 +11,7 @@ import asyncio
 import uuid
 import os
 import httpx 
+import requests
 import base64 
 from groq import Groq
 from duckduckgo_search import DDGS
@@ -125,26 +126,42 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+# main.py mein naya API wala send_email function
+
 def send_email(to_email: str, subject: str, body: str):
-    if not MAIL_USERNAME or not MAIL_PASSWORD:
-        print("⚠️ Mail Config Missing")
+    # Render se BREVO_API_KEY uthayenge
+    api_key = os.getenv("BREVO_API_KEY") 
+    sender_email = os.getenv("MAIL_USERNAME") # Wahi gmail jo verify ki hai
+    
+    if not api_key:
+        print("❌ Brevo API Key missing!")
         return False
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+    
+    payload = {
+        "sender": {"email": sender_email, "name": "Shanvika AI"},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": body
+    }
+    
     try:
-        msg = MIMEMultipart()
-        msg['From'] = MAIL_USERNAME
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'html'))
-        
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(MAIL_USERNAME, MAIL_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(MAIL_USERNAME, to_email, text)
-        server.quit()
-        return True
+        response = httpx.post(url, headers=headers, json=payload)
+        if response.status_code == 201:
+            print("✅ Email sent via Brevo API!")
+            return True
+        else:
+            print(f"❌ Email Failed: {response.text}")
+            return False
     except Exception as e:
-        print(f"Email Error: {e}")
+        print(f"❌ API Error: {e}")
         return False
 
 # ==========================================
