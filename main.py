@@ -121,8 +121,11 @@ async def get_current_user(request: Request): return request.session.get('user')
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+# main.py mein is function ko replace karo
+
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    # Fix: Password ko 72 chars tak limit karo taaki error na aaye
+    return pwd_context.hash(password[:72])
 
 # 👇 BREVO API EMAIL FUNCTION (PORT 443 SAFE)
 def send_email(to_email: str, subject: str, body: str):
