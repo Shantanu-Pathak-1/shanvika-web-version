@@ -215,7 +215,10 @@ async def generate_anime_qwen(img_data, user_prompt):
             tmp_path = tmp.name
 
         print("🚀 Connecting to Qwen Anime Space...")
-        client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast")
+      
+# ✅ NAYA (Jo Token use karega):
+hf_token = os.getenv("HF_TOKEN") # Env se token uthayega
+client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast", hf_token=hf_token)
         
         result = client.predict(
             image=tmp_path,
