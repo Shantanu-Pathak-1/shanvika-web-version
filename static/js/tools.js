@@ -1,68 +1,33 @@
-// static/js/tools.js
-
-// Tools Modal Open Logic
 function openToolsModal() {
     const modal = document.getElementById('tools-modal');
-    if(modal) {
-        modal.style.display = 'flex';
-        // Optional: Add entrance animation logic here if needed
-    }
+    if(modal) modal.style.display = 'flex';
 }
 
-// Main Tool Selection Logic
 function selectTool(toolName) {
-    // 1. Update Global Mode (Variable script.js mein hai)
-    if (typeof setMode === 'function') {
-        // Hum dummy button pass kar rahe hain null ki jagah taaki error na aaye
-        // Lekin UI update hum manually karenge
-        currentMode = toolName;
-    }
+    if (typeof setMode === 'function') currentMode = toolName;
+    else window.currentMode = toolName;
 
-    // 2. UI Updates
     const input = document.getElementById('user-input');
     const uploadBtn = document.getElementById('file-upload');
-    
-    // Reset Active States on Main Bar
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
 
-    // Tool Specific UI Changes
     switch(toolName) {
-        case 'qr_generator':
-            input.placeholder = "🔗 Paste link or text to generate QR code...";
-            input.focus();
-            break;
-        case 'prompt_writer':
-            input.placeholder = "✨ Describe your idea roughly (e.g. 'cat in space')...";
-            input.focus();
-            break;
-        case 'converter':
-            input.placeholder = "📂 Upload a file to convert (PDF, DOCX, IMG)...";
-            // Auto click upload for converter
+        case 'resume_analyzer':
+            input.placeholder = "📄 Upload PDF Resume & press send...";
             if(uploadBtn) uploadBtn.click();
+            Swal.fire({toast:true, position:'top-end', icon:'info', title:'Upload Resume (PDF)', showConfirmButton:false, timer:3000});
             break;
-        default:
-            input.placeholder = `Using Tool: ${toolName}`;
+        case 'youtube_summarizer': input.placeholder = "📺 Paste YouTube Link..."; input.focus(); break;
+        case 'mock_interviewer': input.placeholder = "🎓 Enter Role (e.g. Java Dev) to START..."; input.focus(); break;
+        case 'interview_questions': input.placeholder = "📋 Enter Role for Questions..."; input.focus(); break;
+        case 'github_review': input.placeholder = "🐙 Paste GitHub Link..."; input.focus(); break;
+        case 'currency_converter': input.placeholder = "💱 E.g. 100 USD to INR..."; input.focus(); break;
+        case 'password_generator': input.placeholder = "🔐 Press send for password..."; input.focus(); break;
+        case 'grammar_fixer': input.placeholder = "📝 Paste text to fix..."; input.focus(); break;
+        case 'qr_generator': input.placeholder = "🔗 Enter text/link..."; input.focus(); break;
+        case 'prompt_writer': input.placeholder = "✨ Describe idea..."; input.focus(); break;
+        default: input.placeholder = `Using ${toolName}...`;
     }
-
-    // 3. Close Modal
     closeModal('tools-modal');
-
-    // 4. Show Feedback Toast
-    const toolTitle = toolName.replace('_', ' ').toUpperCase();
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-    });
-
-    Toast.fire({
-        icon: 'success',
-        title: `Activated: ${toolTitle}`
-    });
+    Swal.fire({toast:true, position:'top-end', icon:'success', title:`Switched to ${toolName.replace('_',' ')}`, showConfirmButton:false, timer:1500});
 }
