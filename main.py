@@ -27,6 +27,7 @@ from pdf2docx import Converter
 import tempfile 
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
+import hashlib # <--- Ye line add karo
 
 # 👇 AUTH IMPORTS
 from passlib.context import CryptContext
@@ -118,14 +119,19 @@ templates = Jinja2Templates(directory="templates")
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 async def get_current_user(request: Request): return request.session.get('user')
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+# 👇 UPDATED SECURITY LOGIC (SHA256 + BCRYPT)
 
-# main.py mein is function ko replace karo
+def verify_password(plain_password, hashed_password):
+    # Step 1: Pehle password ko SHA256 se normalize karo (Fixes 72-byte limit)
+    sha_signature = hashlib.sha256(plain_password.encode()).hexdigest()
+    # Step 2: Ab normalized password ko Bcrypt se check karo
+    return pwd_context.verify(sha_signature, hashed_password)
 
 def get_password_hash(password):
-    # Fix: Password ko 72 chars tak limit karo taaki error na aaye
-    return pwd_context.hash(password[:72])
+    # Step 1: Pehle password ko SHA256 se normalize karo
+    sha_signature = hashlib.sha256(password.encode()).hexdigest()
+    # Step 2: Ab Bcrypt hash generate karo
+    return pwd_context.hash(sha_signature)
 
 # 👇 BREVO API EMAIL FUNCTION (PORT 443 SAFE)
 def send_email(to_email: str, subject: str, body: str):
