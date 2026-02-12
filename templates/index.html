@@ -50,6 +50,20 @@
             {% endif %}
         </div>
 
+<div class="px-3 mb-2 mt-2">
+            <div class="relative group">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-pink-400 transition-colors duration-300 text-xs"></i>
+                
+                <input type="text" id="chat-search" onkeyup="filterChats()" 
+                    placeholder="Search history..." 
+                    class="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-pink-500/50 focus:bg-black/40 focus:shadow-[0_0_15px_rgba(236,72,153,0.15)] transition-all duration-300">
+                
+                <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity duration-500 -z-10"></div>
+            </div>
+        </div>
+
+        <div id="history-list" class="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 scrollbar-hide"></div>
+
         <div id="history-list" class="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 scrollbar-hide"></div>
 
         <div class="p-3 md:p-4 border-t border-white/5 shrink-0">

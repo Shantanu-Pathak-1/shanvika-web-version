@@ -219,6 +219,8 @@ async def delete_memory(req: MemoryRequest): return {"status": "ok"}
 # ==========================================
 # 🤖 CHAT ROUTER
 # ==========================================
+# main.py ke andar 'chat_endpoint' function ko isse replace karo:
+
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     try:
@@ -226,13 +228,36 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         if not user: return {"reply": "⚠️ Login required."}
         
         sid, mode, msg = req.session_id, req.mode, req.message
-        if not await chats_collection.find_one({"session_id": sid}):
-            await chats_collection.insert_one({"session_id": sid, "user_email": user['email'], "title": msg[:30], "messages": []})
+        
+        # 1️⃣ HISTORY CHECK & CREATE
+        chat_doc = await chats_collection.find_one({"session_id": sid})
+        if not chat_doc:
+            # New chat title based on Mode
+            title_prefix = "Chat"
+            if mode != "chat": title_prefix = f"Tool: {mode.replace('_', ' ').title()}"
+            
+            await chats_collection.insert_one({
+                "session_id": sid, 
+                "user_email": user['email'], 
+                "title": f"{title_prefix} - {msg[:15]}...", # Better Title
+                "messages": []
+            })
+            chat_doc = {"messages": []} # Empty for now
+
+        # 2️⃣ SAVE USER MESSAGE
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
 
         reply = ""
         
-        # --- ALL TOOLS ROUTING ---
+        # 3️⃣ PREPARE CONTEXT (For Singing Mode)
+        context_history = ""
+        if mode == "sing_with_me":
+            # Pichle 4 messages uthao taaki AI ko song ka context yaad rahe
+            recent_msgs = chat_doc.get("messages", [])[-4:] 
+            for m in recent_msgs:
+                context_history += f"{m['role']}: {m['content']} | "
+
+        # 4️⃣ TOOLS ROUTING
         if mode == "image_gen": reply = await generate_image_hf(msg)
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
@@ -247,8 +272,11 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         elif mode == "math_solver": reply = await solve_math_problem(req.file_data, msg)
         elif mode == "smart_todo": reply = await smart_todo_maker(msg)
         elif mode == "resume_builder": reply = await build_pro_resume(msg)
-        elif mode == "sing_with_me": reply = await sing_with_me_tool(msg) # 👈 Connected
         
+        # 👇 Updated Call with Context
+        elif mode == "sing_with_me": 
+            reply = await sing_with_me_tool(msg, context_history) 
+
         elif mode == "research":
             data = await perform_research_task(msg)
             client = get_groq()
@@ -259,8 +287,16 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             if client: reply = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": msg}]).choices[0].message.content
             else: reply = "⚠️ API Error."
 
+        # 5️⃣ SAVE AI REPLY (CRITICAL FOR HISTORY)
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
+        
+        # 6️⃣ OPTIONAL: Update Title if it was generic "New Chat"
+        if len(chat_doc['messages']) < 2 and mode != "chat":
+             new_title = f"Tool: {mode.replace('_', ' ').title()}"
+             await chats_collection.update_one({"session_id": sid}, {"$set": {"title": new_title}})
+
         return {"reply": reply}
+
     except Exception as e:
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ Server Error: {str(e)}"}

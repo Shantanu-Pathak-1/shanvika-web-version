@@ -191,3 +191,33 @@ let activeChatId = null;
 function showDropdown(event, sessionId) { event.stopPropagation(); activeChatId = sessionId; const menu = document.getElementById('dropdown'); const rect = event.target.getBoundingClientRect(); menu.style.top = `${rect.bottom + 5}px`; menu.style.left = `${rect.left - 100}px`; menu.classList.add('show'); document.getElementById('act-delete').onclick = () => deleteChat(activeChatId); document.getElementById('act-rename').onclick = () => renameChat(activeChatId); document.addEventListener('click', () => menu.classList.remove('show'), { once: true }); }
 async function deleteChat(sid) { if(!confirm("Delete chat?")) return; await fetch(`/api/delete_chat/${sid}`, { method: 'DELETE' }); loadHistory(); if(currentSessionId === sid) createNewChat(); }
 async function renameChat(sid) { const newName = prompt("Rename:"); if(newName) { await fetch('/api/rename_chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ session_id: sid, new_title: newName }) }); loadHistory(); } }
+// static/js/script.js
+
+// 🔍 SEARCH CHAT HISTORY
+function filterChats() {
+    // 1. Input value lo
+    const input = document.getElementById('chat-search');
+    const filter = input.value.toLowerCase();
+    
+    // 2. History list aur items uthao
+    const list = document.getElementById('history-list');
+    const items = list.getElementsByClassName('history-item');
+
+    // 3. Loop lagao aur check karo
+    for (let i = 0; i < items.length; i++) {
+        // Chat ka title (span tag mein hota hai)
+        const span = items[i].querySelector('span'); 
+        if (span) {
+            const txtValue = span.textContent || span.innerText;
+            
+            // Agar match hua toh dikhao, nahi toh chupao
+            if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                items[i].style.display = "flex";
+                // Animation (Optional: Fade in effect)
+                items[i].style.animation = "fadeIn 0.3s ease";
+            } else {
+                items[i].style.display = "none";
+            }
+        }
+    }
+}
