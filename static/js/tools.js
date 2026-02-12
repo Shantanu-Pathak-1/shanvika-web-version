@@ -12,11 +12,22 @@ function selectTool(toolName) {
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
 
     switch(toolName) {
+        case 'sing_with_me':
+            input.placeholder = "🎤 Start a song (e.g., 'Tera hone laga hoon')...";
+            input.focus();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Humsafar Mode Activated ❤️', background:'#1f2937', color:'#f472b6', timer:3000, showConfirmButton:false});
+            break;
         case 'resume_analyzer':
             input.placeholder = "📄 Upload PDF Resume & press send...";
             if(uploadBtn) uploadBtn.click();
             Swal.fire({toast:true, position:'top-end', icon:'info', title:'Upload Resume (PDF)', showConfirmButton:false, timer:3000});
             break;
+        case 'math_solver':
+            input.placeholder = "📐 Upload Math Photo or type equation...";
+            if(uploadBtn) uploadBtn.click();
+            break;
+        case 'smart_todo': input.placeholder = "📝 Type tasks roughly (e.g. 'Buy milk, Study')..."; input.focus(); break;
+        case 'resume_builder': input.placeholder = "💼 Paste Name, Exp, Skills to build CV..."; input.focus(); break;
         case 'youtube_summarizer': input.placeholder = "📺 Paste YouTube Link..."; input.focus(); break;
         case 'mock_interviewer': input.placeholder = "🎓 Enter Role (e.g. Java Dev) to START..."; input.focus(); break;
         case 'interview_questions': input.placeholder = "📋 Enter Role for Questions..."; input.focus(); break;
@@ -29,5 +40,4 @@ function selectTool(toolName) {
         default: input.placeholder = `Using ${toolName}...`;
     }
     closeModal('tools-modal');
-    Swal.fire({toast:true, position:'top-end', icon:'success', title:`Switched to ${toolName.replace('_',' ')}`, showConfirmButton:false, timer:1500});
 }

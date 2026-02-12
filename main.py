@@ -28,13 +28,18 @@ import numpy as np
 import hashlib 
 from passlib.context import CryptContext
 from datetime import datetime
+import edge_tts # 👈 NEW
+from fastapi.responses import StreamingResponse # 👈 NEW
+# ... baaki purane imports same rahenge
 
-# 👇 IMPORT ALL TOOLS
+# 👇 IMPORT ALL 15 TOOLS
 from tools_lab import (
     generate_prompt_only, generate_qr_code, generate_image_hf,
     analyze_resume, review_github, currency_tool,
     summarize_youtube, generate_password_tool, fix_grammar_tool,
-    generate_interview_questions, handle_mock_interview
+    generate_interview_questions, handle_mock_interview,
+    solve_math_problem, smart_todo_maker, build_pro_resume,
+    sing_with_me_tool # 👈 New
 )
 
 # ==========================================
@@ -51,7 +56,6 @@ BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 👇 Initialize Pinecone
 pc = None
 index = None
 try:
@@ -111,7 +115,7 @@ def send_email(to, subject, body):
         return True
     except: return False
 
-# --- STANDARD RAG ---
+# --- RAG ---
 def get_embedding(text):
     try:
         key = os.getenv("GEMINI_API_KEY")
@@ -130,7 +134,7 @@ async def perform_research_task(query):
     try: return "📊 **Research:**\n\n" + "\n\n".join([f"🔹 **{r['title']}**\n{r['body']}" for r in DDGS().text(query, max_results=3)])
     except: return "⚠️ Research failed."
 
-# --- MODELS & ROUTES ---
+# --- ROUTES ---
 class ChatRequest(BaseModel): message: str; session_id: str; mode: str = "chat"; file_data: str | None = None; file_type: str | None = None
 class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: str; username: str
 class OTPRequest(BaseModel): email: str
@@ -228,7 +232,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
 
         reply = ""
         
-        # --- TOOLS ROUTING ---
+        # --- ALL TOOLS ROUTING ---
         if mode == "image_gen": reply = await generate_image_hf(msg)
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
@@ -240,6 +244,10 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         elif mode == "grammar_fixer": reply = await fix_grammar_tool(msg)
         elif mode == "interview_questions": reply = await generate_interview_questions(msg)
         elif mode == "mock_interviewer": reply = await handle_mock_interview(msg)
+        elif mode == "math_solver": reply = await solve_math_problem(req.file_data, msg)
+        elif mode == "smart_todo": reply = await smart_todo_maker(msg)
+        elif mode == "resume_builder": reply = await build_pro_resume(msg)
+        elif mode == "sing_with_me": reply = await sing_with_me_tool(msg) # 👈 Connected
         
         elif mode == "research":
             data = await perform_research_task(msg)
@@ -256,6 +264,38 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     except Exception as e:
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ Server Error: {str(e)}"}
+    
+    # ==========================================
+# 🗣️ VOICE SYSTEM (Edge TTS - Free & Human Like)
+# ==========================================
+@app.post("/api/speak")
+async def text_to_speech_endpoint(request: Request):
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        
+        # Emoji aur symbols hatao taaki voice clean rahe
+        clean_text = re.sub(r'[*#_`]', '', text) 
+        
+        # 🗣️ VOICE SELECTION
+        # "en-IN-NeerjaNeural" = Best Indian English Female Voice
+        # "hi-IN-SwaraNeural" = Best Hindi Female Voice
+        voice = "en-IN-NeerjaNeural" 
+        
+        # Communicate object create karo
+        communicate = edge_tts.Communicate(clean_text, voice)
+        
+        # Audio Stream Generate karo
+        async def audio_stream():
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    yield chunk["data"]
+
+        return StreamingResponse(audio_stream(), media_type="audio/mp3")
+
+    except Exception as e:
+        print(f"TTS Error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

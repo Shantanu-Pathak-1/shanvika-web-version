@@ -1,5 +1,5 @@
 <div id="tools-modal" class="modal" style="display: none;">
-    <div class="modal-content w-11/12 md:w-full max-w-4xl bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl p-6 relative overflow-hidden max-h-[85vh] overflow-y-auto shadow-2xl">
+    <div class="modal-content w-11/12 md:w-full max-w-5xl bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl p-6 relative overflow-hidden max-h-[85vh] overflow-y-auto shadow-2xl">
         <div class="flex justify-between items-center mb-6 relative z-10">
             <div>
                 <h2 class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">Tools Lab 🧪</h2>
@@ -10,6 +10,30 @@
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
             
+            <div onclick="selectTool('sing_with_me')" class="group bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-pink-400 hover:bg-gray-800 cursor-pointer transition-all">
+                <div class="w-10 h-10 bg-pink-500/20 rounded-lg flex items-center justify-center mb-3 text-pink-400 text-xl"><i class="fas fa-microphone-alt"></i></div>
+                <h3 class="font-bold text-sm">Sing With Me</h3>
+                <p class="text-[10px] text-gray-500">Romantic Duet 🎤</p>
+            </div>
+
+            <div onclick="selectTool('math_solver')" class="group bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-indigo-500 hover:bg-gray-800 cursor-pointer transition-all">
+                <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center mb-3 text-indigo-400 text-xl"><i class="fas fa-calculator"></i></div>
+                <h3 class="font-bold text-sm">Math Solver</h3>
+                <p class="text-[10px] text-gray-500">Photo & Text</p>
+            </div>
+
+            <div onclick="selectTool('smart_todo')" class="group bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-teal-500 hover:bg-gray-800 cursor-pointer transition-all">
+                <div class="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center mb-3 text-teal-400 text-xl"><i class="fas fa-tasks"></i></div>
+                <h3 class="font-bold text-sm">Smart To-Do</h3>
+                <p class="text-[10px] text-gray-500">Auto-Sort</p>
+            </div>
+
+            <div onclick="selectTool('resume_builder')" class="group bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-slate-400 hover:bg-gray-800 cursor-pointer transition-all">
+                <div class="w-10 h-10 bg-slate-500/20 rounded-lg flex items-center justify-center mb-3 text-slate-300 text-xl"><i class="fas fa-pen-nib"></i></div>
+                <h3 class="font-bold text-sm">Resume Maker</h3>
+                <p class="text-[10px] text-gray-500">Create CV</p>
+            </div>
+
             <div onclick="selectTool('resume_analyzer')" class="group bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-blue-500 hover:bg-gray-800 cursor-pointer transition-all">
                 <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mb-3 text-blue-400 text-xl"><i class="fas fa-file-invoice"></i></div>
                 <h3 class="font-bold text-sm">Resume Score</h3>
