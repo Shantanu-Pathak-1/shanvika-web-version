@@ -1,5 +1,3 @@
-# Isse copy karke main.py mein pura purana code uda kar paste karo
-
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,13 +25,10 @@ from pdf2docx import Converter
 import tempfile 
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
-import hashlib # <--- Ye line add karo
-import hashlib # <--- Ye zaroori hai
-from passlib.context import CryptContext
-
-# 👇 AUTH IMPORTS
+import hashlib 
 from passlib.context import CryptContext
 from datetime import datetime
+from gradio_client import Client # <-- Anime ke liye zaroori hai
 
 # ==========================================
 # 🔑 KEYS & CONFIG
@@ -121,27 +116,14 @@ templates = Jinja2Templates(directory="templates")
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 async def get_current_user(request: Request): return request.session.get('user')
 
-# 👇 UPDATED SECURITY LOGIC (SHA256 + BCRYPT)
-
-# 👇 UPDATED SECURITY LOGIC (SHA-256 PRE-HASHING)
-# Isse 72-byte limit wala error hamesha ke liye khatam ho jayega
-
+# 👇 SECURITY LOGIC (SHA-256 PRE-HASHING)
 def verify_password(plain_password, hashed_password):
-    # Step 1: Password ko normalize karo (SHA-256 se)
-    # Ye kisi bhi password ko 64 characters ki string bana dega
     sha_signature = hashlib.sha256(plain_password.encode()).hexdigest()
-    
-    # Step 2: Ab check karo
     return pwd_context.verify(sha_signature, hashed_password)
 
 def get_password_hash(password):
-    # Debugging print to confirm logic is working
     print(f"🔒 Processing Password: {password[:5]}***") 
-    
-    # Step 1: Pre-hash using SHA-256
     sha_signature = hashlib.sha256(password.encode()).hexdigest()
-    
-    # Step 2: Bcrypt Hash (Ab input size hamesha 64 bytes hoga, jo 72 se kam hai)
     return pwd_context.hash(sha_signature)
 
 # 👇 BREVO API EMAIL FUNCTION (PORT 443 SAFE)
@@ -180,72 +162,87 @@ def send_email(to_email: str, subject: str, body: str):
         print(f"❌ API Connection Error: {e}")
         return False
 
-# ... (GENERATORS: generate_image_hf, convert_to_anime, etc. SAME AS BEFORE) ...
-# main.py mein 'generate_image_hf' function ko isse pura replace kar do
+# ==========================================
+# 🎨 SMART GENERATORS (Prompt Writer + Flux + Anime)
+# ==========================================
 
+# 1. Prompt Enhancer (Gemini)
+async def improve_prompt(user_text):
+    try:
+        if not user_text: return "A masterpiece"
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        prompt = (
+            f"You are an expert AI Art Prompter. Rewrite this simple prompt into a highly detailed, "
+            f"descriptive prompt for an AI image generator. "
+            f"Focus on lighting, camera angle, texture, and mood. Keep it under 40 words. "
+            f"Input: '{user_text}'"
+        )
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except:
+        return user_text 
+
+# 2. Pro Image Generator (Flux Realism)
 async def generate_image_hf(user_prompt):
     try:
-        # STEP 1: Gemini se "Professional Prompt" likhwayenge
-        # Kyunki Flux model ko detailed English instructions pasand hain
-        print(f"🎨 User Prompt: {user_prompt}")
-        
-        enhancer_model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        # Ye secret instruction Gemini ko batayega ki prompt kaise likhna hai
-        enhancement_instruction = (
-            "You are an expert AI Art Director. Rewrite the following user prompt "
-            "into a highly detailed, descriptive prompt suitable for the Flux.1 Realism model. "
-            "Focus on: Cinematic lighting, 8k resolution, hyper-realistic texture, perfect facial features, "
-            "depth of field, and unreal engine style rendering. "
-            "Keep it under 50 words. Only output the prompt, no extra text. "
-            f"User Input: {user_prompt}"
-        )
-        
-        enhanced_response = enhancer_model.generate_content(enhancement_instruction)
-        final_prompt = enhanced_response.text.strip()
-        print(f"✨ Magic Prompt: {final_prompt}")
+        # Gemini Magic
+        final_prompt = await improve_prompt(user_prompt)
+        print(f"✨ Enhanced Prompt: {final_prompt}")
 
-        # STEP 2: Pollinations AI URL with FLUX Model
-        # Hum 'seed' random rakhenge taaki har baar alag image bane
+        # Flux Generation
         seed = random.randint(1, 1000000)
         safe_prompt = final_prompt.replace(" ", "%20")
-        
-        # 'model=flux' aur 'enhance=true' parameter quality badha dega
         image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
         
-        # STEP 3: Beautiful UI Return
         return f"""
-        <div class="glass p-3 rounded-xl mt-2 border border-white/10">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-xs text-pink-400 font-bold">✨ FLUX GENERATION</span>
-                <span class="text-[10px] text-gray-500">Seed: {seed}</span>
-            </div>
-            <p class="text-xs text-gray-400 mb-3 italic">"{final_prompt[:60]}..."</p>
-            <div class="relative group">
-                <img src='{image_url}' class='rounded-lg shadow-2xl w-full transition-transform duration-500 hover:scale-[1.02]' onload="this.scrollIntoView({{behavior: 'smooth', block: 'center'}})">
-                <a href="{image_url}" target="_blank" class="absolute bottom-2 right-2 bg-black/50 hover:bg-pink-600 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md transition">
-                    <i class="fas fa-download mr-1"></i> Save HD
-                </a>
-            </div>
+        <div class="glass p-2 rounded-lg mt-2">
+            <p class="text-xs text-gray-400 mb-1">Generating: {final_prompt[:40]}...</p>
+            <img src='{image_url}' class='rounded-lg shadow-lg w-full transition hover:scale-105' onload="this.scrollIntoView({{behavior: 'smooth', block: 'center'}})">
+            <a href="{image_url}" target="_blank" class="block text-center text-pink-500 text-xs mt-2 hover:underline">Download HD</a>
+        </div>
+        """
+    except Exception as e: return f"⚠️ Image Error: {str(e)}"
+
+# 3. Anime Generator (Qwen Model - Face Match)
+async def generate_anime_qwen(img_data, user_prompt):
+    try:
+        if "," in img_data: header, encoded = img_data.split(",", 1)
+        else: encoded = img_data
+        decoded = base64.b64decode(encoded)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+            tmp.write(decoded)
+            tmp_path = tmp.name
+
+        print("🚀 Connecting to Qwen Anime Space...")
+        client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast")
+        
+        result = client.predict(
+            image=tmp_path,
+            prompt=user_prompt or "Turn this into anime style",
+            adapter_choice="Photo-to-Anime", 
+            seed=random.randint(1, 9999),
+            guidance_scale=7.5,
+            steps=30,
+            api_name="/run_image_edit"
+        )
+        
+        output_path = result[0]
+        with open(output_path, "rb") as f:
+            out_b64 = base64.b64encode(f.read()).decode("utf-8")
+            
+        return f"""
+        <div class="glass p-2 rounded-lg mt-2">
+            <p class="text-xs text-pink-400 font-bold mb-1">✨ Anime Version Ready!</p>
+            <img src='data:image/jpeg;base64,{out_b64}' class='rounded-lg shadow-lg w-full'>
+            <a href="data:image/jpeg;base64,{out_b64}" download="anime_shanvika.jpg" class="block text-center text-white text-xs mt-2 bg-pink-600 px-2 py-1 rounded">Download</a>
         </div>
         """
     except Exception as e:
-        print(f"Image Gen Error: {e}")
-        # Agar Gemini fail ho jaye, toh direct purane tarike se bana do (Backup)
-        seed = random.randint(1, 100000)
-        safe_prompt = user_prompt.replace(" ", "%20")
-        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
-        return f"""<img src='{fallback_url}' class='rounded-lg mt-2 shadow-lg w-full'>"""
+        print(f"Anime Error: {e}")
+        return f"⚠️ Server Busy. Try text-based anime mode. Error: {str(e)}"
 
-async def convert_to_anime(file_data, prompt):
-    try:
-        anime_prompt = f"anime style, studio ghibli, highly detailed, {prompt}"
-        seed = random.randint(1, 100000)
-        safe_prompt = anime_prompt.replace(" ", "%20")
-        image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
-        return f"""✨ **Anime Art:**<br><img src='{image_url}' class='rounded-lg mt-2 shadow-lg w-full'>"""
-    except Exception as e: return f"⚠️ Error: {str(e)}"
-
+# ... (Standard Converters & Research - kept for utility) ...
 async def perform_conversion(file_data, file_type, prompt):
     try:
         if "," in file_data: header, encoded = file_data.split(",", 1)
@@ -305,6 +302,7 @@ async def generate_gemini(prompt, system_instr):
         return model.generate_content(f"System: {system_instr}\nUser: {prompt}").text
     except: return "⚠️ Gemini Error."
 
+# ... (RAG Functions) ...
 def get_embedding(text):
     try:
         result = genai.embed_content(
@@ -386,7 +384,7 @@ class InstructionRequest(BaseModel):
 class MemoryRequest(BaseModel):
     memory_text: str
 
-# 👇 AUTH MODELS (Updated to 'str' to be safe)
+# 👇 AUTH MODELS
 class SignupRequest(BaseModel):
     email: str
     password: str
@@ -457,9 +455,6 @@ async def verify_otp_endpoint(req: OTPVerifyRequest):
 @app.post("/api/complete_signup")
 async def complete_signup(req: SignupRequest, request: Request):
     try:
-        # Debugging Print
-        print(f"Attempting signup for: {req.username} | {req.email}")
-
         if await users_collection.find_one({"username": req.username}):
             return JSONResponse({"status": "error", "message": "Username taken!"}, status_code=400)
             
@@ -540,7 +535,6 @@ async def auth_callback(request: Request):
         print(e)
         return RedirectResponse(url="/login")
 
-# ... (REMAINING ROUTES - Profile, Onboarding, Chat, etc. SAME AS BEFORE) ...
 @app.post("/api/complete_google_onboarding")
 async def complete_google_onboarding(request: Request):
     data = await request.json()
@@ -709,6 +703,9 @@ async def demote_user(request: Request, email: str = Form(...)):
     await users_collection.update_one({"email": email}, {"$set": {"is_pro": False, "plan_type": "free"}})
     return RedirectResponse(url="/admin", status_code=303)
 
+# ==========================================
+# 🤖 CHAT ROUTER (Handles All Logic)
+# ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     try:
@@ -717,9 +714,10 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         db_user_check = await users_collection.find_one({"email": user['email']})
         if db_user_check.get("is_banned", False):
-            return {"reply": "🚫 **ACCOUNT SUSPENDED**<br>Contact admin."}
+            return {"reply": "🚫 **ACCOUNT SUSPENDED**"}
 
         sid, mode, msg = req.session_id, req.mode, req.message
+        
         file_text = ""
         vision_object = None
         if req.file_data:
@@ -732,9 +730,9 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                         reader = PyPDF2.PdfReader(io.BytesIO(decoded))
                         raw_text = "\n".join([p.extract_text() for p in reader.pages])
                         save_to_vector_db(sid, raw_text)
-                        file_text = " [System: PDF content saved to Memory]"
+                        file_text = " [System: PDF content saved]"
                     except: file_text = "[PDF attached]"
-                elif "image" in (req.file_type or ""):
+                elif "image" in (req.file_type or "") and mode != "anime":
                     vision_object = PIL.Image.open(io.BytesIO(decoded))
                     msg += " [Image Attached]"
             except Exception as e: return {"reply": f"⚠️ File Error: {e}"}
@@ -753,19 +751,22 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg + file_text}}})
 
         reply = ""
-        if mode == "image_gen" or mode == "anime":
-            prompt_query = msg
-            if mode == "image_gen": reply = await generate_image_hf(prompt_query)
-            else: reply = await convert_to_anime(req.file_data, prompt_query)
-            try:
-                url_match = re.search(r"src='([^']+)'", reply)
-                if url_match:
-                    img_url = url_match.group(1)
-                    await users_collection.update_one({"email": user['email']}, {"$push": {"gallery": {"url": img_url, "prompt": prompt_query, "mode": mode}}})
-            except Exception as e: print(e)
+        
+        # 🔥 UPDATED ROUTING LOGIC 🔥
+        if mode == "image_gen":
+            reply = await generate_image_hf(msg) # Now uses Gemini Prompt Enhancer
+
+        elif mode == "anime":
+            if req.file_data:
+                reply = await generate_anime_qwen(req.file_data, msg)
+            else:
+                prompt = await improve_prompt(msg + " in anime style")
+                reply = await generate_image_hf(prompt)
+
         elif mode == "converter":
             if req.file_data: reply = await perform_conversion(req.file_data, req.file_type, msg)
             else: reply = "⚠️ Upload file to convert."
+
         elif mode == "research":
             research_data = await perform_research_task(msg)
             client = get_groq()
@@ -773,6 +774,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 completion = client.chat.completions.create(messages=[{"role": "system", "content": base_system}, {"role": "user", "content": f"Data: {research_data}\nQuery: {msg}\nSummarize."}], model="llama-3.3-70b-versatile")
                 reply = completion.choices[0].message.content
             else: reply = research_data
+
         else:
             if mode == "coding" or vision_object:
                 if vision_object:
@@ -795,6 +797,16 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 else: reply = "⚠️ API Error."
 
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
+        
+        # Save to gallery if image generated
+        if "src=" in reply and "img" in reply:
+             try:
+                url_match = re.search(r"src='([^']+)'", reply)
+                if url_match:
+                    img_url = url_match.group(1)
+                    await users_collection.update_one({"email": user['email']}, {"$push": {"gallery": {"url": img_url, "prompt": msg, "mode": mode}}})
+             except: pass
+
         return {"reply": reply}
     except Exception as e:
         print(f"ERROR: {e}")
