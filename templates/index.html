@@ -7,18 +7,18 @@
     
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#000000">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.halo.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.rings.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body id="vanta-bg" class="flex h-screen w-full dark-mode overflow-hidden">
     
@@ -32,6 +32,11 @@
         </div>
 
         <div class="flex flex-col gap-1 p-2 border-b border-white/5">
+            <div onclick="openToolsModal()" class="flex items-center gap-3 p-2 md:p-3 rounded-xl hover:bg-white/10 transition text-gray-300 hover:text-white cursor-pointer">
+                <div class="w-6 text-center"><i class="fas fa-flask text-purple-400 text-sm md:text-base"></i></div>
+                <span class="text-sm font-bold nav-label">Tools Lab</span>
+            </div>
+
             <a href="/gallery" class="flex items-center gap-3 p-2 md:p-3 rounded-xl hover:bg-white/10 transition text-gray-300 hover:text-white">
                 <div class="w-6 text-center"><i class="fas fa-images text-pink-400 text-sm md:text-base"></i></div>
                 <span class="text-sm font-bold nav-label">My Studio</span>
@@ -80,8 +85,6 @@
                     <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
                     <div class="mode-btn flex-shrink-0" onclick="setMode('image_gen', this)">🎨 Image Gen</div>
                     <div class="mode-btn flex-shrink-0" onclick="setMode('research', this)">🔍 Research</div>
-                    <div class="mode-btn flex-shrink-0" onclick="setMode('anime', this)">🌸 Anime</div>
-                    <div class="mode-btn flex-shrink-0" onclick="setMode('converter', this)">🔄 Converter</div>
                 </div>
                 
                 <form class="input-container flex items-center p-1.5 md:p-2 shadow-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
@@ -96,71 +99,20 @@
         </div>
     </main>
 
-   <div id="settings-modal" class="modal">
-    <div class="modal-content w-11/12 md:w-full max-w-lg bg-[#1e1e1e] border border-gray-700 text-white max-h-[90vh] overflow-y-auto"> 
-        
-        <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-            <h2 class="text-lg md:text-xl font-bold">Settings</h2>
-            <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
-        </div>
-
-        <div id="upgrade-container" class="mb-4 p-3 md:p-4 bg-gradient-to-r from-yellow-600 to-yellow-800 rounded-lg flex justify-between items-center shadow-lg border border-yellow-500/30">
-            <div>
-                <div class="font-bold text-sm md:text-base text-yellow-100 flex items-center gap-2">
-                    <i class="fas fa-crown text-yellow-400"></i> Upgrade to Pro
-                </div>
-                <div class="text-[9px] md:text-xs text-yellow-200">Unlock Voice, Image Gen & More</div>
+    <div id="settings-modal" class="modal">
+        <div class="modal-content w-11/12 md:w-full max-w-lg bg-[#1e1e1e] border border-gray-700 text-white max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-lg md:text-xl font-bold">Settings</h2>
+                <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <button onclick="startPayment()" class="bg-white text-yellow-800 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs font-bold hover:bg-yellow-100 transition shadow-md transform active:scale-95">
-                Upgrade Now
-            </button>
-        </div>
-
-        <div id="install-container" class="hidden mb-4 p-3 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg flex justify-between items-center shadow-lg">
-            <span class="font-bold text-sm md:text-base flex items-center gap-2"><i class="fas fa-mobile-alt"></i> Install App</span>
-            <button onclick="installPWA()" class="bg-white text-pink-600 px-3 py-1 rounded text-xs md:text-sm font-bold hover:bg-gray-200">Install</button>
-        </div>
-
-        <div class="space-y-3 mb-6">
-            <div class="flex justify-between items-center p-2.5 md:p-3 bg-white/5 rounded-lg">
-                <span class="text-sm md:text-base">Theme</span>
-                <button onclick="toggleTheme()" class="bg-blue-600 px-3 py-1 rounded text-xs md:text-sm hover:bg-blue-500">Switch</button>
-            </div>
-            <div class="flex justify-between items-center p-2.5 md:p-3 bg-white/5 rounded-lg">
-                <span class="text-sm md:text-base">🗣️ Voice Reply</span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="voice-toggle" class="sr-only peer" onchange="toggleVoice()">
-                    <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:bg-pink-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                </label>
-            </div>
-        </div>
-
-        <div class="mb-6">
-            <label class="block text-xs md:text-sm text-gray-400 mb-2">Custom Instructions</label>
-            <textarea id="custom-instruction-box" maxlength="1000" rows="3" class="w-full bg-black/30 border border-gray-600 rounded-lg p-2.5 md:p-3 text-white text-xs md:text-sm focus:border-pink-500 outline-none resize-none" placeholder="Ex: Speak like a girlfriend..."></textarea>
-            <button onclick="saveInstructions(this)" class="mt-2 w-full bg-pink-600/20 text-pink-400 border border-pink-600 hover:bg-pink-600 hover:text-white py-2 rounded font-bold transition text-xs md:text-sm flex items-center justify-center gap-2"><i class="fas fa-save"></i> Save Personality</button>
-        </div>
-
-        <div class="mb-6">
-            <label class="block text-xs md:text-sm text-gray-400 mb-2">🧠 Saved Memories</label>
-            <div class="flex gap-2 mb-2">
-                <input type="text" id="memory-input" class="flex-1 bg-black/30 border border-gray-600 rounded-lg p-2 text-xs md:text-sm text-white" placeholder="Add new memory...">
-                <button onclick="addMemory()" class="bg-green-600 hover:bg-green-500 text-white px-3 rounded text-sm md:text-base"><i class="fas fa-plus"></i></button>
-            </div>
-            <div id="memory-list" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
-        </div>
-
-        <div class="border-t border-gray-700 pt-4 space-y-3">
             <button onclick="deleteAllChats()" class="w-full bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-700 hover:text-white py-2 rounded-xl font-bold transition text-xs md:text-sm flex items-center justify-center gap-2">
                 <i class="fas fa-trash-alt"></i> Delete All History
             </button>
-            
-            <a href="/logout" class="group relative w-full flex items-center justify-center gap-2 bg-gray-800 border border-gray-700 text-gray-400 py-3 rounded-xl font-bold text-sm overflow-hidden transition-all duration-300 hover:text-white hover:border-white/20">
+            <a href="/logout" class="group relative w-full flex items-center justify-center gap-2 bg-gray-800 border border-gray-700 text-gray-400 py-3 rounded-xl font-bold text-sm overflow-hidden transition-all duration-300 hover:text-white hover:border-white/20 mt-3">
                 <i class="fas fa-power-off"></i> LOGOUT SYSTEM
             </a>
         </div>
     </div>
-   </div>
 
     <div id="profile-modal" class="modal">
         <div class="modal-content text-center bg-[#1e1e1e] border border-gray-700 text-white w-11/12 md:w-auto">
@@ -170,59 +122,32 @@
             <button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded text-white font-bold hover:bg-blue-500 text-sm md:text-base">Save Changes</button>
         </div>
     </div>
-    
+
     <div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl z-50">
         <div class="dropdown-item hover:bg-gray-700" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div>
         <div class="dropdown-item hover:bg-gray-700 text-red-400" id="act-delete"><i class="fas fa-trash"></i> Delete</div>
     </div>
-
+    
     <div id="payment-modal" class="modal">
         <div class="modal-content w-11/12 md:w-full max-w-md bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl relative overflow-hidden">
-            
             <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-3 md:p-4 text-center">
                 <h2 class="text-lg md:text-xl font-bold text-white"><i class="fas fa-secure"></i> Secure Payment</h2>
                 <p class="text-[10px] md:text-xs text-pink-100">Shanvika AI Pro Plan • ₹499.00</p>
             </div>
-
             <div class="p-4 md:p-6 space-y-3 md:space-y-4">
-                <div>
-                    <label class="text-[10px] md:text-xs text-gray-400 block mb-1">Card Number</label>
-                    <div class="flex items-center bg-black/30 border border-gray-600 rounded px-2 md:px-3 py-2">
-                        <i class="fab fa-cc-visa text-gray-400 text-base md:text-lg mr-2"></i>
-                        <input type="text" placeholder="0000 0000 0000 0000" class="bg-transparent outline-none w-full text-white font-mono text-sm md:text-base" maxlength="19">
-                    </div>
-                </div>
-
-                <div class="flex gap-3 md:gap-4">
-                    <div class="flex-1">
-                        <label class="text-[10px] md:text-xs text-gray-400 block mb-1">Expiry</label>
-                        <input type="text" placeholder="MM/YY" class="w-full bg-black/30 border border-gray-600 rounded px-2 md:px-3 py-2 text-white outline-none text-center text-sm md:text-base">
-                    </div>
-                    <div class="flex-1">
-                        <label class="text-[10px] md:text-xs text-gray-400 block mb-1">CVV</label>
-                        <input type="password" placeholder="123" class="w-full bg-black/30 border border-gray-600 rounded px-2 md:px-3 py-2 text-white outline-none text-center text-sm md:text-base" maxlength="3">
-                    </div>
-                </div>
-
                 <div id="pay-loader" class="hidden text-center py-4">
                     <i class="fas fa-circle-notch fa-spin text-2xl md:text-3xl text-pink-500"></i>
                     <p class="text-[10px] md:text-xs text-gray-400 mt-2">Processing secure transaction...</p>
                 </div>
-
-                <button id="pay-btn" onclick="processFakePayment()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 md:py-3 rounded-xl transition shadow-lg transform active:scale-95 mt-2 text-sm md:text-base">
-                    Pay ₹499.00
-                </button>
-                
+                <button id="pay-btn" onclick="processFakePayment()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 md:py-3 rounded-xl transition shadow-lg transform active:scale-95 mt-2 text-sm md:text-base">Pay ₹499.00</button>
                 <button onclick="closeModal('payment-modal')" class="w-full text-gray-500 text-xs hover:text-white mt-2">Cancel Transaction</button>
-            </div>
-            
-            <div class="bg-black/20 p-2 text-center text-[9px] md:text-[10px] text-gray-500 flex justify-center gap-3 md:gap-4">
-                <span><i class="fas fa-lock"></i> 256-bit SSL Encrypted</span>
-                <span><i class="fas fa-shield-alt"></i> 100% Secure</span>
             </div>
         </div>
     </div>
 
+    {% include "components/tools_modal.html" %}
+    
+    <script src="/static/js/tools.js"></script>
     <script src="/static/js/script.js"></script>
 </body>
 </html>
