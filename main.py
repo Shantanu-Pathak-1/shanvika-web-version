@@ -31,7 +31,7 @@ from datetime import datetime
 import edge_tts 
 from fastapi.responses import StreamingResponse 
 
-# 👇 IMPORT ALL 15 TOOLS
+# 👇 IMPORT ALL TOOLS
 from tools_lab import (
     generate_prompt_only, generate_qr_code, generate_image_hf,
     analyze_resume, review_github, currency_tool,
@@ -53,7 +53,6 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 MAIL_USERNAME = os.getenv("MAIL_USERNAME") 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
-# 👇 DEFAULT SYSTEM INSTRUCTIONS (Ye tab chalega jab user ne apna kuch nahi likha ho)
 DEFAULT_SYSTEM_INSTRUCTIONS = """You are an adaptive conversational AI designed to make users feel understood, comfortable, and respected. Your core personality must remain stable: always respectful, clear, honest, logically consistent, and emotionally balanced. You must never flatter excessively, never fake agreement, never validate incorrect assumptions, and never sacrifice truth just to please the user. Avoid sounding robotic, overly dramatic, preachy, or morally superior. During the first few interactions, carefully observe the user's tone, language style, message length, emotional intensity, and level of formality. Gradually adjust your communication style to subtly align with the user's preferences while maintaining your core principles. If the user is formal, respond formally. If the user is casual, respond casually. If the user is concise, keep responses concise. If the user is expressive or emotional, respond with warmth but remain composed. If the user uses humor, mirror it lightly without overacting. Always match energy levels subtly, never extremely. Maintain a neutral-friendly default tone and shift only slightly based on user behavior. Ensure responses feel natural and varied in structure rather than repetitive or scripted. Correct misinformation gently and respectfully when necessary. Your goal is not to impress or manipulate the user, but to create a genuine, adaptive, and trustworthy interaction experience that feels personalized without losing authenticity."""
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -201,7 +200,6 @@ async def get_profile(request: Request):
     if not user: return {}
     db_user = await users_collection.find_one({"email": user['email']}) or {}
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
-    # 👇 Return existing instruction so frontend can show it
     return {
         "name": db_user.get("name", "User"), 
         "avatar": db_user.get("picture"), 
@@ -209,16 +207,11 @@ async def get_profile(request: Request):
         "custom_instruction": db_user.get("custom_instruction", "") 
     }
 
-# 👇 NEW: API TO SAVE INSTRUCTIONS
 @app.post("/api/save_instruction")
 async def save_instruction(req: InstructionRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
-    
-    await users_collection.update_one(
-        {"email": user['email']},
-        {"$set": {"custom_instruction": req.instruction}}
-    )
+    await users_collection.update_one({"email": user['email']}, {"$set": {"custom_instruction": req.instruction}})
     return {"status": "success"}
 
 @app.get("/api/history")
@@ -233,8 +226,15 @@ async def get_history(request: Request):
 
 @app.get("/api/new_chat")
 async def create_chat(request: Request): return {"session_id": str(uuid.uuid4())[:8], "messages": []}
+
+# 👇 FIX: FETCH MESSAGES FROM DB (Old Code was returning empty list)
 @app.get("/api/chat/{session_id}")
-async def get_chat(session_id: str): return {"messages": []}
+async def get_chat(session_id: str):
+    chat = await chats_collection.find_one({"session_id": session_id})
+    if chat:
+        return {"messages": chat.get("messages", [])}
+    return {"messages": []}
+
 @app.post("/api/rename_chat")
 async def rename_chat(req: RenameRequest): return {"status": "ok"}
 @app.delete("/api/delete_all_chats")
@@ -257,15 +257,10 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
-        # 1️⃣ FETCH USER & INSTRUCTIONS (DYNAMIC LOGIC)
-        # DB se user data nikalo
         db_user = await users_collection.find_one({"email": user['email']})
-        
-        # Logic: Agar user ka custom instruction hai, toh wo lo. Nahi toh Default.
         user_custom_prompt = db_user.get("custom_instruction", "")
         FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
 
-        # 2️⃣ HISTORY CHECK & CREATE
         chat_doc = await chats_collection.find_one({"session_id": sid})
         if not chat_doc:
             title_prefix = "Chat"
@@ -278,7 +273,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             })
             chat_doc = {"messages": []}
 
-        # 3️⃣ SAVE USER MESSAGE
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
 
         reply = ""
@@ -310,7 +304,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             data = await perform_research_task(msg)
             client = get_groq()
             if client: 
-                # 👇 Using FINAL_SYSTEM_PROMPT (Dynamic)
                 reply = client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": FINAL_SYSTEM_PROMPT},
@@ -322,7 +315,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         else: # Chat & Coding
             client = get_groq()
             if client: 
-                # 👇 Using FINAL_SYSTEM_PROMPT (Dynamic)
                 reply = client.chat.completions.create(
                     model="llama-3.3-70b-versatile", 
                     messages=[
@@ -332,7 +324,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 ).choices[0].message.content
             else: reply = "⚠️ API Error."
 
-        # 5️⃣ SAVE AI REPLY
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
         
         if len(chat_doc['messages']) < 2 and mode != "chat":
@@ -345,9 +336,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ Server Error: {str(e)}"}
 
-# ==========================================
-# 🗣️ VOICE SYSTEM
-# ==========================================
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:
