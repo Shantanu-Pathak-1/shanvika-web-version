@@ -33,11 +33,27 @@
         .google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: white; color: #333; font-weight: 600; cursor: pointer; margin-top: 15px; text-decoration: none; transition: 0.2s; }
         .google-btn:hover { background: #f9f9f9; transform: translateY(-2px); }
         
+        /* MAGIC PASSWORD BUTTON */
+        .magic-input-wrapper { position: relative; width: 100%; }
+        .magic-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        .magic-btn:hover { transform: translateY(-50%) scale(1.2); }
+        .magic-btn:active { transform: translateY(-50%) scale(0.9); }
+
         /* UTILS */
         .hidden { display: none; }
         .otp-sent { color: green; font-size: 0.8rem; margin-top: 5px; }
         
-        /* 🔥 LOADING SPINNER ANIMATION 🔥 */
+        /* LOADING SPINNER */
         .spinner {
             border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
@@ -89,17 +105,20 @@
             <input type="text" id="reg-user" placeholder="Choose Username (@shan)">
             <label style="font-size: 0.8rem; color: #888; display: block; text-align: left; margin-bottom: -5px; margin-left: 5px;">Date of Birth</label>
             <input type="date" id="reg-dob">
-            <input type="password" id="reg-pass" placeholder="Create Password">
+            
+            <div class="magic-input-wrapper">
+                <input type="password" id="reg-pass" placeholder="Create Password">
+                <button class="magic-btn" onclick="generateMagicPass()" title="Generate Magic Password">🪄</button>
+            </div>
+
             <button class="btn" onclick="completeSignup(this)">Create Account 🎉</button>
         </div>
     </div>
 </div>
 
 <script>
-    // Vanta Background
     VANTA.FOG({ el: "#vanta-bg", highlightColor: 0xffc3e0, midtoneColor: 0xff80bf, lowlightColor: 0xa855f7, baseColor: 0xffffff, blurFactor: 0.60, speed: 1.20, zoom: 0.80 });
 
-    // ✅ BUTTON ANIMATION FUNCTION
     function setLoading(btn, isLoading, text) {
         if (isLoading) {
             btn.disabled = true;
@@ -110,7 +129,6 @@
         }
     }
 
-    // Tab Switcher
     function switchTab(tab) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         event.target.classList.add('active');
@@ -120,11 +138,44 @@
         } else {
             document.getElementById('login-form').classList.add('hidden');
             document.getElementById('signup-form').classList.remove('hidden');
-            // Reset signup flow
             document.getElementById('step-1').classList.remove('hidden');
             document.getElementById('step-2').classList.add('hidden');
             document.getElementById('step-3').classList.add('hidden');
         }
+    }
+
+    // 🔥 MAGIC PASSWORD GENERATOR 🔥
+    function generateMagicPass() {
+        const email = document.getElementById('reg-email').value;
+        const passField = document.getElementById('reg-pass');
+        
+        if (!email) {
+            return Swal.fire('Oops!', 'Email is required to generate magic password!', 'warning');
+        }
+
+        // Logic: Email Name + Capitalize First Letter + @ + Random 4 Digit
+        let namePart = email.split('@')[0];
+        // Remove dots or special chars from name part for cleaner pass
+        namePart = namePart.replace(/[^a-zA-Z0-9]/g, '');
+        
+        if(namePart.length < 3) namePart = "ShanvikaUser"; // Fallback
+
+        const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+        const magicPass = namePart.charAt(0).toUpperCase() + namePart.slice(1) + '@' + randomNum;
+        
+        passField.value = magicPass;
+        passField.type = "text"; // Show password so user can see it
+        
+        // Visual Feedback
+        const btn = document.querySelector('.magic-btn');
+        btn.innerHTML = "✨";
+        setTimeout(() => btn.innerHTML = "🪄", 1000);
+
+        // Toast
+        const Toast = Swal.mixin({
+            toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
+        });
+        Toast.fire({ icon: 'success', title: 'Magic Password Generated!' });
     }
 
     // --- AUTH FUNCTIONS ---
@@ -148,7 +199,7 @@
             } else {
                 Swal.fire('Error', data.message, 'error');
             }
-        } catch(e) { Swal.fire('Error', 'Server error. Check logs.', 'error'); }
+        } catch(e) { Swal.fire('Error', 'Server error.', 'error'); }
         
         setLoading(btn, false, 'Send Verification Code');
     }
@@ -171,7 +222,7 @@
                 document.getElementById('step-2').classList.add('hidden');
                 document.getElementById('step-3').classList.remove('hidden');
             } else {
-                Swal.fire('Error', 'Incorrect code. Please try again.', 'error');
+                Swal.fire('Error', 'Incorrect code.', 'error');
             }
         } catch(e) { Swal.fire('Error', 'Server connection failed.', 'error'); }
 
@@ -187,7 +238,6 @@
             password: document.getElementById('reg-pass').value
         };
 
-        // Basic Validation
         if(!payload.full_name || !payload.username || !payload.dob || !payload.password) {
             return Swal.fire('Hold up!', 'Please fill in all fields.', 'warning');
         }
@@ -209,12 +259,11 @@
                     confirmButtonColor: '#ec4899'
                 }).then(() => window.location.href = '/');
             } else {
-                // Show ACTUAL server error now
                 Swal.fire('Error', data.message || 'Signup failed', 'error');
             }
         } catch(e) { 
             console.error("Signup Error:", e);
-            Swal.fire('Error', 'Connection failed. Check console for details.', 'error'); 
+            Swal.fire('Error', 'Connection failed.', 'error'); 
         }
 
         setLoading(btn, false, 'Create Account 🎉');

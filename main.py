@@ -28,6 +28,8 @@ import tempfile
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
 import hashlib # <--- Ye line add karo
+import hashlib # <--- Ye zaroori hai
+from passlib.context import CryptContext
 
 # 👇 AUTH IMPORTS
 from passlib.context import CryptContext
@@ -121,16 +123,25 @@ async def get_current_user(request: Request): return request.session.get('user')
 
 # 👇 UPDATED SECURITY LOGIC (SHA256 + BCRYPT)
 
+# 👇 UPDATED SECURITY LOGIC (SHA-256 PRE-HASHING)
+# Isse 72-byte limit wala error hamesha ke liye khatam ho jayega
+
 def verify_password(plain_password, hashed_password):
-    # Step 1: Pehle password ko SHA256 se normalize karo (Fixes 72-byte limit)
+    # Step 1: Password ko normalize karo (SHA-256 se)
+    # Ye kisi bhi password ko 64 characters ki string bana dega
     sha_signature = hashlib.sha256(plain_password.encode()).hexdigest()
-    # Step 2: Ab normalized password ko Bcrypt se check karo
+    
+    # Step 2: Ab check karo
     return pwd_context.verify(sha_signature, hashed_password)
 
 def get_password_hash(password):
-    # Step 1: Pehle password ko SHA256 se normalize karo
+    # Debugging print to confirm logic is working
+    print(f"🔒 Processing Password: {password[:5]}***") 
+    
+    # Step 1: Pre-hash using SHA-256
     sha_signature = hashlib.sha256(password.encode()).hexdigest()
-    # Step 2: Ab Bcrypt hash generate karo
+    
+    # Step 2: Bcrypt Hash (Ab input size hamesha 64 bytes hoga, jo 72 se kam hai)
     return pwd_context.hash(sha_signature)
 
 # 👇 BREVO API EMAIL FUNCTION (PORT 443 SAFE)
