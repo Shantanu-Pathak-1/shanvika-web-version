@@ -22,7 +22,6 @@
 </head>
 <body id="vanta-bg" class="flex h-screen w-full dark-mode overflow-hidden">
     
-    <!-- SIDEBAR -->
     <aside id="sidebar">
         <div class="h-14 md:h-16 flex items-center shrink-0 border-b border-white/5 sidebar-header px-3 md:px-0">
             <div class="flex items-center gap-2 md:gap-3 overflow-hidden select-none cursor-pointer w-full transition-all duration-300" onclick="window.location.reload()">
@@ -60,15 +59,12 @@
         </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col relative z-10 h-full transition-all duration-300">
-        <!-- MOBILE HEADER -->
         <header class="md:hidden flex justify-between items-center p-3 md:p-4 bg-black/60 backdrop-blur-md z-20 border-b border-white/10">
             <span class="font-bold text-white text-lg md:text-xl flex items-center gap-2">🌸 Shanvika</span>
             <button onclick="document.getElementById('sidebar').classList.toggle('mobile-open')" class="text-white text-xl md:text-2xl"><i class="fas fa-bars"></i></button>
         </header>
 
-        <!-- CHAT BOX -->
         <div id="chat-box" class="flex-1 overflow-y-auto p-3 md:p-4 pb-48 md:pb-48 scroll-smooth">
             <div id="welcome-screen" class="flex flex-col items-center justify-center h-full opacity-80 text-center animate-fade-in px-4">
                 <div class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-4xl md:text-5xl mb-4 md:mb-6 shadow-[0_0_30px_rgba(236,72,153,0.5)]">🌸</div>
@@ -77,10 +73,8 @@
             </div>
         </div>
 
-        <!-- INPUT AREA -->
         <div class="input-fixed-bottom">
             <div class="input-wrapper flex flex-col gap-2 md:gap-3 mx-auto">
-                <!-- MODE SELECTOR -->
                 <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 px-2 no-scrollbar justify-start md:justify-center">
                     <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
                     <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
@@ -90,7 +84,6 @@
                     <div class="mode-btn flex-shrink-0" onclick="setMode('converter', this)">🔄 Converter</div>
                 </div>
                 
-                <!-- INPUT CONTAINER -->
                 <form class="input-container flex items-center p-1.5 md:p-2 shadow-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
                     <button type="button" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 flex-shrink-0 transition" onclick="document.getElementById('file-upload').click()"><i class="fas fa-paperclip text-sm md:text-base"></i></button>
                     <input type="file" id="file-upload" class="hidden" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" onchange="handleFileUpload(this)">
@@ -103,7 +96,6 @@
         </div>
     </main>
 
-   <!-- SETTINGS MODAL -->
    <div id="settings-modal" class="modal">
     <div class="modal-content w-11/12 md:w-full max-w-lg bg-[#1e1e1e] border border-gray-700 text-white max-h-[90vh] overflow-y-auto"> 
         
@@ -117,7 +109,7 @@
                 <div class="font-bold text-sm md:text-base text-yellow-100 flex items-center gap-2">
                     <i class="fas fa-crown text-yellow-400"></i> Upgrade to Pro
                 </div>
-                <div class="text-[9px] md:text-[10px] text-yellow-200">Unlock Voice, Image Gen & More</div>
+                <div class="text-[9px] md:text-xs text-yellow-200">Unlock Voice, Image Gen & More</div>
             </div>
             <button onclick="startPayment()" class="bg-white text-yellow-800 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs font-bold hover:bg-yellow-100 transition shadow-md transform active:scale-95">
                 Upgrade Now
@@ -158,24 +150,18 @@
             <div id="memory-list" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
         </div>
 
-        <div class="border-t border-gray-700 pt-4">
-            <button onclick="deleteAllChats()" class="w-full bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-700 hover:text-white py-2 rounded font-bold transition text-xs md:text-sm mb-3"><i class="fas fa-trash-alt"></i> Delete All History</button>
-           <div class="border-t border-gray-700 pt-4 mt-2">
-    <button onclick="deleteAllChats()" class="w-full mb-3 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white py-2.5 rounded-xl font-medium transition-all duration-200 text-xs flex items-center justify-center gap-2 border border-white/5 hover:border-white/10">
-        <i class="fas fa-trash-alt"></i> Clear Chat History
-    </button>
-
-    <a href="/logout" class="group relative w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500/10 to-red-900/20 border border-red-500/30 text-red-400 py-3 rounded-xl font-bold text-sm overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:border-red-500 hover:text-white hover:scale-[1.02] active:scale-95">
-        <div class="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
-        
-        <i class="fas fa-power-off z-10 transition-transform duration-300 group-hover:rotate-90"></i>
-        <span class="z-10 tracking-wide">LOGOUT SYSTEM</span>
-    </a>
-</div>        </div>
+        <div class="border-t border-gray-700 pt-4 space-y-3">
+            <button onclick="deleteAllChats()" class="w-full bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-700 hover:text-white py-2 rounded-xl font-bold transition text-xs md:text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-trash-alt"></i> Delete All History
+            </button>
+            
+            <a href="/logout" class="group relative w-full flex items-center justify-center gap-2 bg-gray-800 border border-gray-700 text-gray-400 py-3 rounded-xl font-bold text-sm overflow-hidden transition-all duration-300 hover:text-white hover:border-white/20">
+                <i class="fas fa-power-off"></i> LOGOUT SYSTEM
+            </a>
+        </div>
     </div>
    </div>
 
-    <!-- PROFILE MODAL -->
     <div id="profile-modal" class="modal">
         <div class="modal-content text-center bg-[#1e1e1e] border border-gray-700 text-white w-11/12 md:w-auto">
             <h2 class="text-lg md:text-xl font-bold mb-4">Edit Profile</h2>
@@ -185,13 +171,11 @@
         </div>
     </div>
     
-    <!-- DROPDOWN MENU -->
     <div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl z-50">
         <div class="dropdown-item hover:bg-gray-700" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div>
         <div class="dropdown-item hover:bg-gray-700 text-red-400" id="act-delete"><i class="fas fa-trash"></i> Delete</div>
     </div>
 
-    <!-- PAYMENT MODAL -->
     <div id="payment-modal" class="modal">
         <div class="modal-content w-11/12 md:w-full max-w-md bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl relative overflow-hidden">
             

@@ -28,7 +28,7 @@ import numpy as np
 import hashlib 
 from passlib.context import CryptContext
 from datetime import datetime
-from gradio_client import Client # <-- Anime ke liye zaroori hai
+from gradio_client import Client 
 
 # ==========================================
 # 🔑 KEYS & CONFIG
@@ -118,6 +118,7 @@ async def get_current_user(request: Request): return request.session.get('user')
 
 # 👇 SECURITY LOGIC (SHA-256 PRE-HASHING)
 def verify_password(plain_password, hashed_password):
+    if not plain_password or not hashed_password: return False
     sha_signature = hashlib.sha256(plain_password.encode()).hexdigest()
     return pwd_context.verify(sha_signature, hashed_password)
 
@@ -185,11 +186,9 @@ async def improve_prompt(user_text):
 # 2. Pro Image Generator (Flux Realism)
 async def generate_image_hf(user_prompt):
     try:
-        # Gemini Magic
         final_prompt = await improve_prompt(user_prompt)
         print(f"✨ Enhanced Prompt: {final_prompt}")
 
-        # Flux Generation
         seed = random.randint(1, 1000000)
         safe_prompt = final_prompt.replace(" ", "%20")
         image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
@@ -215,10 +214,9 @@ async def generate_anime_qwen(img_data, user_prompt):
             tmp_path = tmp.name
 
         print("🚀 Connecting to Qwen Anime Space...")
-      
-# ✅ NAYA (Jo Token use karega):
-hf_token = os.getenv("HF_TOKEN") # Env se token uthayega
-client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast", hf_token=hf_token)
+        
+        token = os.getenv("HF_TOKEN")
+        client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast", hf_token=token)
         
         result = client.predict(
             image=tmp_path,
@@ -243,9 +241,9 @@ client = Client("prithivMLmods/Qwen-Image-Edit-2509-LoRAs-Fast", hf_token=hf_tok
         """
     except Exception as e:
         print(f"Anime Error: {e}")
-        return f"⚠️ Server Busy. Try text-based anime mode. Error: {str(e)}"
+        return f"⚠️ Server Busy. Error: {str(e)}"
 
-# ... (Standard Converters & Research - kept for utility) ...
+# ... (Standard Converters & Research) ...
 async def perform_conversion(file_data, file_type, prompt):
     try:
         if "," in file_data: header, encoded = file_data.split(",", 1)
@@ -707,7 +705,7 @@ async def demote_user(request: Request, email: str = Form(...)):
     return RedirectResponse(url="/admin", status_code=303)
 
 # ==========================================
-# 🤖 CHAT ROUTER (Handles All Logic)
+# 🤖 CHAT ROUTER
 # ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
@@ -757,7 +755,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         # 🔥 UPDATED ROUTING LOGIC 🔥
         if mode == "image_gen":
-            reply = await generate_image_hf(msg) # Now uses Gemini Prompt Enhancer
+            reply = await generate_image_hf(msg)
 
         elif mode == "anime":
             if req.file_data:
