@@ -7,10 +7,12 @@ import qrcode
 import PyPDF2
 import secrets 
 import string
+import re  # New Import
 import sympy 
 import google.generativeai as genai
 from duckduckgo_search import DDGS
 from youtube_transcript_api import YouTubeTranscriptApi
+from lyricsgenius import Genius # New Import for perfect lyrics
 
 # --- Helper: Key Rotation ---
 def get_tool_gemini_key():
@@ -20,33 +22,73 @@ def get_tool_gemini_key():
     return random.choice(keys_list) if keys_list else None
 
 # ==========================================
-# 🎤 BATCH 6: ENTERTAINMENT (NEW)
+# 🎤 BATCH 6: ENTERTAINMENT (UPGRADED)
 # ==========================================
-
-# tools_lab.py mein 'sing_with_me_tool' ko isse replace karo:
-
-# tools_lab.py
 
 async def sing_with_me_tool(user_lyric, context_history=""):
     try:
-        api_key = get_tool_gemini_key()
-        if api_key: genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # 1. SETUP GENIUS API (Perfect Lyrics ke liye)
+        genius_token = os.getenv("GENIUS_ACCESS_TOKEN") # .env mein daalna padega
+        lyrics_reply = ""
+        found_perfect_match = False
         
-        # 👇 STRICT PROMPT
-        sys_prompt = (
-            "You are a Lyrics Completion Engine. Do not converse. Do not explain."
-            "Task: Identify the Bollywood/English song from the user's line and output the EXACT IMMEDIATE NEXT 2 lines."
-            "Context Rule: Use this history to stay on the same song: " + context_history +
-            "If the user's line is correct, continue the flow. If incorrect, correct it gently."
-            "Output Format: Just the lyrics + emojis. No extra text."
-        )
-        
-        response = model.generate_content(f"{sys_prompt}\n\nInput Line: '{user_lyric}'\nNext Lines:")
-        lyric_reply = response.text.strip().replace('"', '') # Clean quotes
-        
-        # 👇 FIX: HTML ek line mein (No Indentation) taaki Raw Code na dikhe
-        return f"""<div class="glass p-4 rounded-xl border border-pink-500/40 text-center relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent opacity-50"></div><div class="mb-2 animate-bounce inline-block"><span class="text-2xl">🎤</span><span class="text-xl">🎶</span></div><h3 class="text-lg font-serif text-pink-300 italic leading-relaxed">"{lyric_reply}"</h3><p class="text-[10px] text-gray-500 mt-3">Next line tum gao... 😉</p></div>"""
+        if genius_token:
+            try:
+                genius = Genius(genius_token)
+                genius.verbose = False # Console spam band karne ke liye
+                
+                # User ki line se song search karo
+                song_search = genius.search_songs(user_lyric)
+                
+                if song_search and song_search['hits']:
+                    # Best match uthao
+                    best_hit = song_search['hits'][0]['result']
+                    song_id = best_hit['id']
+                    song_title = best_hit['title']
+                    artist_name = best_hit['primary_artist']['name']
+                    
+                    # Lyrics fetch karo
+                    song = genius.search_song(song_id=song_id)
+                    if song:
+                        lyrics = song.lyrics
+                        
+                        # CLEANING: Genius metadata hatana (e.g., [Chorus])
+                        clean_lyrics = re.sub(r'\[.*?\]', '', lyrics)
+                        lines = [line.strip() for line in clean_lyrics.split('\n') if line.strip()]
+                        
+                        # MATCHING LOGIC: User ki line dhundo
+                        for i, line in enumerate(lines):
+                            # Fuzzy matching (case insensitive & spaces remove karke)
+                            if user_lyric.lower().replace(" ", "") in line.lower().replace(" ", ""):
+                                # Agar match mila, toh NEXT line uthao
+                                if i + 1 < len(lines):
+                                    lyrics_reply = lines[i + 1]
+                                    found_perfect_match = True
+                                    break
+            except Exception as e:
+                print(f"Genius API Error: {e}") # Fallback to Gemini if Genius fails
+
+        # 2. FALLBACK TO GEMINI (Agar Genius fail hua ya key nahi hai)
+        if not found_perfect_match:
+            api_key = get_tool_gemini_key()
+            if api_key: genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            
+            sys_prompt = (
+                "You are a Bollywood Singing Partner. "
+                "Task: Identify the song from user's line and reply with the EXACT NEXT line only."
+                "Do not explain. Just sing the next line."
+                f"Context: {context_history}"
+            )
+            response = model.generate_content(f"{sys_prompt}\nUser sings: '{user_lyric}'\nYour Next Line:")
+            lyrics_reply = response.text.strip().replace('"', '')
+
+        # 3. HTML OUTPUT (UI Same rahega)
+        return f"""<div class="glass p-4 rounded-xl border border-pink-500/40 text-center relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent opacity-50"></div>
+        <div class="mb-2 animate-bounce inline-block"><span class="text-2xl">🎤</span><span class="text-xl">🎶</span></div>
+        <h3 class="text-lg font-serif text-pink-300 italic leading-relaxed">"{lyrics_reply}"</h3>
+        <p class="text-[10px] text-gray-500 mt-3">Next line tum gao... 😉</p></div>"""
     
     except Exception as e: return f"⚠️ Singing Error: {str(e)}"
 
