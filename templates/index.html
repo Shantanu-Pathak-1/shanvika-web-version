@@ -99,18 +99,56 @@
         </div>
     </main>
 
-    <div id="settings-modal" class="modal">
-        <div class="modal-content w-11/12 md:w-full max-w-lg bg-[#1e1e1e] border border-gray-700 text-white max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                <h2 class="text-lg md:text-xl font-bold">Settings</h2>
-                <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+<div id="settings-modal" class="modal" style="display: none;">
+        <div class="modal-content w-11/12 md:w-full max-w-lg bg-[#1e1e1e] border border-gray-700 text-white max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6">
+            
+            <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                <h2 class="text-xl font-bold flex items-center gap-2"><i class="fas fa-cog text-pink-500"></i> Settings</h2>
+                <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white transition transform hover:rotate-90 text-xl">&times;</button>
             </div>
-            <button onclick="deleteAllChats()" class="w-full bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-700 hover:text-white py-2 rounded-xl font-bold transition text-xs md:text-sm flex items-center justify-center gap-2">
-                <i class="fas fa-trash-alt"></i> Delete All History
-            </button>
-            <a href="/logout" class="group relative w-full flex items-center justify-center gap-2 bg-gray-800 border border-gray-700 text-gray-400 py-3 rounded-xl font-bold text-sm overflow-hidden transition-all duration-300 hover:text-white hover:border-white/20 mt-3">
-                <i class="fas fa-power-off"></i> LOGOUT SYSTEM
-            </a>
+
+            <div class="space-y-4 mb-6">
+                <div class="flex justify-between items-center bg-gray-800/50 p-3 rounded-xl">
+                    <span class="text-sm font-medium"><i class="fas fa-moon mr-2 text-purple-400"></i> Dark Mode</span>
+                    <button onclick="toggleTheme()" class="text-gray-400 hover:text-white text-sm bg-gray-700 px-3 py-1 rounded-lg transition">Toggle</button>
+                </div>
+
+                <div class="flex justify-between items-center bg-gray-800/50 p-3 rounded-xl">
+                    <span class="text-sm font-medium"><i class="fas fa-volume-up mr-2 text-green-400"></i> Voice Reply</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="voice-toggle" class="sr-only peer" onchange="toggleVoice()">
+                        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold mb-2 text-gray-300"><i class="fas fa-robot mr-1 text-blue-400"></i> Custom Instructions</label>
+                <textarea id="custom-instruction-box" class="w-full bg-black/40 border border-gray-600 rounded-xl p-3 text-white text-sm focus:border-pink-500 focus:outline-none transition resize-none" rows="3" placeholder="E.g. Talk like a friendly friend..."></textarea>
+                <button onclick="saveInstructions(this)" class="mt-2 w-full bg-blue-600/20 text-blue-400 border border-blue-500/50 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition">Save Instruction</button>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold mb-2 text-gray-300"><i class="fas fa-brain mr-1 text-yellow-400"></i> Long Term Memory</label>
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="memory-input" class="flex-1 bg-black/40 border border-gray-600 rounded-xl p-2 text-sm text-white focus:border-yellow-500 outline-none" placeholder="Add a specific memory...">
+                    <button onclick="addMemory()" class="bg-yellow-600/20 text-yellow-400 border border-yellow-500/50 px-3 rounded-xl hover:bg-yellow-600 hover:text-white transition"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="memory-list" class="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                    <div class="text-center text-xs text-gray-500 py-2">Loading memories...</div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-700 pt-4 space-y-3">
+                <button onclick="deleteAllChats()" class="w-full bg-red-900/20 border border-red-800/50 text-red-400 hover:bg-red-600 hover:text-white py-3 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2 group">
+                    <i class="fas fa-trash-alt group-hover:animate-bounce"></i> Delete All History
+                </button>
+                
+                <a href="/logout" class="w-full bg-gray-800 border border-gray-600 text-gray-300 hover:bg-white hover:text-black py-3 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-power-off"></i> LOGOUT SYSTEM
+                </a>
+            </div>
+
         </div>
     </div>
 
