@@ -26,6 +26,17 @@ import tempfile
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
 
+# ... (imports ke baad)
+
+app = FastAPI()
+
+# 👇 YE HEALTH CHECK ADD KARO (Render ke liye zaroori hai)
+@app.get("/healthz")
+async def health_check():
+    return {"status": "ok", "message": "Shanvika is running!"}
+
+# ... (baaki code same rahega)
+
 # ==========================================
 # 🔑 KEYS & CONFIG
 # ==========================================
