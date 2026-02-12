@@ -20,3 +20,5 @@ pdf2docx
 opencv-python-headless
 pinecone
 numpy
+passlib[bcrypt]
+email-validator

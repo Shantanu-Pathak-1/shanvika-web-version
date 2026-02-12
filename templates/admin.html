@@ -11,15 +11,9 @@
         body { background-color: #050505; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
         .glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
         .neon-text { text-shadow: 0 0 10px rgba(236, 72, 153, 0.7); }
-        
-        /* Table Styling */
         tr { transition: 0.3s; }
         tr:hover { background: rgba(255, 255, 255, 0.05); }
-        
-        /* Password Overlay */
         #lock-screen { position: fixed; inset: 0; z-index: 50; background: #000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        
-        /* Animations */
         @keyframes pulse-border { 0% { border-color: rgba(236, 72, 153, 0.4); } 50% { border-color: rgba(236, 72, 153, 1); } 100% { border-color: rgba(236, 72, 153, 0.4); } }
         .animate-border { animation: pulse-border 2s infinite; }
     </style>
@@ -92,7 +86,9 @@
                                     <img src="{{ user.picture }}" class="w-10 h-10 rounded-full border-2 border-gray-700">
                                     <div>
                                         <div class="font-bold text-white">{{ user.name }}</div>
+                                        <div class="text-xs text-pink-400">@{{ user.username if user.username else 'N/A' }}</div>
                                         <div class="text-xs text-gray-500">{{ user.email }}</div>
+                                        <div class="text-[10px] text-gray-600">DOB: {{ user.dob if user.dob else '--' }}</div>
                                     </div>
                                 </div>
                             </td>
@@ -126,7 +122,6 @@
                             <td class="px-6 py-4 text-right">
                                 {% if user.email != admin_email %}
                                     <div class="flex justify-end gap-2">
-                                        
                                         {% if user.is_pro %}
                                             <button onclick="confirmAction('demote', '{{ user.email }}')" title="Revoke Pro" class="w-8 h-8 rounded-lg bg-yellow-600/20 hover:bg-yellow-600 border border-yellow-600/50 text-yellow-400 hover:text-white transition flex items-center justify-center">
                                                 <i class="fas fa-level-down-alt"></i>
@@ -146,7 +141,6 @@
                                                 <i class="fas fa-ban"></i>
                                             </button>
                                         {% endif %}
-
                                     </div>
                                 {% else %}
                                     <span class="text-gray-500 text-xs italic">SUPER ADMIN</span>
@@ -163,17 +157,14 @@
     <script>
         const SECRET_PASS = "Shan@1234";
 
-        // 1. Entry Security
         function unlockPanel() {
             const input = document.getElementById('admin-pass').value;
             if (input === SECRET_PASS) {
                 const lock = document.getElementById('lock-screen');
                 const dash = document.getElementById('dashboard');
-                
                 lock.style.transition = "opacity 0.5s ease";
                 lock.style.opacity = "0";
                 setTimeout(() => lock.remove(), 500);
-                
                 dash.classList.remove('hidden');
                 setTimeout(() => dash.classList.remove('opacity-0'), 100);
             } else {
@@ -182,14 +173,12 @@
             }
         }
 
-        // 2. Action Security (Ban/Unban/Promote/Demote)
         async function confirmAction(action, email) {
             let actionText = action.toUpperCase();
             let confirmColor = '#3085d6';
-
             if(action === 'ban') confirmColor = '#d33';
-            if(action === 'demote') confirmColor = '#d97706'; // Yellow for demote
-            if(action === 'promote') confirmColor = '#2563eb'; // Blue for promote
+            if(action === 'demote') confirmColor = '#d97706';
+            if(action === 'promote') confirmColor = '#2563eb';
 
             const { value: password } = await Swal.fire({
                 title: 'Security Check',
@@ -205,24 +194,16 @@
             if (password === SECRET_PASS) {
                 const form = document.createElement('form');
                 form.method = 'POST';
-                // Automatically creates route like /admin/promote_user, /admin/ban_user
                 form.action = `/admin/${action}_user`;
-                
                 const emailField = document.createElement('input');
                 emailField.type = 'hidden';
                 emailField.name = 'email';
                 emailField.value = email;
-                
                 form.appendChild(emailField);
                 document.body.appendChild(form);
                 form.submit();
             } else if (password) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Wrong Password!',
-                    background: '#111',
-                    color: '#fff'
-                });
+                Swal.fire({ icon: 'error', title: 'Wrong Password!', background: '#111', color: '#fff' });
             }
         }
         

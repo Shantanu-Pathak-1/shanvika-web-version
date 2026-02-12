@@ -1,11 +1,11 @@
-from fastapi import FastAPI, Request, UploadFile, File, Form
+from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 import uuid
@@ -14,7 +14,7 @@ import httpx
 import base64 
 from groq import Groq
 from duckduckgo_search import DDGS
-import google.generativeai as genai
+import google.generativeai as genai 
 import io
 import PyPDF2
 from docx import Document
@@ -26,56 +26,66 @@ import tempfile
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
 
-# ... (imports ke baad)
-
-app = FastAPI()
-
-# 👇 YE HEALTH CHECK ADD KARO (Render ke liye zaroori hai)
-@app.get("/healthz")
-async def health_check():
-    return {"status": "ok", "message": "Shanvika is running!"}
-
-# ... (baaki code same rahega)
+# 👇 NEW IMPORTS FOR AUTH & EMAIL
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from passlib.context import CryptContext
+from datetime import datetime
 
 # ==========================================
 # 🔑 KEYS & CONFIG
 # ==========================================
-ADMIN_EMAIL = "shantanupathak94@gmail.com" # YOUR EMAIL
-
+ADMIN_EMAIL = "shantanupathak94@gmail.com"
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_random_string_shanvika")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") 
 MONGO_URL = os.getenv("MONGO_URL")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "YOUR_PINECONE_KEY_HERE")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+
+# 👇 EMAIL CONFIG (Add these to Render Env Vars)
+MAIL_USERNAME = os.getenv("MAIL_USERNAME") 
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD") 
+
+# Password Hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # 👇 Initialize Pinecone
-pc = Pinecone(api_key=PINECONE_API_KEY)
-index_name = "shanvika-memory"
-
-# (Optional: Auto-create index if not exists)
-if index_name not in pc.list_indexes().names():
-    try:
-        pc.create_index(
-            name=index_name,
-            dimension=768, # Gemini Embedding Dimension
-            metric='cosine',
-            spec=ServerlessSpec(cloud='aws', region='us-east-1')
-        )
-    except: pass
-
-index = pc.Index(index_name)
+pc = None
+index = None
+try:
+    if PINECONE_API_KEY:
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+        index_name = "shanvika-memory"
+        existing_indexes = pc.list_indexes().names()
+        if index_name not in existing_indexes:
+            try:
+                pc.create_index(
+                    name=index_name,
+                    dimension=768,
+                    metric='cosine',
+                    spec=ServerlessSpec(cloud='aws', region='us-east-1')
+                )
+            except: pass
+        index = pc.Index(index_name)
+except Exception as e:
+    print(f"Pinecone Error: {e}")
 
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    try: genai.configure(api_key=GEMINI_API_KEY)
+    except: pass
 
 app = FastAPI()
 
-# 👇 HTTPS LOOP FIX
+# Health Check
+@app.get("/healthz")
+async def health_check():
+    return {"status": "ok", "message": "Shanvika is running!"}
+
+# HTTPS Fix
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
     if request.headers.get("x-forwarded-proto") == "https":
@@ -83,7 +93,6 @@ async def fix_google_oauth_redirect(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# Session & OAuth
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
 oauth = OAuth()
 oauth.register(
@@ -94,23 +103,52 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# DB
+# DB Setup
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
+otp_collection = db.otps 
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- HELPER ---
+# --- HELPERS ---
 def get_groq(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 async def get_current_user(request: Request): return request.session.get('user')
 
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def send_email(to_email: str, subject: str, body: str):
+    if not MAIL_USERNAME or not MAIL_PASSWORD:
+        print("⚠️ Mail Config Missing")
+        return False
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = MAIL_USERNAME
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'html'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(MAIL_USERNAME, MAIL_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(MAIL_USERNAME, to_email, text)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Email Error: {e}")
+        return False
+
 # ==========================================
-# 🎨 GENERATORS (Standard)
+# 🎨 GENERATORS (Standard - Old Logic Preserved)
 # ==========================================
 async def generate_image_hf(prompt):
     try:
@@ -191,7 +229,6 @@ async def generate_gemini(prompt, system_instr):
 # ==========================================
 # 🧠 RAG / VECTOR MEMORY FUNCTIONS
 # ==========================================
-
 def get_embedding(text):
     try:
         result = genai.embed_content(
@@ -222,6 +259,7 @@ def split_text(text, chunk_size=500):
     return chunks
 
 def save_to_vector_db(session_id, text):
+    if not index: return False
     chunks = split_text(text)
     vectors = []
     
@@ -240,6 +278,7 @@ def save_to_vector_db(session_id, text):
     return False
 
 def search_vector_db(query, session_id):
+    if not index: return ""
     query_vector = get_embedding(query)
     if not query_vector: return ""
     
@@ -277,6 +316,25 @@ class InstructionRequest(BaseModel):
 class MemoryRequest(BaseModel):
     memory_text: str
 
+# 👇 NEW MODELS FOR AUTH
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    dob: str
+    username: str
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
+class OTPVerifyRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+class LoginRequest(BaseModel):
+    identifier: str
+    password: str
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
 
@@ -285,6 +343,156 @@ async def login(request: Request):
     redirect_uri = str(request.url_for('auth_callback'))
     if "onrender.com" in redirect_uri: redirect_uri = redirect_uri.replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
+
+@app.get("/onboarding", response_class=HTMLResponse)
+async def onboarding_page(request: Request):
+    user = await get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("onboarding.html", {"request": request, "email": user['email'], "name": user.get('name', '')})
+
+# 👇 API ROUTES FOR AUTH
+@app.post("/api/send_otp")
+async def send_otp_endpoint(req: OTPRequest):
+    if await users_collection.find_one({"email": req.email}):
+        return JSONResponse({"status": "error", "message": "Email already registered! Please Login."}, status_code=400)
+    
+    otp = str(random.randint(100000, 999999))
+    await otp_collection.update_one(
+        {"email": req.email}, 
+        {"$set": {"otp": otp, "created_at": datetime.utcnow()}}, 
+        upsert=True
+    )
+    
+    email_body = f"""
+    <div style="font-family: Arial, sans-serif; color: #333;">
+        <h2>Welcome to Shanvika AI 🌸</h2>
+        <p>Your verification code is:</p>
+        <h1 style="color: #ec4899; letter-spacing: 5px;">{otp}</h1>
+        <p>This code is valid for 10 minutes.</p>
+    </div>
+    """
+    
+    if send_email(req.email, "Shanvika AI - Verification Code", email_body):
+        return {"status": "success", "message": "OTP sent to email!"}
+    return JSONResponse({"status": "error", "message": "Failed to send email."}, status_code=500)
+
+@app.post("/api/verify_otp")
+async def verify_otp_endpoint(req: OTPVerifyRequest):
+    record = await otp_collection.find_one({"email": req.email})
+    if record and record.get("otp") == req.otp:
+        await otp_collection.delete_one({"email": req.email}) 
+        return {"status": "success"}
+    return JSONResponse({"status": "error", "message": "Invalid OTP"}, status_code=400)
+
+@app.post("/api/complete_signup")
+async def complete_signup(req: SignupRequest, request: Request):
+    if await users_collection.find_one({"username": req.username}):
+        return JSONResponse({"status": "error", "message": "Username taken!"}, status_code=400)
+        
+    hashed_pass = get_password_hash(req.password)
+    
+    new_user = {
+        "email": req.email,
+        "name": req.full_name,
+        "username": req.username,
+        "dob": req.dob,
+        "password_hash": hashed_pass,
+        "picture": f"https://ui-avatars.com/api/?name={req.full_name}&background=random",
+        "custom_instruction": "",
+        "memories": [],
+        "gallery": [],
+        "is_banned": False,
+        "is_pro": False,
+        "joined_at": datetime.utcnow()
+    }
+    
+    await users_collection.insert_one(new_user)
+    
+    request.session['user'] = {
+        "email": new_user['email'], 
+        "name": new_user['name'], 
+        "picture": new_user['picture'],
+        "username": new_user['username']
+    }
+    return {"status": "success"}
+
+@app.post("/api/login_manual")
+async def login_manual(req: LoginRequest, request: Request):
+    user = await users_collection.find_one({
+        "$or": [{"email": req.identifier}, {"username": req.identifier}]
+    })
+    
+    if not user or not user.get('password_hash'):
+        return JSONResponse({"status": "error", "message": "User not found or uses Google Login"}, status_code=400)
+    
+    if verify_password(req.password, user['password_hash']):
+        request.session['user'] = {
+            "email": user['email'], 
+            "name": user['name'], 
+            "picture": user['picture'],
+            "username": user.get('username')
+        }
+        return {"status": "success"}
+    
+    return JSONResponse({"status": "error", "message": "Invalid Password"}, status_code=400)
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request):
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        user_info = token.get('userinfo')
+        if user_info:
+            email = user_info.get('email')
+            db_user = await users_collection.find_one({"email": email})
+            
+            # Onboarding Check
+            if not db_user:
+                request.session['user'] = dict(user_info) 
+                return RedirectResponse(url="/onboarding") 
+            elif "username" not in db_user:
+                 request.session['user'] = dict(user_info)
+                 return RedirectResponse(url="/onboarding")
+
+            request.session['user'] = {
+                "email": db_user['email'],
+                "name": db_user['name'],
+                "picture": db_user['picture'],
+                "username": db_user.get('username')
+            }
+        return RedirectResponse(url="/")
+    except Exception as e:
+        print(e)
+        return RedirectResponse(url="/login")
+
+@app.post("/api/complete_google_onboarding")
+async def complete_google_onboarding(request: Request):
+    data = await request.json()
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error"}, status_code=401)
+    
+    await users_collection.update_one(
+        {"email": user['email']},
+        {"$set": {
+            "dob": data.get("dob"),
+            "username": data.get("username"),
+        }},
+        upsert=True
+    )
+    
+    if not await users_collection.find_one({"email": user['email']}):
+         await users_collection.insert_one({
+            "email": user['email'],
+            "name": user.get('name'),
+            "picture": user.get('picture'),
+            "dob": data.get("dob"),
+            "username": data.get("username"),
+            "custom_instruction": "",
+            "memories": [],
+            "gallery": [],
+            "is_banned": False
+        })
+    
+    return {"status": "success"}
 
 @app.get("/about", response_class=HTMLResponse)
 async def about_page(request: Request):
@@ -312,30 +520,10 @@ async def delete_gallery_item(request: Request):
     )
     return {"status": "ok"}
 
-@app.get("/auth/callback")
-async def auth_callback(request: Request):
-    try:
-        token = await oauth.google.authorize_access_token(request)
-        user_info = token.get('userinfo')
-        if user_info:
-            request.session['user'] = dict(user_info)
-            if not await users_collection.find_one({"email": user_info.get('email')}):
-                await users_collection.insert_one({
-                    "email": user_info.get('email'), 
-                    "name": user_info.get('name'), 
-                    "picture": user_info.get('picture'), 
-                    "custom_instruction": "", 
-                    "memories": [],
-                    "gallery": [],
-                    "is_banned": False 
-                })
-        return RedirectResponse(url="/")
-    except: return RedirectResponse(url="/login")
-
 @app.get("/logout")
 async def logout(request: Request):
     request.session.pop('user', None)
-    return RedirectResponse(url="/login")
+    return RedirectResponse(url="/")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -500,7 +688,7 @@ async def demote_user(request: Request, email: str = Form(...)):
     return RedirectResponse(url="/admin", status_code=303)
 
 # ==========================================
-# 🤖 CHAT CONTROLLER (RAG & Gallery Logic Fixed)
+# 🤖 CHAT CONTROLLER
 # ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
@@ -525,7 +713,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     try:
                         reader = PyPDF2.PdfReader(io.BytesIO(decoded))
                         raw_text = "\n".join([p.extract_text() for p in reader.pages])
-                        # 👇 VECTOR SAVE TRIGGER
                         save_to_vector_db(sid, raw_text)
                         file_text = " [System: PDF content saved to Long-Term Memory (Vector DB). I will search it for answers.]"
                     except: file_text = "[PDF attached]"
@@ -549,7 +736,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             await chats_collection.insert_one({"session_id": sid, "user_email": user['email'], "title": msg[:30], "messages": []})
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg + file_text}}})
 
-        # Routing
         reply = ""
         
         if mode == "image_gen" or mode == "anime":
@@ -558,7 +744,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 reply = await generate_image_hf(prompt_query)
             else: 
                 reply = await convert_to_anime(req.file_data, prompt_query)
-            
             try:
                 url_match = re.search(r"src='([^']+)'", reply)
                 if url_match:
@@ -567,8 +752,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                         {"email": user['email']},
                         {"$push": {"gallery": {"url": img_url, "prompt": prompt_query, "mode": mode}}}
                     )
-            except Exception as e:
-                print(f"Gallery Save Error: {e}")
+            except Exception as e: print(e)
 
         elif mode == "converter":
             if req.file_data: reply = await perform_conversion(req.file_data, req.file_type, msg)
@@ -595,7 +779,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             else:
                 client = get_groq()
                 if client:
-                    # 👇 VECTOR SEARCH TRIGGER
                     context_data = search_vector_db(msg, sid)
                     system_prompt = base_system
                     if context_data:
@@ -616,11 +799,8 @@ async def chat_endpoint(req: ChatRequest, request: Request):
     except Exception as e:
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ **Server Error:** {str(e)}"}
-# ==========================================
-# 🚀 SERVER START (RENDER FIX)
-# ==========================================
+
 if __name__ == "__main__":
     import uvicorn
-    # ⚠️ CRITICAL RENDER FIX: Use the PORT environment variable
     port = int(os.getenv("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
