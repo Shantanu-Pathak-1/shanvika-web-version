@@ -181,13 +181,61 @@ def send_email(to_email: str, subject: str, body: str):
         return False
 
 # ... (GENERATORS: generate_image_hf, convert_to_anime, etc. SAME AS BEFORE) ...
-async def generate_image_hf(prompt):
+# main.py mein 'generate_image_hf' function ko isse pura replace kar do
+
+async def generate_image_hf(user_prompt):
     try:
-        seed = random.randint(1, 100000)
-        safe_prompt = prompt.replace(" ", "%20")
+        # STEP 1: Gemini se "Professional Prompt" likhwayenge
+        # Kyunki Flux model ko detailed English instructions pasand hain
+        print(f"🎨 User Prompt: {user_prompt}")
+        
+        enhancer_model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # Ye secret instruction Gemini ko batayega ki prompt kaise likhna hai
+        enhancement_instruction = (
+            "You are an expert AI Art Director. Rewrite the following user prompt "
+            "into a highly detailed, descriptive prompt suitable for the Flux.1 Realism model. "
+            "Focus on: Cinematic lighting, 8k resolution, hyper-realistic texture, perfect facial features, "
+            "depth of field, and unreal engine style rendering. "
+            "Keep it under 50 words. Only output the prompt, no extra text. "
+            f"User Input: {user_prompt}"
+        )
+        
+        enhanced_response = enhancer_model.generate_content(enhancement_instruction)
+        final_prompt = enhanced_response.text.strip()
+        print(f"✨ Magic Prompt: {final_prompt}")
+
+        # STEP 2: Pollinations AI URL with FLUX Model
+        # Hum 'seed' random rakhenge taaki har baar alag image bane
+        seed = random.randint(1, 1000000)
+        safe_prompt = final_prompt.replace(" ", "%20")
+        
+        # 'model=flux' aur 'enhance=true' parameter quality badha dega
         image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
-        return f"""🎨 **Painting (Flux):**<br><img src='{image_url}' class='rounded-lg mt-2 shadow-lg w-full hover:scale-105 transition-transform duration-300'>"""
-    except Exception as e: return f"⚠️ Error: {str(e)}"
+        
+        # STEP 3: Beautiful UI Return
+        return f"""
+        <div class="glass p-3 rounded-xl mt-2 border border-white/10">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-xs text-pink-400 font-bold">✨ FLUX GENERATION</span>
+                <span class="text-[10px] text-gray-500">Seed: {seed}</span>
+            </div>
+            <p class="text-xs text-gray-400 mb-3 italic">"{final_prompt[:60]}..."</p>
+            <div class="relative group">
+                <img src='{image_url}' class='rounded-lg shadow-2xl w-full transition-transform duration-500 hover:scale-[1.02]' onload="this.scrollIntoView({{behavior: 'smooth', block: 'center'}})">
+                <a href="{image_url}" target="_blank" class="absolute bottom-2 right-2 bg-black/50 hover:bg-pink-600 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md transition">
+                    <i class="fas fa-download mr-1"></i> Save HD
+                </a>
+            </div>
+        </div>
+        """
+    except Exception as e:
+        print(f"Image Gen Error: {e}")
+        # Agar Gemini fail ho jaye, toh direct purane tarike se bana do (Backup)
+        seed = random.randint(1, 100000)
+        safe_prompt = user_prompt.replace(" ", "%20")
+        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
+        return f"""<img src='{fallback_url}' class='rounded-lg mt-2 shadow-lg w-full'>"""
 
 async def convert_to_anime(file_data, prompt):
     try:
