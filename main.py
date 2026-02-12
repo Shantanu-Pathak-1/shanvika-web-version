@@ -11,7 +11,6 @@ import asyncio
 import uuid
 import os
 import httpx 
-import requests
 import base64 
 from groq import Groq
 from duckduckgo_search import DDGS
@@ -27,10 +26,7 @@ import tempfile
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
 
-# 👇 NEW IMPORTS FOR AUTH & EMAIL
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# 👇 AUTH IMPORTS
 from passlib.context import CryptContext
 from datetime import datetime
 
@@ -49,7 +45,7 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 # 👇 EMAIL CONFIG (Add these to Render Env Vars)
 MAIL_USERNAME = os.getenv("MAIL_USERNAME") 
-MAIL_PASSWORD = os.getenv("MAIL_PASSWORD") 
+BREVO_API_KEY = os.getenv("BREVO_API_KEY") # Ensure this is added in Render
 
 # Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -126,15 +122,13 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-# main.py mein naya API wala send_email function
-
+# 👇 BREVO API EMAIL FUNCTION (PORT 443 SAFE)
 def send_email(to_email: str, subject: str, body: str):
-    # Render se BREVO_API_KEY uthayenge
     api_key = os.getenv("BREVO_API_KEY") 
-    sender_email = os.getenv("MAIL_USERNAME") # Wahi gmail jo verify ki hai
+    sender_email = os.getenv("MAIL_USERNAME") 
     
     if not api_key:
-        print("❌ Brevo API Key missing!")
+        print("❌ ERROR: BREVO_API_KEY missing in Env!")
         return False
 
     url = "https://api.brevo.com/v3/smtp/email"
@@ -161,11 +155,11 @@ def send_email(to_email: str, subject: str, body: str):
             print(f"❌ Email Failed: {response.text}")
             return False
     except Exception as e:
-        print(f"❌ API Error: {e}")
+        print(f"❌ API Connection Error: {e}")
         return False
 
 # ==========================================
-# 🎨 GENERATORS (Standard - Old Logic Preserved)
+# 🎨 GENERATORS
 # ==========================================
 async def generate_image_hf(prompt):
     try:
@@ -244,7 +238,7 @@ async def generate_gemini(prompt, system_instr):
     except: return "⚠️ Gemini Error."
 
 # ==========================================
-# 🧠 RAG / VECTOR MEMORY FUNCTIONS
+# 🧠 RAG / VECTOR MEMORY
 # ==========================================
 def get_embedding(text):
     try:
@@ -264,7 +258,6 @@ def split_text(text, chunk_size=500):
     chunks = []
     current_chunk = []
     current_size = 0
-    
     for word in words:
         current_chunk.append(word)
         current_size += len(word) + 1
@@ -279,7 +272,6 @@ def save_to_vector_db(session_id, text):
     if not index: return False
     chunks = split_text(text)
     vectors = []
-    
     for i, chunk in enumerate(chunks):
         vector = get_embedding(chunk)
         if vector:
@@ -288,7 +280,6 @@ def save_to_vector_db(session_id, text):
                 "values": vector,
                 "metadata": {"text": chunk, "session_id": session_id}
             })
-    
     if vectors:
         index.upsert(vectors=vectors)
         return True
@@ -305,11 +296,9 @@ def search_vector_db(query, session_id):
         include_metadata=True,
         filter={"session_id": session_id}
     )
-    
     context = ""
     for match in results['matches']:
         context += match['metadata']['text'] + "\n\n"
-    
     return context
 
 # --- STANDARD ROUTES ---
@@ -333,7 +322,7 @@ class InstructionRequest(BaseModel):
 class MemoryRequest(BaseModel):
     memory_text: str
 
-# 👇 NEW MODELS FOR AUTH
+# 👇 AUTH MODELS
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
@@ -391,7 +380,7 @@ async def send_otp_endpoint(req: OTPRequest):
     
     if send_email(req.email, "Shanvika AI - Verification Code", email_body):
         return {"status": "success", "message": "OTP sent to email!"}
-    return JSONResponse({"status": "error", "message": "Failed to send email."}, status_code=500)
+    return JSONResponse({"status": "error", "message": "Failed to send email. Check API Key."}, status_code=500)
 
 @app.post("/api/verify_otp")
 async def verify_otp_endpoint(req: OTPVerifyRequest):

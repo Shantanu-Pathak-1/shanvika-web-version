@@ -9,26 +9,44 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.fog.min.js"></script>
     <style>
+        /* BASE STYLES */
         body { margin: 0; background: #0f0f0f; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; overflow: hidden; }
+        
+        /* GLASS CARD */
         .login-card { width: 380px; padding: 30px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border-radius: 24px; text-align: center; position: relative; z-index: 10; transition: transform 0.3s; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15); border: 1px solid rgba(255, 255, 255, 0.4); }
         .login-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px 0 rgba(236, 72, 153, 0.3); }
-        .brand-title { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
         
+        /* TITLE & TABS */
+        .brand-title { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
         .tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
         .tab { cursor: pointer; color: #888; font-weight: 600; padding: 5px 10px; transition: 0.3s; }
         .tab.active { color: #ec4899; border-bottom: 2px solid #ec4899; }
         
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-family: inherit; }
+        /* INPUTS & BUTTONS */
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-family: inherit; transition: border-color 0.3s; }
         input:focus { border-color: #ec4899; outline: none; }
         
-        .btn { width: 100%; padding: 12px; background: #ec4899; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
-        .btn:hover { background: #db2777; }
+        .btn { width: 100%; padding: 12px; background: #ec4899; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn:hover:not(:disabled) { background: #db2777; transform: translateY(-2px); }
+        .btn:disabled { background: #f472b6; cursor: not-allowed; opacity: 0.8; }
         
         .google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: white; color: #333; font-weight: 600; cursor: pointer; margin-top: 15px; text-decoration: none; transition: 0.2s; }
         .google-btn:hover { background: #f9f9f9; transform: translateY(-2px); }
         
+        /* UTILS */
         .hidden { display: none; }
         .otp-sent { color: green; font-size: 0.8rem; margin-top: 5px; }
+        
+        /* LOADING SPINNER */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #ffffff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body id="vanta-bg">
@@ -44,7 +62,7 @@
     <div id="login-form">
         <input type="text" id="login-id" placeholder="Email or Username">
         <input type="password" id="login-pass" placeholder="Password">
-        <button class="btn" onclick="handleLogin()">Login</button>
+        <button class="btn" onclick="handleLogin(this)">Let's Go!</button>
         
         <div style="margin: 15px 0; font-size: 0.8rem; color: #888;">OR</div>
         
@@ -57,28 +75,42 @@
     <div id="signup-form" class="hidden">
         <div id="step-1">
             <input type="email" id="reg-email" placeholder="Enter your Email">
-            <button class="btn" onclick="sendOTP()">Send OTP</button>
+            <button class="btn" onclick="sendOTP(this)">Send Verification Code</button>
         </div>
         
         <div id="step-2" class="hidden">
-            <input type="text" id="reg-otp" placeholder="Enter OTP from Email">
-            <button class="btn" onclick="verifyOTP()">Verify OTP</button>
-            <p class="otp-sent">OTP Sent! Check Spam folder too.</p>
+            <input type="text" id="reg-otp" placeholder="Enter 6-digit Code">
+            <button class="btn" onclick="verifyOTP(this)">Verify & Continue</button>
+            <p class="otp-sent">Code sent! Check your inbox & spam.</p>
         </div>
         
         <div id="step-3" class="hidden">
             <input type="text" id="reg-name" placeholder="Full Name">
-            <input type="text" id="reg-user" placeholder="Create Username">
-            <input type="date" id="reg-dob" placeholder="Date of Birth" style="color: #888;">
+            <input type="text" id="reg-user" placeholder="Choose Username (@shan)">
+            <label style="font-size: 0.8rem; color: #888; display: block; text-align: left; margin-bottom: -5px; margin-left: 5px;">Date of Birth</label>
+            <input type="date" id="reg-dob">
             <input type="password" id="reg-pass" placeholder="Create Password">
-            <button class="btn" onclick="completeSignup()">Create Account</button>
+            <button class="btn" onclick="completeSignup(this)">Create Account 🎉</button>
         </div>
     </div>
 </div>
 
 <script>
+    // Vanta Background
     VANTA.FOG({ el: "#vanta-bg", highlightColor: 0xffc3e0, midtoneColor: 0xff80bf, lowlightColor: 0xa855f7, baseColor: 0xffffff, blurFactor: 0.60, speed: 1.20, zoom: 0.80 });
 
+    // Helper for Button Loading State
+    function setLoading(btn, isLoading, text) {
+        if (isLoading) {
+            btn.disabled = true;
+            btn.innerHTML = `<div class="spinner"></div> ${text}`;
+        } else {
+            btn.disabled = false;
+            btn.innerText = text;
+        }
+    }
+
+    // Tab Switcher
     function switchTab(tab) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         event.target.classList.add('active');
@@ -88,15 +120,20 @@
         } else {
             document.getElementById('login-form').classList.add('hidden');
             document.getElementById('signup-form').classList.remove('hidden');
+            // Reset signup flow
+            document.getElementById('step-1').classList.remove('hidden');
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-3').classList.add('hidden');
         }
     }
 
-    async function sendOTP() {
+    // --- AUTH FUNCTIONS ---
+
+    async function sendOTP(btn) {
         const email = document.getElementById('reg-email').value;
-        if(!email) return Swal.fire('Error', 'Enter Email', 'error');
+        if(!email) return Swal.fire('Oops!', 'Please enter your email.', 'warning');
         
-        const btn = event.target;
-        btn.innerHTML = 'Sending...';
+        setLoading(btn, true, 'Sending Code...');
         
         try {
             const res = await fetch('/api/send_otp', {
@@ -110,30 +147,38 @@
                 document.getElementById('step-2').classList.remove('hidden');
             } else {
                 Swal.fire('Error', data.message, 'error');
-                btn.innerHTML = 'Send OTP';
             }
-        } catch(e) { Swal.fire('Error', 'Server Error', 'error'); btn.innerHTML = 'Send OTP'; }
+        } catch(e) { Swal.fire('Error', 'Something went wrong. Try again.', 'error'); }
+        
+        setLoading(btn, false, 'Send Verification Code');
     }
 
-    async function verifyOTP() {
+    async function verifyOTP(btn) {
         const email = document.getElementById('reg-email').value;
         const otp = document.getElementById('reg-otp').value;
+        if(!otp) return Swal.fire('Oops!', 'Please enter the code.', 'warning');
         
-        const res = await fetch('/api/verify_otp', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email, otp})
-        });
-        const data = await res.json();
+        setLoading(btn, true, 'Verifying...');
         
-        if(data.status === 'success') {
-            document.getElementById('step-2').classList.add('hidden');
-            document.getElementById('step-3').classList.remove('hidden');
-        } else {
-            Swal.fire('Error', 'Invalid OTP', 'error');
-        }
+        try {
+            const res = await fetch('/api/verify_otp', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, otp})
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                document.getElementById('step-2').classList.add('hidden');
+                document.getElementById('step-3').classList.remove('hidden');
+            } else {
+                Swal.fire('Error', 'Incorrect code. Please try again.', 'error');
+            }
+        } catch(e) { Swal.fire('Error', 'Server connection failed.', 'error'); }
+
+        setLoading(btn, false, 'Verify & Continue');
     }
 
-    async function completeSignup() {
+    async function completeSignup(btn) {
         const payload = {
             email: document.getElementById('reg-email').value,
             full_name: document.getElementById('reg-name').value,
@@ -141,35 +186,62 @@
             dob: document.getElementById('reg-dob').value,
             password: document.getElementById('reg-pass').value
         };
-        
-        const res = await fetch('/api/complete_signup', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if(data.status === 'success') {
-            Swal.fire('Success', 'Account Created!', 'success').then(() => window.location.href = '/');
-        } else {
-            Swal.fire('Error', data.message, 'error');
+
+        // Basic Validation
+        if(!payload.full_name || !payload.username || !payload.dob || !payload.password) {
+            return Swal.fire('Hold up!', 'Please fill in all fields.', 'warning');
         }
+        
+        setLoading(btn, true, 'Creating Account...');
+        console.log("Sending Signup Payload:", payload); // Debugging
+
+        try {
+            const res = await fetch('/api/complete_signup', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                Swal.fire({
+                    title: 'Welcome Aboard! 🚀',
+                    text: 'Your account has been created successfully.',
+                    icon: 'success',
+                    confirmButtonColor: '#ec4899'
+                }).then(() => window.location.href = '/');
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch(e) { 
+            console.error("Signup Error:", e);
+            Swal.fire('Error', 'Account creation failed. Check console.', 'error'); 
+        }
+
+        setLoading(btn, false, 'Create Account 🎉');
     }
 
-    async function handleLogin() {
+    async function handleLogin(btn) {
         const identifier = document.getElementById('login-id').value;
         const password = document.getElementById('login-pass').value;
+        if(!identifier || !password) return Swal.fire('Oops!', 'Enter your credentials.', 'warning');
         
-        const res = await fetch('/api/login_manual', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({identifier, password})
-        });
-        const data = await res.json();
+        setLoading(btn, true, 'Logging in...');
         
-        if(data.status === 'success') {
-            window.location.href = '/';
-        } else {
-            Swal.fire('Error', data.message, 'error');
-        }
+        try {
+            const res = await fetch('/api/login_manual', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({identifier, password})
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                window.location.href = '/';
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch(e) { Swal.fire('Error', 'Login failed.', 'error'); }
+
+        setLoading(btn, false, "Let's Go!");
     }
 </script>
 </body>
