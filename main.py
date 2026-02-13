@@ -146,10 +146,13 @@ class InstructionRequest(BaseModel): instruction: str
 class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 
+# 👇 FIXED: Linking Login Page
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
+
 @app.get("/auth/login")
 async def login(request: Request): return await oauth.google.authorize_redirect(request, str(request.url_for('auth_callback')).replace("http://", "https://"))
+
 @app.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request): return templates.TemplateResponse("onboarding.html", {"request": request, "email": "user", "name": "user"})
 @app.post("/api/guest_login")
@@ -181,28 +184,52 @@ async def login_manual(req: LoginRequest, request: Request):
         request.session['user'] = {"email": user['email'], "name": user['name']}
         return {"status": "success"}
     return JSONResponse({"status": "error"}, 400)
+
+# 👇 FIXED: Google Auth DB Sync (Saves Name & Photo)
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
     try:
         token = await oauth.google.authorize_access_token(request)
         user = token.get('userinfo')
         request.session['user'] = user
+        
+        # 🔥 Save/Update Google User in MongoDB to show profile pic
+        await users_collection.update_one(
+            {"email": user['email']},
+            {"$set": {
+                "name": user.get('name'),
+                "picture": user.get('picture'),
+                "username": user['email'].split('@')[0]
+            }},
+            upsert=True
+        )
         return RedirectResponse("/")
     except: return RedirectResponse("/login")
+
 @app.get("/logout")
 async def logout(request: Request): request.session.pop('user', None); return RedirectResponse("/")
-@app.get("/")
-async def read_root(request: Request): return templates.TemplateResponse("index.html", {"request": request, "user": request.session.get('user')})
 
+# 👇 FIXED: Landing vs App Logic
+@app.get("/")
+async def read_root(request: Request):
+    user = request.session.get('user')
+    # Agar User Logged in hai -> Index.html (App)
+    if user:
+        return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    # Agar Nahi hai -> Landing.html (Home)
+    return templates.TemplateResponse("landing.html", {"request": request})
+
+# 👇 FIXED: Profile Fallback (Use Session Data if DB is empty)
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {}
     db_user = await users_collection.find_one({"email": user['email']}) or {}
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
+    
     return {
-        "name": db_user.get("name", "User"), 
-        "avatar": db_user.get("picture"), 
+        "name": db_user.get("name") or user.get("name", "User"), 
+        "avatar": db_user.get("picture") or user.get("picture"), 
         "plan": "Pro Plan" if is_pro else "Free Plan",
         "custom_instruction": db_user.get("custom_instruction", "") 
     }
@@ -227,7 +254,6 @@ async def get_history(request: Request):
 @app.get("/api/new_chat")
 async def create_chat(request: Request): return {"session_id": str(uuid.uuid4())[:8], "messages": []}
 
-# 👇 FIX: FETCH MESSAGES FROM DB (Old Code was returning empty list)
 @app.get("/api/chat/{session_id}")
 async def get_chat(session_id: str):
     chat = await chats_collection.find_one({"session_id": session_id})
@@ -341,7 +367,11 @@ async def text_to_speech_endpoint(request: Request):
     try:
         data = await request.json()
         text = data.get("text", "")
-        clean_text = re.sub(r'[*#_`]', '', text) 
+        # Clean tags, emojis, special chars
+        text = re.sub(r'<[^>]*>', '', text)
+        text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
+        clean_text = re.sub(r'[^\w\s\u0900-\u097F,.?!]', '', text) 
+
         voice = "en-IN-NeerjaNeural" 
         communicate = edge_tts.Communicate(clean_text, voice)
         async def audio_stream():
