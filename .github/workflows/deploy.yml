@@ -15,4 +15,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         # 👇 Is line mein tumhara username aur space name maine set kar diya hai
-        run: git push https://Shantanupathak94:$HF_TOKEN@huggingface.co/spaces/Shantanupathak94/Shanvika-Ai main
+        run: git push --force https://Shantanupathak94:$HF_TOKEN@huggingface.co/spaces/Shantanupathak94/Shanvika-Ai main
