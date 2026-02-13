@@ -1,5 +1,5 @@
-# Use Python 3.9 image
-FROM python:3.9
+# Use Python 3.10 image
+FROM python:3.10
 
 # Working directory set karo
 WORKDIR /code
