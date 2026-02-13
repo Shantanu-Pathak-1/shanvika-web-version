@@ -20,22 +20,24 @@ jobs:
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
           
-          # 2. Purani History (Jisme error hai) ko uda do
+          # 2. Purani History delete karo
           rm -rf .git
           
-          # 3. Naya Git Init karo (Fresh Start)
+          # 3. Naya Git Init aur Branch rename (YE LINE MISSING THI 👇)
           git init
+          git branch -m main
+          
           git lfs install
           
-          # 4. Images ko sahi tarike se track karo
+          # 4. Images track karo
           git lfs track "*.png"
           git lfs track "*.jpg"
           git lfs track "*.jpeg"
           git lfs track "*.ico"
           
-          # 5. Files Add aur Commit karo
+          # 5. Add aur Commit
           git add .
           git commit -m "Fresh Deploy Force Fix"
           
-          # 6. Zabardasti (Force) Push karo
+          # 6. Push karo (Ab ye chalega)
           git push --force https://Shantanupathak94:$HF_TOKEN@huggingface.co/spaces/Shantanupathak94/Shanvika-Ai main
