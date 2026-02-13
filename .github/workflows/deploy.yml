@@ -11,8 +11,33 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-      - name: Push to hub
+      
+      - name: Force Push Fresh Code
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        # 👇 Is line mein tumhara username aur space name maine set kar diya hai
-        run: git push --force https://Shantanupathak94:$HF_TOKEN@huggingface.co/spaces/Shantanupathak94/Shanvika-Ai main
+        run: |
+          # 1. Git Setup
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          
+          # 2. Purani History delete karo
+          rm -rf .git
+          
+          # 3. Naya Git Init aur Branch rename (YE LINE MISSING THI 👇)
+          git init
+          git branch -m main
+          
+          git lfs install
+          
+          # 4. Images track karo
+          git lfs track "*.png"
+          git lfs track "*.jpg"
+          git lfs track "*.jpeg"
+          git lfs track "*.ico"
+          
+          # 5. Add aur Commit
+          git add .
+          git commit -m "Fresh Deploy Force Fix"
+          
+          # 6. Push karo (Ab ye chalega)
+          git push --force https://Shantanupathak94:$HF_TOKEN@huggingface.co/spaces/Shantanupathak94/Shanvika-Ai main
