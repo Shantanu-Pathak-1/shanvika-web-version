@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Shanvika AI</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -68,7 +69,10 @@
 <body id="vanta-bg">
 
 <div class="login-card">
-    <div class="brand-title">Shanvika 🌸 AI</div>
+    <div class="flex flex-col items-center mb-4">
+        <img src="/static/images/logo.png" class="w-16 h-16 rounded-full mb-2 shadow-lg border-2 border-pink-500/50">
+        <div class="brand-title" style="margin-bottom: 5px;">Shanvika AI</div>
+    </div>
     
     <div class="tabs">
         <div class="tab active" onclick="switchTab('login')">Login</div>
