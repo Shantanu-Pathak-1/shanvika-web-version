@@ -36,33 +36,14 @@
         
         /* MAGIC PASSWORD BUTTON */
         .magic-input-wrapper { position: relative; width: 100%; }
-        .magic-btn {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: transform 0.2s;
-        }
+        .magic-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.2rem; transition: transform 0.2s; }
         .magic-btn:hover { transform: translateY(-50%) scale(1.2); }
         .magic-btn:active { transform: translateY(-50%) scale(0.9); }
 
-        /* UTILS */
         .hidden { display: none; }
         .otp-sent { color: green; font-size: 0.8rem; margin-top: 5px; }
         
-        /* LOADING SPINNER */
-        .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 3px solid #ffffff;
-            width: 18px;
-            height: 18px;
-            animation: spin 1s linear infinite;
-        }
+        .spinner { border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 3px solid #ffffff; width: 18px; height: 18px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -70,7 +51,7 @@
 
 <div class="login-card">
     <div class="flex flex-col items-center mb-4">
-        <img src="/static/images/logo.png" class="w-16 h-16 rounded-full mb-2 shadow-lg border-2 border-pink-500/50">
+        <img src="/static/images/logo.png" class="w-20 h-20 md:w-24 md:h-24 rounded-full mb-3 shadow-lg border-2 border-pink-500/50 object-cover">
         <div class="brand-title" style="margin-bottom: 5px;">Shanvika AI</div>
     </div>
     
@@ -148,63 +129,29 @@
         }
     }
 
-    // 🔥 MAGIC PASSWORD GENERATOR 🔥
     function generateMagicPass() {
         const email = document.getElementById('reg-email').value;
         const passField = document.getElementById('reg-pass');
-        
-        if (!email) {
-            return Swal.fire('Oops!', 'Email is required to generate magic password!', 'warning');
-        }
-
-        // Logic: Email Name + Capitalize First Letter + @ + Random 4 Digit
-        let namePart = email.split('@')[0];
-        // Remove dots or special chars from name part for cleaner pass
-        namePart = namePart.replace(/[^a-zA-Z0-9]/g, '');
-        
-        if(namePart.length < 3) namePart = "ShanvikaUser"; // Fallback
-
-        const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+        if (!email) { return Swal.fire('Oops!', 'Email is required to generate magic password!', 'warning'); }
+        let namePart = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        if(namePart.length < 3) namePart = "ShanvikaUser";
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
         const magicPass = namePart.charAt(0).toUpperCase() + namePart.slice(1) + '@' + randomNum;
-        
-        passField.value = magicPass;
-        passField.type = "text"; // Show password so user can see it
-        
-        // Visual Feedback
-        const btn = document.querySelector('.magic-btn');
-        btn.innerHTML = "✨";
-        setTimeout(() => btn.innerHTML = "🪄", 1000);
-
-        // Toast
-        const Toast = Swal.mixin({
-            toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
-        });
-        Toast.fire({ icon: 'success', title: 'Magic Password Generated!' });
+        passField.value = magicPass; passField.type = "text";
+        const btn = document.querySelector('.magic-btn'); btn.innerHTML = "✨"; setTimeout(() => btn.innerHTML = "🪄", 1000);
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: 'Magic Password Generated!' });
     }
-
-    // --- AUTH FUNCTIONS ---
 
     async function sendOTP(btn) {
         const email = document.getElementById('reg-email').value;
         if(!email) return Swal.fire('Oops!', 'Please enter your email.', 'warning');
-        
         setLoading(btn, true);
-        
         try {
-            const res = await fetch('/api/send_otp', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email})
-            });
+            const res = await fetch('/api/send_otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email}) });
             const data = await res.json();
-            
-            if(data.status === 'success') {
-                document.getElementById('step-1').classList.add('hidden');
-                document.getElementById('step-2').classList.remove('hidden');
-            } else {
-                Swal.fire('Error', data.message, 'error');
-            }
+            if(data.status === 'success') { document.getElementById('step-1').classList.add('hidden'); document.getElementById('step-2').classList.remove('hidden'); } 
+            else { Swal.fire('Error', data.message, 'error'); }
         } catch(e) { Swal.fire('Error', 'Server error.', 'error'); }
-        
         setLoading(btn, false, 'Send Verification Code');
     }
 
@@ -212,24 +159,13 @@
         const email = document.getElementById('reg-email').value;
         const otp = document.getElementById('reg-otp').value;
         if(!otp) return Swal.fire('Oops!', 'Please enter the code.', 'warning');
-        
         setLoading(btn, true);
-        
         try {
-            const res = await fetch('/api/verify_otp', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email, otp})
-            });
+            const res = await fetch('/api/verify_otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, otp}) });
             const data = await res.json();
-            
-            if(data.status === 'success') {
-                document.getElementById('step-2').classList.add('hidden');
-                document.getElementById('step-3').classList.remove('hidden');
-            } else {
-                Swal.fire('Error', 'Incorrect code.', 'error');
-            }
+            if(data.status === 'success') { document.getElementById('step-2').classList.add('hidden'); document.getElementById('step-3').classList.remove('hidden'); } 
+            else { Swal.fire('Error', 'Incorrect code.', 'error'); }
         } catch(e) { Swal.fire('Error', 'Server connection failed.', 'error'); }
-
         setLoading(btn, false, 'Verify & Continue');
     }
 
@@ -241,35 +177,14 @@
             dob: document.getElementById('reg-dob').value,
             password: document.getElementById('reg-pass').value
         };
-
-        if(!payload.full_name || !payload.username || !payload.dob || !payload.password) {
-            return Swal.fire('Hold up!', 'Please fill in all fields.', 'warning');
-        }
-        
+        if(!payload.full_name || !payload.username || !payload.dob || !payload.password) return Swal.fire('Hold up!', 'Please fill in all fields.', 'warning');
         setLoading(btn, true);
-        
         try {
-            const res = await fetch('/api/complete_signup', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
+            const res = await fetch('/api/complete_signup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
             const data = await res.json();
-            
-            if(data.status === 'success') {
-                Swal.fire({
-                    title: 'Welcome Aboard! 🚀',
-                    text: 'Your account has been created successfully.',
-                    icon: 'success',
-                    confirmButtonColor: '#ec4899'
-                }).then(() => window.location.href = '/');
-            } else {
-                Swal.fire('Error', data.message || 'Signup failed', 'error');
-            }
-        } catch(e) { 
-            console.error("Signup Error:", e);
-            Swal.fire('Error', 'Connection failed.', 'error'); 
-        }
-
+            if(data.status === 'success') { Swal.fire({ title: 'Welcome Aboard! 🚀', text: 'Your account has been created successfully.', icon: 'success', confirmButtonColor: '#ec4899' }).then(() => window.location.href = '/'); } 
+            else { Swal.fire('Error', data.message || 'Signup failed', 'error'); }
+        } catch(e) { Swal.fire('Error', 'Connection failed.', 'error'); }
         setLoading(btn, false, 'Create Account 🎉');
     }
 
@@ -277,23 +192,13 @@
         const identifier = document.getElementById('login-id').value;
         const password = document.getElementById('login-pass').value;
         if(!identifier || !password) return Swal.fire('Oops!', 'Enter your credentials.', 'warning');
-        
         setLoading(btn, true);
-        
         try {
-            const res = await fetch('/api/login_manual', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({identifier, password})
-            });
+            const res = await fetch('/api/login_manual', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({identifier, password}) });
             const data = await res.json();
-            
-            if(data.status === 'success') {
-                window.location.href = '/';
-            } else {
-                Swal.fire('Error', data.message, 'error');
-            }
+            if(data.status === 'success') window.location.href = '/';
+            else Swal.fire('Error', data.message, 'error');
         } catch(e) { Swal.fire('Error', 'Login failed.', 'error'); }
-
         setLoading(btn, false, "Let's Go!");
     }
 </script>
