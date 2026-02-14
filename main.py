@@ -1,17 +1,6 @@
 # ==================================================================================
 #  FILE: main.py
 #  DESCRIPTION: Core Backend Server (FastAPI) handling Chat, Auth, Tools & DB
-#  CATEGORIES:
-#    1. IMPORTS
-#    2. CONFIGURATION & KEYS
-#    3. SYSTEM PROMPTS
-#    4. DATABASE & SECURITY INIT
-#    5. APP SETUP (Middleware)
-#    6. HELPER FUNCTIONS (Utils, Email, RAG)
-#    7. PYDANTIC MODELS (Schemas)
-#    8. AUTH ROUTES (Login/Signup)
-#    9. PAGE ROUTES (HTML Serving)
-#    10. API ROUTES (Chat, Tools, Profile)
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -185,7 +174,14 @@ class RenameRequest(BaseModel): session_id: str; new_title: str
 # [CATEGORY] 8. AUTHENTICATION ROUTES
 # ==================================================================================
 @app.get("/auth/login")
-async def login(request: Request): return await oauth.google.authorize_redirect(request, str(request.url_for('auth_callback')).replace("http://", "https://"))
+async def login(request: Request):
+    # Determine the correct Redirect URI
+    redirect_uri = request.url_for('auth_callback')
+    
+    # Ensure it's HTTPS (Crucial for Hugging Face Spaces)
+    redirect_uri = str(redirect_uri).replace("http://", "https://")
+    
+    return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
@@ -220,14 +216,10 @@ async def send_otp_endpoint(req: OTPRequest):
     return JSONResponse({"status": "error"}, 500)
 
 @app.post("/api/verify_otp")
-request.url_for('auth_callback')
 async def verify_otp_endpoint(req: OTPVerifyRequest):
     record = await otp_collection.find_one({"email": req.email})
     if record and record.get("otp") == req.otp: return {"status": "success"}
     return JSONResponse({"status": "error"}, 400)
-
-@app.get("/auth/callback")  # <--- Dekho yaha path "/auth/callback" hai
-async def auth_callback(request: Request):
 
 @app.post("/api/complete_signup")
 async def complete_signup(req: SignupRequest, request: Request):
@@ -325,7 +317,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         db_user = await users_collection.find_one({"email": user['email']})
         user_custom_prompt = db_user.get("custom_instruction", "")
-        FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
+        FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_PROMPT
 
         chat_doc = await chats_collection.find_one({"session_id": sid})
         if not chat_doc:
