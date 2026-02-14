@@ -1,5 +1,22 @@
+# ==================================================================================
+#  FILE: main.py
+#  DESCRIPTION: Core Backend Server (FastAPI) handling Chat, Auth, Tools & DB
+#  CATEGORIES:
+#    1. IMPORTS
+#    2. CONFIGURATION & KEYS
+#    3. SYSTEM PROMPTS
+#    4. DATABASE & SECURITY INIT
+#    5. APP SETUP (Middleware)
+#    6. HELPER FUNCTIONS (Utils, Email, RAG)
+#    7. PYDANTIC MODELS (Schemas)
+#    8. AUTH ROUTES (Login/Signup)
+#    9. PAGE ROUTES (HTML Serving)
+#    10. API ROUTES (Chat, Tools, Profile)
+# ==================================================================================
+
+# [CATEGORY] 1. IMPORTS
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,9 +46,8 @@ import hashlib
 from passlib.context import CryptContext
 from datetime import datetime
 import edge_tts 
-from fastapi.responses import StreamingResponse 
 
-# 👇 IMPORT ALL TOOLS
+# Local Tool Imports
 from tools_lab import (
     generate_prompt_only, generate_qr_code, generate_image_hf,
     analyze_resume, review_github, currency_tool,
@@ -41,9 +57,9 @@ from tools_lab import (
     sing_with_me_tool 
 )
 
-# ==========================================
-# 🔑 KEYS & CONFIG
-# ==========================================
+# ==================================================================================
+# [CATEGORY] 2. CONFIGURATION & KEYS
+# ==================================================================================
 ADMIN_EMAIL = "shantanupathak94@gmail.com"
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -53,10 +69,17 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 MAIL_USERNAME = os.getenv("MAIL_USERNAME") 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
+# ==================================================================================
+# [CATEGORY] 3. SYSTEM INTELLIGENCE (Prompts)
+# ==================================================================================
 DEFAULT_SYSTEM_INSTRUCTIONS = """You are an adaptive conversational AI designed to make users feel understood, comfortable, and respected. Your core personality must remain stable: always respectful, clear, honest, logically consistent, and emotionally balanced. You must never flatter excessively, never fake agreement, never validate incorrect assumptions, and never sacrifice truth just to please the user. Avoid sounding robotic, overly dramatic, preachy, or morally superior. During the first few interactions, carefully observe the user's tone, language style, message length, emotional intensity, and level of formality. Gradually adjust your communication style to subtly align with the user's preferences while maintaining your core principles. If the user is formal, respond formally. If the user is casual, respond casually. If the user is concise, keep responses concise. If the user is expressive or emotional, respond with warmth but remain composed. If the user uses humor, mirror it lightly without overacting. Always match energy levels subtly, never extremely. Maintain a neutral-friendly default tone and shift only slightly based on user behavior. Ensure responses feel natural and varied in structure rather than repetitive or scripted. Correct misinformation gently and respectfully when necessary. Your goal is not to impress or manipulate the user, but to create a genuine, adaptive, and trustworthy interaction experience that feels personalized without losing authenticity."""
 
+# ==================================================================================
+# [CATEGORY] 4. DATABASE & SECURITY SETUP
+# ==================================================================================
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Pinecone Setup (Vector DB)
 pc = None
 index = None
 try:
@@ -70,32 +93,42 @@ try:
         index = pc.Index(index_name)
 except: pass
 
-app = FastAPI()
-
-@app.get("/healthz")
-async def health_check(): return {"status": "ok"}
-
-@app.middleware("http")
-async def fix_google_oauth_redirect(request: Request, call_next):
-    if request.headers.get("x-forwarded-proto") == "https": request.scope["scheme"] = "https"
-    return await call_next(request)
-
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
-oauth = OAuth()
-oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
-
+# MongoDB Setup
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
 otp_collection = db.otps 
 
+# ==================================================================================
+# [CATEGORY] 5. APP SETUP (Middleware)
+# ==================================================================================
+app = FastAPI()
+
+@app.get("/healthz")
+async def health_check(): return {"status": "ok"}
+
+# Fix for Google OAuth in Production (HTTPS Proxy)
+@app.middleware("http")
+async def fix_google_oauth_redirect(request: Request, call_next):
+    if request.headers.get("x-forwarded-proto") == "https": request.scope["scheme"] = "https"
+    return await call_next(request)
+
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Static & Templates
 if not os.path.exists("static"): os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- HELPERS ---
+# OAuth Registry
+oauth = OAuth()
+oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
+
+# ==================================================================================
+# [CATEGORY] 6. HELPER FUNCTIONS
+# ==================================================================================
 def get_random_groq_key():
     keys = os.getenv("GROQ_API_KEY_POOL", "").split(",")
     return random.choice([k.strip() for k in keys if k.strip()]) or os.getenv("GROQ_API_KEY")
@@ -116,7 +149,7 @@ def send_email(to, subject, body):
         return True
     except: return False
 
-# --- RAG ---
+# --- RAG (Retrieval Augmented Generation) Helpers ---
 def get_embedding(text):
     try:
         key = os.getenv("GEMINI_API_KEY")
@@ -135,7 +168,9 @@ async def perform_research_task(query):
     try: return "📊 **Research:**\n\n" + "\n\n".join([f"🔹 **{r['title']}**\n{r['body']}" for r in DDGS().text(query, max_results=3)])
     except: return "⚠️ Research failed."
 
-# --- ROUTES ---
+# ==================================================================================
+# [CATEGORY] 7. PYDANTIC MODELS (Data Validation)
+# ==================================================================================
 class ChatRequest(BaseModel): message: str; session_id: str; mode: str = "chat"; file_data: str | None = None; file_type: str | None = None
 class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: str; username: str
 class OTPRequest(BaseModel): email: str
@@ -146,61 +181,22 @@ class InstructionRequest(BaseModel): instruction: str
 class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 
-# 👇 FIXED: Linking Login Page
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
-
+# ==================================================================================
+# [CATEGORY] 8. AUTHENTICATION ROUTES
+# ==================================================================================
 @app.get("/auth/login")
 async def login(request: Request): return await oauth.google.authorize_redirect(request, str(request.url_for('auth_callback')).replace("http://", "https://"))
 
-@app.get("/onboarding", response_class=HTMLResponse)
-async def onboarding_page(request: Request): return templates.TemplateResponse("onboarding.html", {"request": request, "email": "user", "name": "user"})
-@app.post("/api/guest_login")
-async def guest_login(request: Request):
-    request.session['user'] = {"email": f"guest_{uuid.uuid4()}@shanvika.ai", "name": "Guest", "picture": "", "is_guest": True}
-    return {"status": "success"}
-@app.post("/api/send_otp")
-async def send_otp_endpoint(req: OTPRequest):
-    if await users_collection.find_one({"email": req.email}): return JSONResponse({"status": "error", "message": "Exists!"}, 400)
-    otp = str(random.randint(100000, 999999))
-    await otp_collection.update_one({"email": req.email}, {"$set": {"otp": otp}}, upsert=True)
-    if send_email(req.email, "Code", f"<h1>{otp}</h1>"): return {"status": "success"}
-    return JSONResponse({"status": "error"}, 500)
-@app.post("/api/verify_otp")
-async def verify_otp_endpoint(req: OTPVerifyRequest):
-    record = await otp_collection.find_one({"email": req.email})
-    if record and record.get("otp") == req.otp: return {"status": "success"}
-    return JSONResponse({"status": "error"}, 400)
-@app.post("/api/complete_signup")
-async def complete_signup(req: SignupRequest, request: Request):
-    if await users_collection.find_one({"username": req.username}): return JSONResponse({"status": "error"}, 400)
-    await users_collection.insert_one({"email": req.email, "username": req.username, "password_hash": get_password_hash(req.password), "name": req.full_name, "picture": "", "memories": [], "custom_instruction": ""})
-    request.session['user'] = {"email": req.email, "name": req.full_name}
-    return {"status": "success"}
-@app.post("/api/login_manual")
-async def login_manual(req: LoginRequest, request: Request):
-    user = await users_collection.find_one({"$or": [{"email": req.identifier}, {"username": req.identifier}]})
-    if user and verify_password(req.password, user.get('password_hash')):
-        request.session['user'] = {"email": user['email'], "name": user['name']}
-        return {"status": "success"}
-    return JSONResponse({"status": "error"}, 400)
-
-# 👇 FIXED: Google Auth DB Sync (Saves Name & Photo)
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
     try:
         token = await oauth.google.authorize_access_token(request)
         user = token.get('userinfo')
         request.session['user'] = user
-        
-        # 🔥 Save/Update Google User in MongoDB to show profile pic
+        # Save Google User to MongoDB
         await users_collection.update_one(
             {"email": user['email']},
-            {"$set": {
-                "name": user.get('name'),
-                "picture": user.get('picture'),
-                "username": user['email'].split('@')[0]
-            }},
+            {"$set": {"name": user.get('name'), "picture": user.get('picture'), "username": user['email'].split('@')[0]}},
             upsert=True
         )
         return RedirectResponse("/")
@@ -209,24 +205,67 @@ async def auth_callback(request: Request):
 @app.get("/logout")
 async def logout(request: Request): request.session.pop('user', None); return RedirectResponse("/")
 
-# 👇 FIXED: Landing vs App Logic
+# Manual Auth APIs
+@app.post("/api/guest_login")
+async def guest_login(request: Request):
+    request.session['user'] = {"email": f"guest_{uuid.uuid4()}@shanvika.ai", "name": "Guest", "picture": "", "is_guest": True}
+    return {"status": "success"}
+
+@app.post("/api/send_otp")
+async def send_otp_endpoint(req: OTPRequest):
+    if await users_collection.find_one({"email": req.email}): return JSONResponse({"status": "error", "message": "Exists!"}, 400)
+    otp = str(random.randint(100000, 999999))
+    await otp_collection.update_one({"email": req.email}, {"$set": {"otp": otp}}, upsert=True)
+    if send_email(req.email, "Code", f"<h1>{otp}</h1>"): return {"status": "success"}
+    return JSONResponse({"status": "error"}, 500)
+
+@app.post("/api/verify_otp")
+async def verify_otp_endpoint(req: OTPVerifyRequest):
+    record = await otp_collection.find_one({"email": req.email})
+    if record and record.get("otp") == req.otp: return {"status": "success"}
+    return JSONResponse({"status": "error"}, 400)
+
+@app.post("/api/complete_signup")
+async def complete_signup(req: SignupRequest, request: Request):
+    if await users_collection.find_one({"username": req.username}): return JSONResponse({"status": "error"}, 400)
+    await users_collection.insert_one({"email": req.email, "username": req.username, "password_hash": get_password_hash(req.password), "name": req.full_name, "picture": "", "memories": [], "custom_instruction": ""})
+    request.session['user'] = {"email": req.email, "name": req.full_name}
+    return {"status": "success"}
+
+@app.post("/api/login_manual")
+async def login_manual(req: LoginRequest, request: Request):
+    user = await users_collection.find_one({"$or": [{"email": req.identifier}, {"username": req.identifier}]})
+    if user and verify_password(req.password, user.get('password_hash')):
+        request.session['user'] = {"email": user['email'], "name": user['name']}
+        return {"status": "success"}
+    return JSONResponse({"status": "error"}, 400)
+
+# ==================================================================================
+# [CATEGORY] 9. PAGE ROUTES (Frontend)
+# ==================================================================================
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/onboarding", response_class=HTMLResponse)
+async def onboarding_page(request: Request): return templates.TemplateResponse("onboarding.html", {"request": request, "email": "user", "name": "user"})
+
 @app.get("/")
 async def read_root(request: Request):
     user = request.session.get('user')
-    # Agar User Logged in hai -> Index.html (App)
-    if user:
-        return templates.TemplateResponse("index.html", {"request": request, "user": user})
-    # Agar Nahi hai -> Landing.html (Home)
+    # If Logged In -> Show App (Index.html)
+    if user: return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    # If Logged Out -> Show Landing Page
     return templates.TemplateResponse("landing.html", {"request": request})
 
-# 👇 FIXED: Profile Fallback (Use Session Data if DB is empty)
+# ==================================================================================
+# [CATEGORY] 10. API ROUTES (Chat, Profile, Tools)
+# ==================================================================================
 @app.get("/api/profile")
 async def get_profile(request: Request):
     user = await get_current_user(request)
     if not user: return {}
     db_user = await users_collection.find_one({"email": user['email']}) or {}
     is_pro = db_user.get("is_pro", False) or (user['email'] == ADMIN_EMAIL)
-    
     return {
         "name": db_user.get("name") or user.get("name", "User"), 
         "avatar": db_user.get("picture") or user.get("picture"), 
@@ -247,8 +286,7 @@ async def get_history(request: Request):
     if not user: return {"history": []}
     cursor = chats_collection.find({"user_email": user['email']}).sort("_id", -1).limit(50)
     history = []
-    async for chat in cursor:
-        history.append({"id": chat["session_id"], "title": chat.get("title", "New Chat")})
+    async for chat in cursor: history.append({"id": chat["session_id"], "title": chat.get("title", "New Chat")})
     return {"history": history}
 
 @app.get("/api/new_chat")
@@ -257,9 +295,7 @@ async def create_chat(request: Request): return {"session_id": str(uuid.uuid4())
 @app.get("/api/chat/{session_id}")
 async def get_chat(session_id: str):
     chat = await chats_collection.find_one({"session_id": session_id})
-    if chat:
-        return {"messages": chat.get("messages", [])}
-    return {"messages": []}
+    return {"messages": chat.get("messages", [])} if chat else {"messages": []}
 
 @app.post("/api/rename_chat")
 async def rename_chat(req: RenameRequest): return {"status": "ok"}
@@ -272,9 +308,9 @@ async def add_memory(req: MemoryRequest): return {"status": "ok"}
 @app.post("/api/delete_memory")
 async def delete_memory(req: MemoryRequest): return {"status": "ok"}
 
-# ==========================================
-# 🤖 CHAT ROUTER
-# ==========================================
+# --------------------------
+# CHAT ENDPOINT (THE BRAIN)
+# --------------------------
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
     try:
@@ -292,10 +328,8 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             title_prefix = "Chat"
             if mode != "chat": title_prefix = f"Tool: {mode.replace('_', ' ').title()}"
             await chats_collection.insert_one({
-                "session_id": sid, 
-                "user_email": user['email'], 
-                "title": f"{title_prefix} - {msg[:15]}...",
-                "messages": []
+                "session_id": sid, "user_email": user['email'], 
+                "title": f"{title_prefix} - {msg[:15]}...", "messages": []
             })
             chat_doc = {"messages": []}
 
@@ -307,7 +341,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             recent_msgs = chat_doc.get("messages", [])[-4:] 
             for m in recent_msgs: context_history += f"{m['role']}: {m['content']} | "
 
-        # 4️⃣ TOOLS ROUTING
+        # --- TOOL ROUTING ---
         if mode == "image_gen": reply = await generate_image_hf(msg)
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
@@ -323,8 +357,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         elif mode == "smart_todo": reply = await smart_todo_maker(msg)
         elif mode == "resume_builder": reply = await build_pro_resume(msg)
         
-        elif mode == "sing_with_me": 
-            reply = await sing_with_me_tool(msg, context_history) 
+        elif mode == "sing_with_me": reply = await sing_with_me_tool(msg, context_history) 
 
         elif mode == "research":
             data = await perform_research_task(msg)
@@ -338,7 +371,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                     model="llama-3.3-70b-versatile"
                 ).choices[0].message.content
             else: reply = data
-        else: # Chat & Coding
+        else: # Standard Chat
             client = get_groq()
             if client: 
                 reply = client.chat.completions.create(
@@ -362,12 +395,12 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         print(f"ERROR: {e}")
         return {"reply": f"⚠️ Server Error: {str(e)}"}
 
+# Text-to-Speech Endpoint
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:
         data = await request.json()
         text = data.get("text", "")
-        # Clean tags, emojis, special chars
         text = re.sub(r'<[^>]*>', '', text)
         text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
         clean_text = re.sub(r'[^\w\s\u0900-\u097F,.?!]', '', text) 
@@ -379,7 +412,6 @@ async def text_to_speech_endpoint(request: Request):
                 if chunk["type"] == "audio": yield chunk["data"]
         return StreamingResponse(audio_stream(), media_type="audio/mp3")
     except Exception as e:
-        print(f"TTS Error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":

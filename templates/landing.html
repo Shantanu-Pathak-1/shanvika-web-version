@@ -8,7 +8,16 @@
 
     <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
     <link rel="shortcut icon" href="/static/images/favicon.ico">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://shantanupathak94-shanvika-ai.hf.space">
+    <meta property="og:title" content="Shanvika AI 🌸 • Next-Gen Assistant">
+    <meta property="og:description" content="Experience Voice, Vision, and Coding assistance with Shanvika AI. Create, Chat, and Explore.">
     <meta property="og:image" content="https://shantanupathak94-shanvika-ai.hf.space/static/images/logo.png">
+
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="Shanvika AI • Created by Shan Pathak">
+    <meta property="twitter:description" content="The AI that listens, remembers, and creates. Try it now.">
     <meta property="twitter:image" content="https://shantanupathak94-shanvika-ai.hf.space/static/images/logo.png">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -72,19 +81,19 @@
             transition: opacity 0.3s;
         }
 
-        /* MOBILE OPTIMIZATION */
+        /* 📱 MOBILE OPTIMIZATION: Hide 3D Model on Small Screens */
         @media (max-width: 768px) {
             spline-viewer { display: none !important; }
-            body { background-color: var(--bg-color); }
+            body { background-color: var(--bg-color); } /* Simple Background */
         }
 
-        /* LIGHT MODE TWEAKS */
+        /* LIGHT MODE SPECIFIC TWEAKS */
         body.light-mode spline-viewer { opacity: 0.1; filter: grayscale(1); }
         body.light-mode .text-gray-300, 
         body.light-mode .text-gray-400,
         body.light-mode .text-gray-500 { color: var(--text-sub) !important; }
 
-        /* Glassmorphism */
+        /* Glassmorphism Cards */
         .glass {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -94,6 +103,7 @@
             transition: all 0.3s ease;
         }
 
+        /* Badge Styling */
         .badge {
             background: var(--badge-bg);
             border: 1px solid var(--badge-border);
@@ -107,6 +117,7 @@
         .delay-300 { animation-delay: 0.5s; }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
+        /* Gradient Text */
         .text-gradient {
             background: linear-gradient(to right, #ec4899, #8b5cf6);
             -webkit-background-clip: text;
@@ -217,9 +228,11 @@
     </footer>
 
     <script>
+        // 5.1 Theme Toggle
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const icon = document.getElementById('theme-icon');
+            
             if (document.body.classList.contains('light-mode')) {
                 icon.classList.remove('fa-sun');
                 icon.classList.add('fa-moon');
@@ -231,6 +244,7 @@
             }
         }
 
+        // 5.2 Spline Logo Remover (Clean UI)
         const killLogo = setInterval(() => {
             const viewer = document.querySelector('spline-viewer');
             if (viewer && viewer.shadowRoot) {

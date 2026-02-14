@@ -1,22 +1,41 @@
+/* ==================================================================================
+   FILE: static/css/style.css
+   DESCRIPTION: Master Stylesheet for Shanvika AI Web Interface
+   CATEGORIES:
+     1. CORE & LAYOUT
+     2. SCROLLBARS (Custom Design)
+     3. SIDEBAR STYLING (Responsive)
+     4. CHAT BOX & INPUT LAYOUT
+     5. MESSAGES & MODES (Bubbles & Buttons)
+     6. LIGHT MODE OVERRIDES
+     7. CODE BLOCKS (Markdown)
+     8. MODALS & DROPDOWNS
+     9. ANIMATIONS
+     10. UTILITIES & MOBILE FIXES
+   ================================================================================== */
+
 /* =========================================
-   1. CORE & LAYOUT
+   [CATEGORY] 1. CORE & LAYOUT
+   Description: Basic body settings and background canvas (Vanta.js)
    ========================================= */
 body { 
     font-family: 'Segoe UI', sans-serif; 
     margin: 0; padding: 0;
     background-color: #000;
     color: #e0e0e0;
-    overflow: hidden; 
+    overflow: hidden; /* Prevents double scrollbars */
 }
+
+/* Background Animation Canvas */
 canvas.vanta-canvas { 
     position: fixed !important; 
     top: 0; left: 0; 
     width: 100%; height: 100%; 
     z-index: 0 !important; 
-    pointer-events: none; 
+    pointer-events: none; /* Allows clicking through the background */
 }
 
-/* Z-INDEX HIERARCHY */
+/* Z-INDEX HIERARCHY (Layer Management) */
 #sidebar { z-index: 100; }
 main { position: relative; z-index: 10; }
 .input-fixed-bottom { z-index: 50; }
@@ -24,7 +43,8 @@ main { position: relative; z-index: 10; }
 .dropdown-menu { z-index: 210 !important; position: fixed; }
 
 /* =========================================
-   2. SCROLLBARS
+   [CATEGORY] 2. SCROLLBARS
+   Description: Custom Neon Pink/Blue Scrollbars
    ========================================= */
 *::-webkit-scrollbar { width: 4px; height: 4px; }
 *::-webkit-scrollbar-track { background: rgba(20, 20, 20, 0.5); }
@@ -39,7 +59,8 @@ main { position: relative; z-index: 10; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* =========================================
-   3. SIDEBAR STYLING (RESPONSIVE)
+   [CATEGORY] 3. SIDEBAR STYLING (RESPONSIVE)
+   Description: Left navigation menu behavior for Mobile, Tablet, Desktop
    ========================================= */
 #sidebar { 
     position: fixed; 
@@ -49,11 +70,11 @@ main { position: relative; z-index: 10; }
     background: rgba(10, 10, 10, 0.95); 
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(20px);
-    width: 5rem; /* Desktop Collapsed */
+    width: 5rem; /* Default Collapsed Width */
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Nav Label - Controls Text Visibility */
+/* Nav Label - Controls Text Visibility (Hidden by default in collapsed mode) */
 .nav-label {
     white-space: nowrap; 
     opacity: 0; 
@@ -62,12 +83,10 @@ main { position: relative; z-index: 10; }
     transition: all 0.2s ease-in-out;
 }
 
-/* =========================================
-   MOBILE SIDEBAR (320px - 767px)
-   ========================================= */
+/* --- MOBILE SIDEBAR (320px - 767px) --- */
 @media (max-width: 767px) { 
     #sidebar { 
-        left: -100%; 
+        left: -100%; /* Hidden off-screen */
         width: 85%; 
         max-width: 320px;
         background: rgba(10, 10, 10, 0.98);
@@ -75,7 +94,7 @@ main { position: relative; z-index: 10; }
         box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
     }
     
-    /* Mobile Open State */
+    /* Mobile Open State (Toggled via JS) */
     #sidebar.mobile-open { 
         left: 0;
     }
@@ -97,16 +116,12 @@ main { position: relative; z-index: 10; }
     }
 }
 
-/* =========================================
-   TABLET (768px - 1024px)
-   ========================================= */
+/* --- TABLET (768px - 1024px) --- */
 @media (min-width: 768px) and (max-width: 1024px) {
-    #sidebar {
-        width: 5rem;
-    }
+    #sidebar { width: 5rem; }
     
     #sidebar:hover {
-        width: 16rem;
+        width: 16rem; /* Expand on Hover */
         background: rgba(5, 5, 5, 0.98);
     }
     
@@ -117,9 +132,7 @@ main { position: relative; z-index: 10; }
     }
 }
 
-/* =========================================
-   DESKTOP (1025px+)
-   ========================================= */
+/* --- DESKTOP (1025px+) --- */
 @media (min-width: 1025px) { 
     /* Expanded State (Hover) */
     #sidebar:hover { 
@@ -156,9 +169,7 @@ main { position: relative; z-index: 10; }
     }
 }
 
-/* =========================================
-   HISTORY ITEMS
-   ========================================= */
+/* History List Items */
 .history-item {
     display: flex; 
     align-items: center; 
@@ -191,27 +202,21 @@ main { position: relative; z-index: 10; }
 }
 
 @media (min-width: 768px) {
-    .history-item {
-        height: 42px;
-        padding: 0 10px;
-    }
-    
-    .history-icon {
-        width: 40px;
-        font-size: 1.1rem;
-    }
+    .history-item { height: 42px; padding: 0 10px; }
+    .history-icon { width: 40px; font-size: 1.1rem; }
 }
 
 /* =========================================
-   4. CHAT BOX & INPUT LAYOUT
+   [CATEGORY] 4. CHAT BOX & INPUT LAYOUT
+   Description: Main messaging area and fixed bottom input bar
    ========================================= */
 
-/* CHAT BOX */
+/* CHAT BOX CONTAINER */
 #chat-box { 
     width: 100%; 
     max-width: 100%; 
     padding: 16px 12px;
-    padding-bottom: 200px !important;
+    padding-bottom: 200px !important; /* Space for fixed input */
     flex: 1; 
     overflow-y: auto;
 }
@@ -224,7 +229,7 @@ main { position: relative; z-index: 10; }
     }
 }
 
-/* Desktop: Account for Sidebar */
+/* Desktop: Indent for Sidebar */
 @media (min-width: 768px) { 
     #chat-box { 
         padding-left: 7rem; 
@@ -233,7 +238,7 @@ main { position: relative; z-index: 10; }
     }
 }
 
-/* INPUT FIXED BOTTOM */
+/* FIXED INPUT BAR (Bottom) */
 .input-fixed-bottom { 
     position: fixed; 
     bottom: 0; 
@@ -241,7 +246,7 @@ main { position: relative; z-index: 10; }
     right: 0; 
     width: auto;
     padding: 1rem;
-    pointer-events: none; 
+    pointer-events: none; /* Lets clicks pass through transparent areas */
     background: linear-gradient(to top, #000000 20%, rgba(0,0,0,0.8) 60%, transparent);
     padding-bottom: 20px;
     padding-top: 40px;
@@ -257,7 +262,7 @@ main { position: relative; z-index: 10; }
 
 @media (min-width: 768px) {
     .input-fixed-bottom {
-        left: 5rem;
+        left: 5rem; /* Account for desktop sidebar */
         padding: 1rem 2rem;
         padding-bottom: 25px;
         padding-top: 50px;
@@ -265,7 +270,7 @@ main { position: relative; z-index: 10; }
 }
 
 .input-wrapper { 
-    pointer-events: auto; 
+    pointer-events: auto; /* Re-enable clicks for input box */
     width: 100%; 
     max-width: 900px; 
     margin: 0 auto; 
@@ -275,9 +280,7 @@ main { position: relative; z-index: 10; }
 }
 
 @media (min-width: 768px) {
-    .input-wrapper {
-        gap: 10px;
-    }
+    .input-wrapper { gap: 10px; }
 }
 
 .input-container { 
@@ -298,8 +301,11 @@ main { position: relative; z-index: 10; }
 }
 
 /* =========================================
-   5. MESSAGES & MODES
+   [CATEGORY] 5. MESSAGES & MODES
+   Description: Styling for chat bubbles and mode selection buttons
    ========================================= */
+   
+/* User Message Bubble (Right aligned, Blue/Purple Gradient) */
 .msg-user { 
     background: linear-gradient(135deg, #2563eb, #9333ea); 
     color: white; 
@@ -315,6 +321,7 @@ main { position: relative; z-index: 10; }
     word-wrap: break-word;
 }
 
+/* AI Message Bubble (Left aligned, Dark Gray) */
 .msg-ai { 
     background: rgba(35, 35, 35, 0.9); 
     border: 1px solid rgba(255,255,255,0.08); 
@@ -348,6 +355,7 @@ main { position: relative; z-index: 10; }
     }
 }
 
+/* Images inside Chat */
 .msg-ai img, .msg-user img { 
     max-width: 100%; 
     border-radius: 10px;
@@ -356,12 +364,10 @@ main { position: relative; z-index: 10; }
 }
 
 @media (min-width: 768px) {
-    .msg-ai img, .msg-user img {
-        border-radius: 12px;
-    }
+    .msg-ai img, .msg-user img { border-radius: 12px; }
 }
 
-/* MODE BUTTONS */
+/* Mode Selection Buttons (Chat, Coding, Image Gen) */
 .mode-scroll { 
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
     -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
@@ -381,10 +387,7 @@ main { position: relative; z-index: 10; }
 }
 
 @media (min-width: 768px) {
-    .mode-btn {
-        padding: 6px 16px;
-        font-size: 0.85rem;
-    }
+    .mode-btn { padding: 6px 16px; font-size: 0.85rem; }
 }
 
 .mode-btn:hover { 
@@ -401,37 +404,26 @@ main { position: relative; z-index: 10; }
 }
 
 /* =========================================
-   6. LIGHT MODE
+   [CATEGORY] 6. LIGHT MODE OVERRIDES
+   Description: Styles applied when 'light-mode' class is on body
    ========================================= */
 body.light-mode { 
     background-color: #f8fafc !important; 
     color: #1e293b !important; 
 }
 
-body.light-mode canvas.vanta-canvas { 
-    opacity: 0.6; 
-}
+body.light-mode canvas.vanta-canvas { opacity: 0.6; }
 
 body.light-mode #sidebar { 
     background: rgba(255, 255, 255, 0.9); 
     border-right: 1px solid #e2e8f0; 
 }
 
-body.light-mode #sidebar:hover { 
-    background: #ffffff; 
-}
+body.light-mode #sidebar:hover { background: #ffffff; }
 
-body.light-mode .text-white { 
-    color: #1e293b !important; 
-}
-
-body.light-mode .text-gray-400 { 
-    color: #64748b !important; 
-}
-
-body.light-mode .text-gray-300 { 
-    color: #475569 !important; 
-}
+body.light-mode .text-white { color: #1e293b !important; }
+body.light-mode .text-gray-400 { color: #64748b !important; }
+body.light-mode .text-gray-300 { color: #475569 !important; }
 
 body.light-mode .input-fixed-bottom { 
     background: linear-gradient(to top, #ffffff 40%, rgba(255,255,255,0.9) 80%, transparent); 
@@ -443,9 +435,7 @@ body.light-mode .input-container {
     box-shadow: 0 8px 30px rgba(0,0,0,0.08); 
 }
 
-body.light-mode input { 
-    color: #000 !important; 
-}
+body.light-mode input { color: #000 !important; }
 
 body.light-mode .msg-ai { 
     background: #ffffff; 
@@ -473,7 +463,8 @@ body.light-mode .modal-content textarea {
 }
 
 /* =========================================
-   7. CODE BLOCKS
+   [CATEGORY] 7. CODE BLOCKS
+   Description: Styling for markdown code snippets (Pre, Code)
    ========================================= */
 pre { 
     background: #1e1e1e !important; 
@@ -486,11 +477,7 @@ pre {
 }
 
 @media (min-width: 768px) {
-    pre {
-        padding: 1rem;
-        border-radius: 12px;
-        font-size: 0.9em;
-    }
+    pre { padding: 1rem; border-radius: 12px; font-size: 0.9em; }
 }
 
 code { 
@@ -500,8 +487,7 @@ code {
 
 .copy-btn { 
     position: absolute; 
-    top: 5px; 
-    right: 5px; 
+    top: 5px; right: 5px; 
     background: rgba(255,255,255,0.15); 
     color: #fff; 
     padding: 4px 8px; 
@@ -512,7 +498,8 @@ code {
 }
 
 /* =========================================
-   8. MODALS & DROPDOWNS
+   [CATEGORY] 8. MODALS & DROPDOWNS
+   Description: Styles for popups, settings, and context menus
    ========================================= */
 .modal { 
     display: none; 
@@ -540,13 +527,10 @@ code {
 }
 
 @media (min-width: 768px) {
-    .modal-content {
-        padding: 25px;
-        border-radius: 20px;
-    }
+    .modal-content { padding: 25px; border-radius: 20px; }
 }
 
-/* DROPDOWN */
+/* Dropdown Menu (Rename/Delete Chat) */
 .dropdown-menu { 
     display: none; 
     padding: 6px; 
@@ -560,10 +544,7 @@ code {
 }
 
 @media (min-width: 768px) {
-    .dropdown-menu {
-        min-width: 150px;
-        border-radius: 12px;
-    }
+    .dropdown-menu { min-width: 150px; border-radius: 12px; }
 }
 
 .dropdown-menu.show { 
@@ -584,39 +565,23 @@ code {
 }
 
 @media (min-width: 768px) {
-    .dropdown-item {
-        padding: 10px 14px;
-        gap: 10px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-    }
+    .dropdown-item { padding: 10px 14px; gap: 10px; border-radius: 8px; font-size: 0.9rem; }
 }
 
-.dropdown-item:hover { 
-    background: rgba(255,255,255,0.1); 
-}
+.dropdown-item:hover { background: rgba(255,255,255,0.1); }
 
 /* =========================================
-   9. ANIMATIONS
+   [CATEGORY] 9. ANIMATIONS
+   Description: Keyframes for Fade In, Pulse, Typing Dots
    ========================================= */
 @keyframes fadeIn { 
-    from { 
-        opacity: 0; 
-        transform: translateY(-5px); 
-    } 
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    } 
+    from { opacity: 0; transform: translateY(-5px); } 
+    to { opacity: 1; transform: translateY(0); } 
 }
 
-.animate-fade-in { 
-    animation: fadeIn 0.3s ease-out forwards; 
-}
+.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
 
-.animate-pulse { 
-    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; 
-}
+.animate-pulse { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
 @keyframes pulse { 
     0%, 100% { opacity: 1; } 
@@ -625,8 +590,7 @@ code {
 
 .typing-dot { 
     display: inline-block; 
-    width: 5px;
-    height: 5px;
+    width: 5px; height: 5px;
     border-radius: 50%; 
     background: #aaa; 
     margin: 0 2px; 
@@ -634,70 +598,42 @@ code {
 }
 
 @media (min-width: 768px) {
-    .typing-dot {
-        width: 6px;
-        height: 6px;
-    }
+    .typing-dot { width: 6px; height: 6px; }
 }
 
 @keyframes typing { 
-    0%, 100% { 
-        transform: scale(0.5); 
-        opacity: 0.5; 
-    } 
-    50% { 
-        transform: scale(1); 
-        opacity: 1; 
-    } 
+    0%, 100% { transform: scale(0.5); opacity: 0.5; } 
+    50% { transform: scale(1); opacity: 1; } 
 }
 
 /* =========================================
-   10. MOBILE OVERLAY FOR SIDEBAR
+   [CATEGORY] 10. UTILITIES & MOBILE FIXES
+   Description: Truncation, Word Break, and Touch Optimizations
    ========================================= */
+   
+/* Mobile Overlay for Sidebar */
 @media (max-width: 767px) {
     #sidebar.mobile-open::before {
         content: '';
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        top: 0; left: 0; right: 0; bottom: 0;
         background: rgba(0, 0, 0, 0.5);
         z-index: -1;
     }
 }
 
-/* =========================================
-   11. TOUCH OPTIMIZATIONS
-   ========================================= */
+/* Touch Optimizations (Larger Targets) */
 @media (max-width: 767px) {
-    /* Larger touch targets on mobile */
-    button, a, .mode-btn, .history-item {
-        min-height: 40px;
-    }
-    
+    button, a, .mode-btn, .history-item { min-height: 40px; }
     /* Prevent zoom on input focus */
-    input, textarea, select {
-        font-size: 16px !important;
-    }
+    input, textarea, select { font-size: 16px !important; }
 }
 
-/* =========================================
-   12. WELCOME SCREEN RESPONSIVE
-   ========================================= */
-#welcome-screen {
-    padding: 1rem;
-}
+/* Welcome Screen Padding */
+#welcome-screen { padding: 1rem; }
+@media (min-width: 768px) { #welcome-screen { padding: 2rem; } }
 
-@media (min-width: 768px) {
-    #welcome-screen {
-        padding: 2rem;
-    }
-}
-
-/* =========================================
-   13. UTILITY CLASSES
-   ========================================= */
+/* Helper Classes */
 .truncate {
     overflow: hidden;
     text-overflow: ellipsis;
