@@ -220,10 +220,14 @@ async def send_otp_endpoint(req: OTPRequest):
     return JSONResponse({"status": "error"}, 500)
 
 @app.post("/api/verify_otp")
+request.url_for('auth_callback')
 async def verify_otp_endpoint(req: OTPVerifyRequest):
     record = await otp_collection.find_one({"email": req.email})
     if record and record.get("otp") == req.otp: return {"status": "success"}
     return JSONResponse({"status": "error"}, 400)
+
+@app.get("/auth/callback")  # <--- Dekho yaha path "/auth/callback" hai
+async def auth_callback(request: Request):
 
 @app.post("/api/complete_signup")
 async def complete_signup(req: SignupRequest, request: Request):
