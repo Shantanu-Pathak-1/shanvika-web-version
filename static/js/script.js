@@ -1,6 +1,6 @@
 // ==================================================================================
 //  FILE: static/js/script.js
-//  DESCRIPTION: Main Frontend Logic (Fixed: Vanta Halo Background)
+//  DESCRIPTION: Main Frontend Logic (Fixed: Dark=Halo, Light=Rings)
 // ==================================================================================
 
 let currentSessionId = localStorage.getItem('session_id') || null;
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('light-mode');
     }
 
-    // Initialize Vanta Background (HALO EFFECT)
+    // Initialize Vanta Background
     initVanta();
 
     loadHistory();
@@ -25,35 +25,48 @@ document.addEventListener('DOMContentLoaded', () => {
     else loadChat(currentSessionId);
 });
 
-// --- THEME & VANTA HALO CONFIG ---
+// --- THEME & VANTA CONFIG (Dual Effects) ---
 let vantaEffect = null;
 
 function initVanta() {
     if (!window.VANTA) return;
     
-    // Check if Light Mode is active
     const isLight = document.body.classList.contains('light-mode');
     
-    // Destroy previous effect to prevent overlap
+    // Destroy previous effect to prevent overlap/crash
     if (vantaEffect) vantaEffect.destroy();
 
-    // RESTORED: VANTA HALO EFFECT
-    vantaEffect = VANTA.HALO({
-        el: "#vanta-bg",
-        mouseControls: true,
-        touchControls: true,
-        gyroControls: false,
-        minHeight: 200.00,
-        minWidth: 200.00,
-        // Light Mode vs Dark Mode Colors
-        backgroundColor: isLight ? 0xffffff : 0x000000, 
-        baseColor: isLight ? 0x2563eb : 0xec4899, // Blue in Light, Pink in Dark
-        backgroundColor: isLight ? 0xffffff : 0x000000,
-        size: 1.5,
-        amplitudeFactor: 1.5,
-        xOffset: 0.1,
-        yOffset: 0.1
-    });
+    if (isLight) {
+        // LIGHT MODE = RINGS
+        vantaEffect = VANTA.RINGS({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            backgroundColor: 0xe0e7ff, // Light Cool Grey/Blue
+            color: 0x2563eb // Blue Rings
+        });
+    } else {
+        // DARK MODE = HALO
+        vantaEffect = VANTA.HALO({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            baseColor: 0xec4899, // Pink
+            backgroundColor: 0x000000, // Black
+            size: 1.5,
+            amplitudeFactor: 1.5,
+            xOffset: 0.1,
+            yOffset: 0.1
+        });
+    }
 }
 
 function toggleTheme() {
@@ -61,7 +74,7 @@ function toggleTheme() {
     const isLight = document.body.classList.contains('light-mode');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
     
-    // Restart Vanta to apply new colors
+    // Restart Vanta to switch effect
     initVanta();
 }
 
@@ -115,7 +128,6 @@ async function createNewChat() {
     loadHistory();
 }
 
-// --- 1. LOAD CHAT (Database wala time pass karega) ---
 async function loadChat(sid) {
     currentSessionId = sid;
     localStorage.setItem('session_id', sid);
@@ -126,12 +138,10 @@ async function loadChat(sid) {
     chatBox.innerHTML = '';
     
     data.messages.forEach(msg => {
-        // Yaha hum msg.timestamp pass kar rahe hain
         appendMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content, msg.timestamp);
     });
 }
 
-// --- 2. SEND MESSAGE (Abhi ka time use karega) ---
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const msg = input.value.trim();
@@ -140,8 +150,7 @@ async function sendMessage() {
     const welcome = document.getElementById('welcome-screen');
     if (welcome) welcome.remove();
 
-    // Naya message hai, timestamp null bhejo (appendMessage khud abhi ka time lega)
-    appendMessage('user', msg, null); 
+    appendMessage('user', msg, null);
     input.value = '';
     
     const chatBox = document.getElementById('chat-box');
@@ -173,7 +182,6 @@ async function sendMessage() {
         document.getElementById(thinkingId).remove();
         currentFile = null; 
         
-        // AI ka reply aaya, timestamp null bhejo (wo abhi ka time lega)
         appendMessage('assistant', data.reply, null);
         loadHistory();
 
@@ -186,23 +194,19 @@ async function sendMessage() {
     }
 }
 
-// --- 3. APPEND MESSAGE (Time Logic Fixed) ---
+// --- APPEND MESSAGE (Time & Actions) ---
 function appendMessage(role, text, timestamp = null) {
     const chatBox = document.getElementById('chat-box');
     const div = document.createElement('div');
     const msgId = 'msg_' + Date.now();
     
-    // --- TIME FIX LOGIC ---
     let displayTime;
     if (timestamp) {
-        // Agar DB se time aaya hai, toh usse format karo
         const dateObj = new Date(timestamp);
         displayTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
-        // Agar naya message hai, toh abhi ka time lo
         displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    // ---------------------
 
     div.className = role === 'user' ? 'msg-user' : 'msg-ai';
     
@@ -259,11 +263,9 @@ function shareResponse(msgId) {
     }
 }
 
-// --- UPDATED FEEDBACK FUNCTION (Premium UI) ---
 async function handleFeedback(msgId, type) {
     const userEmail = document.getElementById('profile-name-sidebar').innerText === 'Guest' ? 'guest' : 'user';
     
-    // 1. Define Options based on Type
     const options = type === 'good' 
         ? [
             { id: 'helpful', label: '🧠 Helpful', color: 'bg-green-500/20 text-green-400 border-green-500/50' },
@@ -278,7 +280,6 @@ async function handleFeedback(msgId, type) {
             { id: 'other', label: '❓ Other', color: 'bg-gray-700 text-gray-300 border-gray-600' }
           ];
 
-    // 2. Build HTML for Tags
     let tagsHTML = `<div class="flex flex-wrap gap-2 justify-center mb-4">`;
     options.forEach(opt => {
         tagsHTML += `
@@ -290,7 +291,6 @@ async function handleFeedback(msgId, type) {
     });
     tagsHTML += `</div>`;
 
-    // 3. Show Premium Popup
     const { value: formValues } = await Swal.fire({
         title: type === 'good' ? 'Nice! What did you like? ❤️' : 'Oops! What went wrong? 💔',
         html: `
@@ -298,52 +298,26 @@ async function handleFeedback(msgId, type) {
             <textarea id="fb_comment" class="swal2-textarea w-full bg-[#111] text-white border border-gray-700 rounded-lg p-3 text-sm focus:outline-none focus:border-pink-500" 
             placeholder="(Optional) Tell us more details..." style="margin: 0; display: block; height: 80px;"></textarea>
         `,
-        background: '#1e1e1e',
-        color: '#fff',
-        showCancelButton: true,
-        confirmButtonText: 'Submit Feedback',
-        confirmButtonColor: type === 'good' ? '#4ade80' : '#f87171',
+        background: '#1e1e1e', color: '#fff', showCancelButton: true,
+        confirmButtonText: 'Submit Feedback', confirmButtonColor: type === 'good' ? '#4ade80' : '#f87171',
         cancelButtonColor: '#374151',
-        focusConfirm: false,
         preConfirm: () => {
             const selected = document.querySelector('input[name="fb_category"]:checked');
             const comment = document.getElementById('fb_comment').value;
-            if (!selected) {
-                Swal.showValidationMessage('Please select a category');
-            }
+            if (!selected) Swal.showValidationMessage('Please select a category');
             return { category: selected ? selected.value : null, comment: comment };
         }
     });
 
-    // 4. Send to Backend
     if (formValues) {
-        try {
-            await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    message_id: msgId, 
-                    user_email: userEmail, 
-                    type: type, 
-                    category: formValues.category, 
-                    comment: formValues.comment 
-                })
-            });
-
-            // Visual Feedback (Change Icon Color)
-            const btn = document.querySelector(`button[onclick="handleFeedback('${msgId}', '${type}')"]`);
-            if(btn) {
-                btn.classList.add(type === 'good' ? 'text-green-400' : 'text-red-400');
-                btn.classList.add('scale-110'); // Small bump animation
-            }
-
-            // Small Toast
-            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#1e1e1e', color: '#fff' });
-            Toast.fire({ icon: 'success', title: 'Thanks for helping Shanvika learn!' });
-
-        } catch (error) {
-            console.error(error);
-        }
+        await fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message_id: msgId, user_email: userEmail, type: type, category: formValues.category, comment: formValues.comment })
+        });
+        const btn = document.querySelector(`button[onclick="handleFeedback('${msgId}', '${type}')"]`);
+        if(btn) { btn.classList.add(type === 'good' ? 'text-green-400' : 'text-red-400'); btn.classList.add('scale-110'); }
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#1e1e1e', color: '#fff' }).fire({ icon: 'success', title: 'Thanks!' });
     }
 }
 
