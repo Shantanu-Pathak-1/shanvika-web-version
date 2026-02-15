@@ -22,7 +22,7 @@ pdf2docx
 qrcode
 pillow
 apscheduler
-pinecone-client
+pinecone
 numpy
 edge-tts
 lyricsgenius
