@@ -1,18 +1,6 @@
 # ==================================================================================
 #  FILE: tools_lab.py
-#  DESCRIPTION: Backend Logic for All AI Tools (Image, Resume, YouTube, etc.)
-#  CATEGORIES:
-#    1. IMPORTS & API SETUP
-#    2. IMAGE GENERATION TOOL
-#    3. RESUME ANALYZER TOOL
-#    4. GITHUB PROFILE REVIEWER
-#    5. YOUTUBE VIDEO SUMMARIZER
-#    6. INTERVIEW PREP TOOLS (Mock & Questions)
-#    7. MATH SOLVER (Vision API)
-#    8. PRODUCTIVITY TOOLS (Todo, Password, QR)
-#    9. WRITING ASSISTANTS (Grammar, Prompt, Resume Builder)
-#    10. FUN MODE (Sing With Me)
-#    11. CURRENCY CONVERTER
+#  DESCRIPTION: Backend Logic for All AI Tools (Fixed: Image Fallback & Singing)
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS & API SETUP
@@ -29,11 +17,13 @@ from duckduckgo_search import DDGS
 import google.generativeai as genai
 from groq import Groq
 import PIL.Image
+import lyricsgenius # Added for Song Lyrics
 
 # Load Keys
 HF_TOKEN = os.getenv("HF_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GENIUS_API_KEY = os.getenv("GENIUS_API_KEY") # Add this in your environment
 
 # Configure GenAI
 if GEMINI_API_KEY:
@@ -52,26 +42,52 @@ def get_llm_response(prompt, model="llama-3.3-70b-versatile"):
         return f"⚠️ LLM Error: {str(e)}"
 
 # ==================================================================================
-# [CATEGORY] 2. IMAGE GENERATION TOOL
+# [CATEGORY] 2. IMAGE GENERATION TOOL (FIXED: Gemini Prompt + Auto Fallback)
 # ==================================================================================
 async def generate_image_hf(prompt):
+    # Step 1: Enhance Prompt using Gemini
+    enhanced_prompt = prompt
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        enhancement_request = f"Convert this simple user idea into a highly detailed, professional AI image generation prompt (photorealistic, 8k, lighting details). User idea: '{prompt}'. Return ONLY the prompt text, no intro."
+        res = model.generate_content(enhancement_request)
+        if res.text:
+            enhanced_prompt = res.text
+    except:
+        pass # Fallback to original if Gemini fails
+
+    # Step 2: Try Hugging Face (FLUX)
     API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     
     try:
-        # Enhance prompt for better results
-        enhanced_prompt = f"High quality, 8k, realistic, detailed: {prompt}"
-        response = requests.post(API_URL, headers=headers, json={"inputs": enhanced_prompt})
+        response = requests.post(API_URL, headers=headers, json={"inputs": enhanced_prompt}, timeout=25)
         
         if response.status_code == 200:
             image_bytes = response.content
-            # Convert to Base64 to send to frontend
             base64_image = base64.b64encode(image_bytes).decode('utf-8')
-            return f'<div class="glass p-2 rounded-xl"><img src="data:image/jpeg;base64,{base64_image}" alt="Generated Image" class="rounded-lg w-full"></div>'
+            return f"""
+            <div class="glass p-2 rounded-xl">
+                <p class="text-xs text-gray-400 mb-2">✨ Prompt: {enhanced_prompt[:100]}...</p>
+                <img src="data:image/jpeg;base64,{base64_image}" alt="Generated Image" class="rounded-lg w-full">
+            </div>
+            """
         else:
-            return "⚠️ Image Generation Failed. Server Busy."
+            raise Exception("HF Busy")
+
     except Exception as e:
-        return f"Error: {str(e)}"
+        # Step 3: FALLBACK to Pollinations AI (No Key Required, Very Stable)
+        try:
+            safe_prompt = enhanced_prompt.replace(" ", "%20")
+            pollinations_url = f"https://image.pollinations.ai/prompt/{safe_prompt}"
+            return f"""
+            <div class="glass p-2 rounded-xl">
+                <p class="text-xs text-yellow-400 mb-2">⚠️ Server Busy. Switched to Backup AI.</p>
+                <img src="{pollinations_url}" alt="Generated Image" class="rounded-lg w-full">
+            </div>
+            """
+        except:
+            return "⚠️ All Image Servers are currently down. Please try again later."
 
 # ==================================================================================
 # [CATEGORY] 3. RESUME ANALYZER TOOL
@@ -81,7 +97,6 @@ async def analyze_resume(file_data, user_msg):
         return "⚠️ Please upload a PDF resume first."
     
     try:
-        # Decode Base64 PDF
         header, encoded = file_data.split(",", 1)
         pdf_bytes = base64.b64decode(encoded)
         reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
@@ -111,7 +126,6 @@ async def review_github(url):
     if not username: return "⚠️ Invalid GitHub URL."
     
     try:
-        # Fetch Public Data
         api_url = f"https://api.github.com/users/{username}"
         repos_url = f"https://api.github.com/users/{username}/repos?sort=updated"
         
@@ -165,8 +179,6 @@ async def generate_interview_questions(role):
     return get_llm_response(prompt)
 
 async def handle_mock_interview(msg):
-    # This is a conversational tool, so it relies on chat history in main.py usually.
-    # Here we just generate the interviewer persona response.
     prompt = f"You are a strict interviewer. The user said: '{msg}'. Reply professionally, ask a follow-up question, or evaluate their answer."
     return get_llm_response(prompt)
 
@@ -180,13 +192,11 @@ async def solve_math_problem(file_data, query):
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         if file_data:
-            # Image based solving
             header, encoded = file_data.split(",", 1)
             image_data = base64.b64decode(encoded)
             image = PIL.Image.open(io.BytesIO(image_data))
             response = model.generate_content(["Solve this math problem step-by-step:", image])
         else:
-            # Text based solving
             response = model.generate_content(f"Solve this math problem step-by-step: {query}")
             
         return response.text
@@ -231,17 +241,33 @@ async def build_pro_resume(details):
     return get_llm_response(prompt)
 
 # ==================================================================================
-# [CATEGORY] 10. FUN MODE
+# [CATEGORY] 10. FUN MODE (FIXED: GENIUS API + GEMINI BACKUP)
 # ==================================================================================
 async def sing_with_me_tool(user_line, history):
+    # Method 1: Try Genius API (Accurate Lyrics)
+    if GENIUS_API_KEY:
+        try:
+            genius = lyricsgenius.Genius(GENIUS_API_KEY)
+            # Search for the song based on user line
+            song = genius.search_song(user_line)
+            if song:
+                lyrics = song.lyrics
+                # Simple logic to find next line (Regex can be better but this is simple)
+                lines = [l for l in lyrics.split('\n') if l.strip()]
+                for i, line in enumerate(lines):
+                    if user_line.lower() in line.lower() and i + 1 < len(lines):
+                        return f"🎶 {lines[i+1]} 🎶\n(Song: {song.title} by {song.artist})"
+        except:
+            pass # Fallback to LLM if API fails or song not found
+
+    # Method 2: Gemini / LLM Fallback (Creative Completion)
     prompt = f"""
     We are singing a duet. I am the female singer.
-    Context so far: {history}
     User just sang: "{user_line}"
     
-    Complete the lyrics or sing the next line of the song. 
-    Add musical emojis 🎶. Keep it romantic and fun.
-    If you don't know the song, politely ask to start a popular one.
+    Task: Identify the song (Bollywood/English) and sing the EXACT NEXT LINE.
+    If you don't know the song, improvise a rhyming line romantically.
+    Add musical emojis 🎶.
     """
     return get_llm_response(prompt)
 
@@ -249,7 +275,6 @@ async def sing_with_me_tool(user_line, history):
 # [CATEGORY] 11. CURRENCY CONVERTER
 # ==================================================================================
 async def currency_tool(query):
-    # Using DuckDuckGo for quick conversion results as it's free and real-time
     try:
         results = DDGS().text(f"convert {query}", max_results=1)
         if results:
