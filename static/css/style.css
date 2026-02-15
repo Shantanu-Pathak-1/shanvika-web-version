@@ -23,8 +23,15 @@ body {
     margin: 0; padding: 0;
     background-color: #000;
     color: #e0e0e0;
-    overflow: hidden; /* Prevents double scrollbars */
+    overflow: hidden; /* Default for Chat App */
 }
+
+/* ADD THIS NEW CLASS for Pages that need scrolling (Like Memory Dashboard) */
+body.scrollable-page {
+    overflow-y: auto !important; /* Allow scrolling */
+    -webkit-overflow-scrolling: touch;
+}
+
 
 /* Background Animation Canvas */
 canvas.vanta-canvas { 

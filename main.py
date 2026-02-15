@@ -4,7 +4,7 @@
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
-from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, status
+from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 import uuid
 import os
+import json
 import httpx 
 import base64 
 from groq import Groq
@@ -59,9 +60,37 @@ MAIL_USERNAME = os.getenv("MAIL_USERNAME")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
 # ==================================================================================
-# [CATEGORY] 3. SYSTEM INTELLIGENCE (Prompts)
+# [CATEGORY] 3. SYSTEM INTELLIGENCE (Dynamic from JSON)
 # ==================================================================================
-DEFAULT_SYSTEM_INSTRUCTIONS = """You are an adaptive conversational AI designed to make users feel understood, comfortable, and respected. Your core personality must remain stable: always respectful, clear, honest, logically consistent, and emotionally balanced. You must never flatter excessively, never fake agreement, never validate incorrect assumptions, and never sacrifice truth just to please the user. Avoid sounding robotic, overly dramatic, preachy, or morally superior. During the first few interactions, carefully observe the user's tone, language style, message length, emotional intensity, and level of formality. Gradually adjust your communication style to subtly align with the user's preferences while maintaining your core principles. If the user is formal, respond formally. If the user is casual, respond casually. If the user is concise, keep responses concise. If the user is expressive or emotional, respond with warmth but remain composed. If the user uses humor, mirror it lightly without overacting. Always match energy levels subtly, never extremely. Maintain a neutral-friendly default tone and shift only slightly based on user behavior. Ensure responses feel natural and varied in structure rather than repetitive or scripted. Correct misinformation gently and respectfully when necessary. Your goal is not to impress or manipulate the user, but to create a genuine, adaptive, and trustworthy interaction experience that feels personalized without losing authenticity."""
+def load_system_instructions():
+    try:
+        with open("character_config.json", "r", encoding="utf-8") as f:
+            config = json.load(f)
+            
+            # Rules aur Tactics ko list se string banana
+            rules_text = "\n".join([f"- {rule}" for rule in config.get("strict_rules", [])])
+            tactics_text = "\n".join([f"- {tactic}" for tactic in config.get("psychological_tactics", [])])
+            
+            # Creator info nikalna
+            c_profile = config.get("creator_profile", {})
+            
+            # Template fill karna
+            prompt = config.get("system_prompt_template", "").format(
+                name=config["identity"]["name"],
+                creator=config["identity"]["creator"],
+                rules=rules_text,
+                tactics=tactics_text,
+                c_name=c_profile.get("name"),
+                c_college=c_profile.get("college"),
+                c_skills=c_profile.get("skills"),
+                c_interests=c_profile.get("interests")
+            )
+            return prompt
+    except Exception as e:
+        print(f"Config Load Error: {e}")
+        return "You are Shanvika. Always reply in the user's language."
+
+DEFAULT_SYSTEM_INSTRUCTIONS = load_system_instructions()
 
 # ==================================================================================
 # [CATEGORY] 4. DATABASE & SECURITY SETUP
@@ -145,7 +174,7 @@ def send_email(to, subject, body):
         return True
     except: return False
 
-# --- RAG / Memory Helpers (UPDATED FOR FIX) ---
+# --- RAG / Memory Helpers ---
 def get_embedding(text):
     try:
         key = get_random_gemini_key()
@@ -156,7 +185,6 @@ def get_embedding(text):
         return []
 
 def search_vector_db(query, user_email):
-    # Search strictly for this user's email
     if not index: return ""
     vec = get_embedding(query)
     if not vec: return ""
@@ -166,6 +194,55 @@ def search_vector_db(query, user_email):
 async def perform_research_task(query):
     try: return "📊 **Research:**\n\n" + "\n\n".join([f"🔹 **{r['title']}**\n{r['body']}" for r in DDGS().text(query, max_results=3)])
     except: return "⚠️ Research failed."
+
+# --- NEW: AUTO-MEMORY EXTRACTOR (Background Task) ---
+async def extract_and_save_memory(user_email: str, user_message: str):
+    """
+    Checks if the user message contains important personal info and saves it.
+    """
+    try:
+        # Step 1: Check keywords to save API cost (Optional, but good for speed)
+        triggers = ["my name is", "i live in", "i like", "i love", "remember", "save this", "my birthday", "i am", "mera naam", "main rehta hu", "mujhe pasand hai"]
+        if not any(t in user_message.lower() for t in triggers) and len(user_message.split()) < 4:
+            return # Skip short/irrelevant messages
+
+        # Step 2: Ask LLM to extract facts
+        client = get_groq()
+        if not client: return
+
+        extraction_prompt = f"""
+        Analyze this user message: "{user_message}"
+        Extract ANY permanent user fact (Name, Location, Likes, Dislikes, Goals, Relationships).
+        Return ONLY the fact as a short sentence. If nothing worth remembering, return 'NO_DATA'.
+        Example: "User likes Pizza" or "User lives in Delhi".
+        """
+        
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content extraction_prompt"}],
+            model="llama3-8b-8192", # Small, fast model
+        ).choices[0].message.content.strip()
+
+        if "NO_DATA" not in response and len(response) > 5:
+            # Step 3: Save to DB
+            clean_memory = response.replace("User", "You").replace("user", "You") # Make it personal
+            
+            # Save to Mongo
+            await users_collection.update_one(
+                {"email": user_email},
+                {"$push": {"memories": clean_memory}}
+            )
+            
+            # Save to Pinecone (Optional)
+            if index:
+                vec = get_embedding(clean_memory)
+                if vec:
+                    mem_id = f"{user_email}_{hashlib.md5(clean_memory.encode()).hexdigest()}"
+                    index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
+            
+            print(f"🧠 Auto-Memory Saved: {clean_memory}")
+
+    except Exception as e:
+        print(f"Auto-Memory Error: {e}")
 
 # ==================================================================================
 # [CATEGORY] 7. PYDANTIC MODELS
@@ -255,8 +332,15 @@ async def read_root(request: Request):
     if user: return templates.TemplateResponse("index.html", {"request": request, "user": user})
     return templates.TemplateResponse("landing.html", {"request": request})
 
+# --- NEW: MEMORY DASHBOARD ROUTE ---
+@app.get("/memory-dashboard", response_class=HTMLResponse)
+async def memory_dashboard_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("memory_dashboard.html", {"request": request, "user": user})
+
 # ==================================================================================
-# [CATEGORY] 10. API ROUTES (MEMORIES FIXED HERE)
+# [CATEGORY] 10. API ROUTES
 # ==================================================================================
 @app.get("/api/profile")
 async def get_profile(request: Request):
@@ -300,92 +384,65 @@ async def rename_chat(req: RenameRequest): return {"status": "ok"}
 @app.delete("/api/delete_all_chats")
 async def delete_all_chats(request: Request): return {"status": "ok"}
 
-# --- MEMORY API FIXED ---
+# --- MEMORY API ---
 @app.get("/api/memories")
 async def get_memories(request: Request):
     user = await get_current_user(request)
     if not user: return {"memories": []}
-    
-    # MongoDB se fetch karo
     data = await users_collection.find_one({"email": user['email']})
     mems = data.get("memories", []) if data else []
-    
-    # Reverse taaki new wala upar dikhe
     return {"memories": mems[::-1]}
 
 @app.post("/api/add_memory")
 async def add_memory(req: MemoryRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error"}, 400)
-    
-    # 1. MongoDB mein permanent save (Safe list)
-    await users_collection.update_one(
-        {"email": user['email']},
-        {"$push": {"memories": req.memory_text}}
-    )
-    
-    # 2. Pinecone mein save (Search ke liye) - Agar key hai toh
+    await users_collection.update_one({"email": user['email']}, {"$push": {"memories": req.memory_text}})
     if index:
         try:
             vec = get_embedding(req.memory_text)
             if vec:
-                # Unique ID generate karo taaki conflict na ho
                 mem_id = f"{user['email']}_{hashlib.md5(req.memory_text.encode()).hexdigest()}"
                 index.upsert(vectors=[(mem_id, vec, {"text": req.memory_text, "email": user['email']})])
-        except Exception as e:
-            print(f"Vector Save Error: {e}")
-
+        except Exception as e: print(f"Vector Save Error: {e}")
     return {"status": "success"}
 
 @app.post("/api/delete_memory")
 async def delete_memory(req: MemoryRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error"}, 400)
-    
-    # MongoDB se delete
-    await users_collection.update_one(
-        {"email": user['email']},
-        {"$pull": {"memories": req.memory_text}}
-    )
-    # Note: Pinecone delete complex hai, abhi ke liye Mongo sync kaafi hai
+    await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
     return {"status": "ok"}
 
 # --------------------------
-# CHAT ENDPOINT (MEMORY INJECTION ADDED)
+# CHAT ENDPOINT (AUTO-MEMORY ENABLED)
 # --------------------------
 @app.post("/api/chat")
-async def chat_endpoint(req: ChatRequest, request: Request):
+async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: BackgroundTasks):
     try:
         user = await get_current_user(request)
         if not user: return {"reply": "⚠️ Login required."}
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
-        # User Data & Custom Instructions Fetch
+        # --- BACKGROUND TASK: AUTO-MEMORY ---
+        # Chat ko slow kiye bina memory extract karo
+        if mode == "chat":
+            background_tasks.add_task(extract_and_save_memory, user['email'], msg)
+
         db_user = await users_collection.find_one({"email": user['email']})
         user_custom_prompt = db_user.get("custom_instruction", "")
         
-        # --- NEW: MEMORY RETRIEVAL LOGIC ---
         retrieved_memory = ""
-        
-        # Priority 1: Semantic Search (Agar Pinecone hai)
-        if index:
-            retrieved_memory = search_vector_db(msg, user['email'])
-        
-        # Priority 2: Fallback to Recent Memories (Agar Pinecone empty ya fail ho)
+        if index: retrieved_memory = search_vector_db(msg, user['email'])
         if not retrieved_memory:
-            recent_mems = db_user.get("memories", [])[-5:] # Last 5 memories
-            if recent_mems:
-                retrieved_memory = "\n".join(recent_mems)
+            recent_mems = db_user.get("memories", [])[-5:]
+            if recent_mems: retrieved_memory = "\n".join(recent_mems)
 
-        # Build Final System Prompt
         FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
-        
-        # Inject Memory into System Prompt
         if retrieved_memory:
             FINAL_SYSTEM_PROMPT += f"\n\n[USER LONG-TERM MEMORY]:\n{retrieved_memory}\n(Use this information to personalize the conversation)"
 
-        # Chat DB Setup
         chat_doc = await chats_collection.find_one({"session_id": sid})
         if not chat_doc:
             title_prefix = "Chat"
@@ -437,14 +494,9 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         else: # Standard Chat
             client = get_groq()
             if client: 
-                # Context Management (Prevent Crash)
                 full_history = chat_doc.get("messages", []) + [{"role": "user", "content": msg}]
-                recent_history = full_history[-15:] # Only last 15
-                
-                messages_payload = [
-                    {"role": "system", "content": FINAL_SYSTEM_PROMPT},
-                    *recent_history
-                ]
+                recent_history = full_history[-15:]
+                messages_payload = [{"role": "system", "content": FINAL_SYSTEM_PROMPT}, *recent_history]
 
                 reply = client.chat.completions.create(
                     model="llama-3.3-70b-versatile", 

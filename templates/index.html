@@ -47,6 +47,11 @@
                 <span class="text-sm font-bold nav-label">My Studio</span>
             </a>
 
+            <a href="/memory-dashboard" class="flex items-center gap-3 p-2 md:p-3 rounded-xl hover:bg-white/10 transition text-gray-300 hover:text-yellow-400">
+                <div class="w-6 text-center"><i class="fas fa-brain text-yellow-500 text-sm md:text-base"></i></div>
+                <span class="text-sm font-bold nav-label">Brain Control</span>
+            </a>
+
             {% if user.email == 'shantanupathak94@gmail.com' %}
             <a href="/admin" class="flex items-center gap-3 p-2 md:p-3 rounded-xl hover:bg-red-900/20 transition text-gray-300 hover:text-red-400">
                 <div class="w-6 text-center"><i class="fas fa-shield-alt text-red-500 text-sm md:text-base"></i></div>
@@ -61,7 +66,6 @@
                 <input type="text" id="chat-search" onkeyup="filterChats()" 
                     placeholder="Search history..." 
                     class="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-pink-500/50 focus:bg-black/40 focus:shadow-[0_0_15px_rgba(236,72,153,0.15)] transition-all duration-300">
-                <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity duration-500 -z-10"></div>
             </div>
         </div>
 
@@ -96,7 +100,6 @@
 
         <div class="input-fixed-bottom">
             <div class="input-wrapper flex flex-col gap-2 md:gap-3 mx-auto">
-                
                 <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 px-2 no-scrollbar justify-start md:justify-center">
                     <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
                     <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
@@ -114,8 +117,6 @@
                     
                     <button type="submit" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 shadow-md transition transform active:scale-95 flex-shrink-0"><i class="fas fa-arrow-up text-sm md:text-base"></i></button>
                 </form>
-                
-                <p class="text-center text-[9px] md:text-[10px] text-gray-500 mt-0 md:mt-1">Shanvika v10.0 • Voice Input & Output Enabled</p>
             </div>
         </div>
     </main>
@@ -142,21 +143,9 @@
                 </div>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-sm font-bold mb-2 text-gray-300"><i class="fas fa-robot mr-1 text-blue-400"></i> Custom Instructions</label>
-                <textarea id="custom-instruction-box" class="w-full bg-black/40 border border-gray-600 rounded-xl p-3 text-white text-sm focus:border-pink-500 focus:outline-none transition resize-none" rows="3" placeholder="E.g. Talk like a friendly friend..."></textarea>
-                <button onclick="saveInstructions(this)" class="mt-2 w-full bg-blue-600/20 text-blue-400 border border-blue-500/50 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition">Save Instruction</button>
-            </div>
-
-            <div class="mb-6">
-                <label class="block text-sm font-bold mb-2 text-gray-300"><i class="fas fa-brain mr-1 text-yellow-400"></i> Long Term Memory</label>
-                <div class="flex gap-2 mb-2">
-                    <input type="text" id="memory-input" class="flex-1 bg-black/40 border border-gray-600 rounded-xl p-2 text-sm text-white focus:border-yellow-500 outline-none" placeholder="Add a specific memory...">
-                    <button onclick="addMemory()" class="bg-yellow-600/20 text-yellow-400 border border-yellow-500/50 px-3 rounded-xl hover:bg-yellow-600 hover:text-white transition"><i class="fas fa-plus"></i></button>
-                </div>
-                <div id="memory-list" class="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
-                    <div class="text-center text-xs text-gray-500 py-2">Loading memories...</div>
-                </div>
+            <div class="bg-yellow-900/20 border border-yellow-700/50 p-4 rounded-xl mb-6 text-center">
+                <p class="text-yellow-400 text-sm mb-2"><i class="fas fa-brain mr-1"></i> Brain Control Moved</p>
+                <a href="/memory-dashboard" class="inline-block bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-bold py-2 px-4 rounded-lg transition">Open Memory Dashboard</a>
             </div>
 
             <div class="border-t border-gray-700 pt-4 space-y-3">
@@ -171,39 +160,11 @@
         </div>
     </div>
 
-    <div id="profile-modal" class="modal">
-        <div class="modal-content text-center bg-[#1e1e1e] border border-gray-700 text-white w-11/12 md:w-auto">
-            <h2 class="text-lg md:text-xl font-bold mb-4">Edit Profile</h2>
-            <div class="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-blue-500"><img id="profile-img-modal" src="" class="w-full h-full object-cover"></div>
-            <input type="text" id="profile-name-input" class="w-full bg-black/30 border border-gray-500 rounded p-2 text-center text-white mb-4 text-sm md:text-base">
-            <button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded text-white font-bold hover:bg-blue-500 text-sm md:text-base">Save Changes</button>
-        </div>
-    </div>
-
-    <div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl z-50">
-        <div class="dropdown-item hover:bg-gray-700" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div>
-        <div class="dropdown-item hover:bg-gray-700 text-red-400" id="act-delete"><i class="fas fa-trash"></i> Delete</div>
-    </div>
-    
-    <div id="payment-modal" class="modal">
-        <div class="modal-content w-11/12 md:w-full max-w-md bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl relative overflow-hidden">
-            <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-3 md:p-4 text-center">
-                <h2 class="text-lg md:text-xl font-bold text-white"><i class="fas fa-secure"></i> Secure Payment</h2>
-                <p class="text-[10px] md:text-xs text-pink-100">Shanvika AI Pro Plan • ₹499.00</p>
-            </div>
-            <div class="p-4 md:p-6 space-y-3 md:space-y-4">
-                <div id="pay-loader" class="hidden text-center py-4">
-                    <i class="fas fa-circle-notch fa-spin text-2xl md:text-3xl text-pink-500"></i>
-                    <p class="text-[10px] md:text-xs text-gray-400 mt-2">Processing secure transaction...</p>
-                </div>
-                <button id="pay-btn" onclick="processFakePayment()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 md:py-3 rounded-xl transition shadow-lg transform active:scale-95 mt-2 text-sm md:text-base">Pay ₹499.00</button>
-                <button onclick="closeModal('payment-modal')" class="w-full text-gray-500 text-xs hover:text-white mt-2">Cancel Transaction</button>
-            </div>
-        </div>
-    </div>
+    <div id="profile-modal" class="modal"><div class="modal-content text-center bg-[#1e1e1e] border border-gray-700 text-white w-11/12 md:w-auto"><h2 class="text-lg md:text-xl font-bold mb-4">Edit Profile</h2><div class="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-blue-500"><img id="profile-img-modal" src="" class="w-full h-full object-cover"></div><input type="text" id="profile-name-input" class="w-full bg-black/30 border border-gray-500 rounded p-2 text-center text-white mb-4 text-sm md:text-base"><button onclick="saveProfile()" class="bg-blue-600 w-full py-2 rounded text-white font-bold hover:bg-blue-500 text-sm md:text-base">Save Changes</button></div></div>
+    <div id="dropdown" class="dropdown-menu bg-[#222] border border-gray-600 text-white shadow-xl z-50"><div class="dropdown-item hover:bg-gray-700" id="act-rename"><i class="fas fa-edit text-blue-400"></i> Rename</div><div class="dropdown-item hover:bg-gray-700 text-red-400" id="act-delete"><i class="fas fa-trash"></i> Delete</div></div>
+    <div id="payment-modal" class="modal"><div class="modal-content w-11/12 md:w-full max-w-md bg-[#1e1e1e] border border-gray-700 text-white rounded-2xl relative overflow-hidden"><div class="bg-gradient-to-r from-pink-600 to-purple-600 p-3 md:p-4 text-center"><h2 class="text-lg md:text-xl font-bold text-white"><i class="fas fa-secure"></i> Secure Payment</h2><p class="text-[10px] md:text-xs text-pink-100">Shanvika AI Pro Plan • ₹499.00</p></div><div class="p-4 md:p-6 space-y-3 md:space-y-4"><div id="pay-loader" class="hidden text-center py-4"><i class="fas fa-circle-notch fa-spin text-2xl md:text-3xl text-pink-500"></i><p class="text-[10px] md:text-xs text-gray-400 mt-2">Processing secure transaction...</p></div><button id="pay-btn" onclick="processFakePayment()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 md:py-3 rounded-xl transition shadow-lg transform active:scale-95 mt-2 text-sm md:text-base">Pay ₹499.00</button><button onclick="closeModal('payment-modal')" class="w-full text-gray-500 text-xs hover:text-white mt-2">Cancel Transaction</button></div></div></div>
 
     {% include "components/tools_modal.html" %}
-    
     <script src="/static/js/tools.js"></script>
     <script src="/static/js/script.js"></script>
 </body>
