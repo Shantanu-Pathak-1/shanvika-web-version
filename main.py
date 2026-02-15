@@ -1,7 +1,7 @@
 # ==================================================================================
 #  FILE: main.py
 #  DESCRIPTION: Backend with AI Agent, Gallery, About Page & Fixes
-#  UPDATED: Added Smart Image Generation (Space 1 -> Space 2 -> Pollinations)
+#  UPDATED: Added Smart Image Generation with FAST/PRO Modes
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -40,7 +40,7 @@ from datetime import datetime, timedelta
 import edge_tts 
 from gradio_client import Client # <--- NEW IMPORT
 
-# Local Tool Imports (Removed old generate_image_hf if not needed, or keep it)
+# Local Tool Imports
 from tools_lab import (
     generate_prompt_only, generate_qr_code, 
     analyze_resume, review_github, currency_tool,
@@ -185,22 +185,24 @@ async def extract_and_save_memory(user_email: str, user_message: str):
     except Exception as e: print(f"Auto-Memory Error: {e}")
 
 # ----------------------------------------------------------------------------------
-# [NEW FUNCTION] SMART IMAGE GENERATION (Space 1 -> Space 2 -> Pollinations)
+# [UPDATED FUNCTION] SMART IMAGE GENERATION (With Fast/Pro & Style Modes)
 # ----------------------------------------------------------------------------------
-async def smart_image_generation(prompt: str):
+async def smart_image_generation(prompt: str, quality: str = "fast", style: str = "painting"):
     """
-    Tries to generate image using:
-    1. Your hosted LCM Space (Fastest CPU)
-    2. Your hosted SD-Turbo Space (Backup)
-    3. Pollinations.ai (Free API Backup)
+    Routes generation based on Quality (Fast/Pro) and Style (Painting/Realistic)
     """
     
-    # --- CONFIG: Replace with your actual Hugging Face Space names ---
-    SPACE_1_LCM = "ShantanuPathak/shanvika-img-gen-1" # <--- CHECK THIS NAME
-    SPACE_2_TURBO = "ShantanuPathak/shanvika-img-gen-2" # <--- CHECK THIS NAME
+    # 1. Prompt Enhancement based on Style
+    enhanced_prompt = prompt
+    if style == "realistic":
+        enhanced_prompt += ", hyperrealistic, 8k, photograph, highly detailed, cinematic lighting, raw photo"
+    elif style == "painting":
+        enhanced_prompt += ", digital art, oil painting, artistic, highly detailed, masterpiece, artstation"
+
+    print(f"🎨 Generating: Mode={quality}, Style={style}")
 
     def path_to_base64_markdown(file_path):
-        """Converts local file path from Gradio to Base64 Markdown for chat"""
+        """Converts local file path from Gradio to Base64 Markdown"""
         try:
             with open(file_path, "rb") as img_file:
                 b64_string = base64.b64encode(img_file.read()).decode('utf-8')
@@ -208,36 +210,28 @@ async def smart_image_generation(prompt: str):
         except Exception as e:
             return f"⚠️ Image conversion failed: {e}"
 
-    # Try 1: LCM Model
-    try:
-        print(f"🎨 Trying LCM Model: {SPACE_1_LCM}")
-        # Running inside thread to prevent blocking FastAPI
-        result_path = await asyncio.to_thread(
-            Client(SPACE_1_LCM).predict,
-            prompt, 
-            api_name="/predict"
-        )
-        return path_to_base64_markdown(result_path)
-    except Exception as e1:
-        print(f"❌ LCM Failed: {e1}")
+    # --- MODE: FAST (Uses your Hosted LCM Space) ---
+    # LCM models are naturally fast (2-10 seconds)
+    if quality == "fast":
+        SPACE_FAST = "ShantanuPathak/shanvika-img-gen-1" # <--- YOUR LCM SPACE
+        try:
+            print(f"⚡ Using Fast Model: {SPACE_FAST}")
+            result_path = await asyncio.to_thread(
+                Client(SPACE_FAST).predict,
+                enhanced_prompt, 
+                api_name="/predict"
+            )
+            return path_to_base64_markdown(result_path)
+        except Exception as e:
+            print(f"❌ Fast Model Failed: {e}. Switching to Backup.")
+            # Fallback to Pro Logic if Fast fails
 
-    # Try 2: Turbo Model
-    try:
-        print(f"🚀 Trying Turbo Model: {SPACE_2_TURBO}")
-        result_path = await asyncio.to_thread(
-            Client(SPACE_2_TURBO).predict,
-            prompt, 
-            api_name="/predict"
-        )
-        return path_to_base64_markdown(result_path)
-    except Exception as e2:
-        print(f"❌ Turbo Failed: {e2}")
-
-    # Try 3: Pollinations.ai (Final Backup)
-    print("🌐 Using Pollinations.ai Backup")
-    encoded_prompt = prompt.replace(" ", "%20")
+    # --- MODE: PRO (Uses Pollinations.ai or Realistic Space) ---
+    # Pollinations is "Pro" here because it handles realism very well and is free
+    print("💎 Using Pro/Backup Model (Pollinations)")
+    encoded_prompt = enhanced_prompt.replace(" ", "%20")
     image_url = f"https://pollinations.ai/p/{encoded_prompt}"
-    return f"![Generated Image]({image_url})\n\n*(Generated via Backup Server)*"
+    return f"![Generated Image]({image_url})\n\n*(High Quality Generated)*"
 
 # ==================================================================================
 # [CATEGORY] 6. SCHEDULER TASKS
@@ -284,9 +278,18 @@ async def check_proactive_messaging():
     except Exception as e: print(f"Proactive Error: {e}")
 
 # ==================================================================================
-# [CATEGORY] 7. PYDANTIC MODELS
+# [CATEGORY] 7. PYDANTIC MODELS (UPDATED FOR IMAGE OPTIONS)
 # ==================================================================================
-class ChatRequest(BaseModel): message: str; session_id: str; mode: str = "chat"; file_data: str | None = None; file_type: str | None = None
+class ChatRequest(BaseModel): 
+    message: str
+    session_id: str
+    mode: str = "chat"
+    file_data: str | None = None
+    file_type: str | None = None
+    # New Fields for Image Gen
+    image_quality: str = "fast" 
+    image_style: str = "painting"
+
 class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: str; username: str
 class OTPRequest(BaseModel): email: str
 class OTPVerifyRequest(BaseModel): email: str; otp: str
@@ -573,8 +576,9 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         if mode == "agent_mode":  # NEW: Agent Mode
             reply = await run_agent_task(msg)
 
-        elif mode == "image_gen": # <--- UPDATED THIS LINE
-            reply = await smart_image_generation(msg) 
+        elif mode == "image_gen": 
+            # Passing User Preferences (Quality & Style) to Generator
+            reply = await smart_image_generation(msg, req.image_quality, req.image_style)
 
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
