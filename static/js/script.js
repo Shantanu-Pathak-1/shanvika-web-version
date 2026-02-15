@@ -1,6 +1,6 @@
 // ==================================================================================
 //  FILE: static/js/script.js
-//  DESCRIPTION: Main Frontend Logic (Fixed: Dark=Halo Small, Light=Rings)
+//  DESCRIPTION: Main Frontend Logic (Updated with Image Gen Options)
 // ==================================================================================
 
 let currentSessionId = localStorage.getItem('session_id') || null;
@@ -8,6 +8,12 @@ let currentMode = 'chat';
 let isRecording = false;
 let recognition = null;
 let currentFile = null;
+
+// New Global Variables for Image Settings
+let imageSettings = {
+    quality: 'fast', // 'fast' or 'pro'
+    style: 'painting' // 'painting' or 'realistic'
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check saved theme
@@ -168,7 +174,10 @@ async function sendMessage() {
             session_id: currentSessionId,
             mode: currentMode,
             file_data: currentFile ? currentFile.data : null,
-            file_type: currentFile ? currentFile.type : null
+            file_type: currentFile ? currentFile.type : null,
+            // SENDING NEW IMAGE SETTINGS TO BACKEND
+            image_quality: imageSettings.quality,
+            image_style: imageSettings.style
         };
 
         const res = await fetch('/api/chat', {
@@ -332,11 +341,63 @@ function handleFileUpload(input) {
     reader.readAsDataURL(file);
 }
 
-function setMode(mode, btn) {
+// --- UPDATED: SET MODE WITH POPUP FOR IMAGE GEN ---
+async function setMode(mode, btn) {
     currentMode = mode;
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1000 }).fire({ icon: 'info', title: `Mode: ${mode}` });
+
+    // IF IMAGE GEN IS SELECTED -> SHOW OPTIONS
+    if (mode === 'image_gen') {
+        const { value: formValues } = await Swal.fire({
+            title: '🎨 Image Studio Settings',
+            html: `
+                <div class="text-left mb-2 text-gray-400 text-sm">Select Quality Mode:</div>
+                <div class="flex gap-2 mb-4">
+                    <input type="radio" name="quality" value="fast" id="q_fast" class="hidden peer/fast" checked>
+                    <label for="q_fast" class="flex-1 text-center p-2 rounded-lg border border-gray-600 cursor-pointer peer-checked/fast:bg-pink-600 peer-checked/fast:border-pink-500 hover:bg-white/5 transition">
+                        ⚡ Fast (CPU)
+                    </label>
+
+                    <input type="radio" name="quality" value="pro" id="q_pro" class="hidden peer/pro">
+                    <label for="q_pro" class="flex-1 text-center p-2 rounded-lg border border-gray-600 cursor-pointer peer-checked/pro:bg-purple-600 peer-checked/pro:border-purple-500 hover:bg-white/5 transition">
+                        💎 Pro (HQ)
+                    </label>
+                </div>
+
+                <div class="text-left mb-2 text-gray-400 text-sm">Select Art Style:</div>
+                <div class="flex gap-2">
+                    <input type="radio" name="style" value="painting" id="s_paint" class="hidden peer/paint" checked>
+                    <label for="s_paint" class="flex-1 text-center p-2 rounded-lg border border-gray-600 cursor-pointer peer-checked/paint:bg-orange-600 peer-checked/paint:border-orange-500 hover:bg-white/5 transition">
+                        🖌️ Painting
+                    </label>
+
+                    <input type="radio" name="style" value="realistic" id="s_real" class="hidden peer/real">
+                    <label for="s_real" class="flex-1 text-center p-2 rounded-lg border border-gray-600 cursor-pointer peer-checked/real:bg-blue-600 peer-checked/real:border-blue-500 hover:bg-white/5 transition">
+                        📸 Realistic
+                    </label>
+                </div>
+            `,
+            background: '#111',
+            color: '#fff',
+            confirmButtonText: 'Set Preferences',
+            confirmButtonColor: '#ec4899',
+            preConfirm: () => {
+                return {
+                    quality: document.querySelector('input[name="quality"]:checked').value,
+                    style: document.querySelector('input[name="style"]:checked').value
+                }
+            }
+        });
+
+        if (formValues) {
+            imageSettings = formValues;
+            Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 2000, background: '#1e1e1e', color: '#fff' })
+                .fire({ icon: 'success', title: `Mode Set: ${imageSettings.quality.toUpperCase()} + ${imageSettings.style.toUpperCase()}` });
+        }
+    } else {
+        Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1000 }).fire({ icon: 'info', title: `Mode: ${mode}` });
+    }
 }
 
 function toggleRecording() {
