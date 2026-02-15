@@ -1,6 +1,7 @@
 # ==================================================================================
 #  FILE: main.py
 #  DESCRIPTION: Backend with AI Agent, Gallery, About Page & Fixes
+#  UPDATED: Added Smart Image Generation (Space 1 -> Space 2 -> Pollinations)
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -37,10 +38,11 @@ import hashlib
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import edge_tts 
+from gradio_client import Client # <--- NEW IMPORT
 
-# Local Tool Imports (Added run_agent_task)
+# Local Tool Imports (Removed old generate_image_hf if not needed, or keep it)
 from tools_lab import (
-    generate_prompt_only, generate_qr_code, generate_image_hf,
+    generate_prompt_only, generate_qr_code, 
     analyze_resume, review_github, currency_tool,
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,
@@ -114,7 +116,7 @@ chats_collection = db.chats
 otp_collection = db.otps 
 feedback_collection = db.feedback 
 diary_collection = db.diary
-gallery_collection = db.gallery # NEW: Added Gallery Collection
+gallery_collection = db.gallery 
 
 # ==================================================================================
 # [CATEGORY] 5. HELPER FUNCTIONS
@@ -181,6 +183,61 @@ async def extract_and_save_memory(user_email: str, user_message: str):
                     mem_id = f"{user_email}_{hashlib.md5(clean_memory.encode()).hexdigest()}"
                     index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
     except Exception as e: print(f"Auto-Memory Error: {e}")
+
+# ----------------------------------------------------------------------------------
+# [NEW FUNCTION] SMART IMAGE GENERATION (Space 1 -> Space 2 -> Pollinations)
+# ----------------------------------------------------------------------------------
+async def smart_image_generation(prompt: str):
+    """
+    Tries to generate image using:
+    1. Your hosted LCM Space (Fastest CPU)
+    2. Your hosted SD-Turbo Space (Backup)
+    3. Pollinations.ai (Free API Backup)
+    """
+    
+    # --- CONFIG: Replace with your actual Hugging Face Space names ---
+    SPACE_1_LCM = "ShantanuPathak/shanvika-img-gen-1" # <--- CHECK THIS NAME
+    SPACE_2_TURBO = "ShantanuPathak/shanvika-img-gen-2" # <--- CHECK THIS NAME
+
+    def path_to_base64_markdown(file_path):
+        """Converts local file path from Gradio to Base64 Markdown for chat"""
+        try:
+            with open(file_path, "rb") as img_file:
+                b64_string = base64.b64encode(img_file.read()).decode('utf-8')
+            return f"![Generated Image](data:image/png;base64,{b64_string})\n\nGenerated for: **{prompt}**"
+        except Exception as e:
+            return f"⚠️ Image conversion failed: {e}"
+
+    # Try 1: LCM Model
+    try:
+        print(f"🎨 Trying LCM Model: {SPACE_1_LCM}")
+        # Running inside thread to prevent blocking FastAPI
+        result_path = await asyncio.to_thread(
+            Client(SPACE_1_LCM).predict,
+            prompt, 
+            api_name="/predict"
+        )
+        return path_to_base64_markdown(result_path)
+    except Exception as e1:
+        print(f"❌ LCM Failed: {e1}")
+
+    # Try 2: Turbo Model
+    try:
+        print(f"🚀 Trying Turbo Model: {SPACE_2_TURBO}")
+        result_path = await asyncio.to_thread(
+            Client(SPACE_2_TURBO).predict,
+            prompt, 
+            api_name="/predict"
+        )
+        return path_to_base64_markdown(result_path)
+    except Exception as e2:
+        print(f"❌ Turbo Failed: {e2}")
+
+    # Try 3: Pollinations.ai (Final Backup)
+    print("🌐 Using Pollinations.ai Backup")
+    encoded_prompt = prompt.replace(" ", "%20")
+    image_url = f"https://pollinations.ai/p/{encoded_prompt}"
+    return f"![Generated Image]({image_url})\n\n*(Generated via Backup Server)*"
 
 # ==================================================================================
 # [CATEGORY] 6. SCHEDULER TASKS
@@ -516,7 +573,9 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         if mode == "agent_mode":  # NEW: Agent Mode
             reply = await run_agent_task(msg)
 
-        elif mode == "image_gen": reply = await generate_image_hf(msg)
+        elif mode == "image_gen": # <--- UPDATED THIS LINE
+            reply = await smart_image_generation(msg) 
+
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
         elif mode == "resume_analyzer": reply = await analyze_resume(req.file_data, msg)
