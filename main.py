@@ -1,6 +1,6 @@
 # ==================================================================================
 #  FILE: main.py
-#  DESCRIPTION: Backend with Diary, Feedback AND Profile Update Fix
+#  DESCRIPTION: Backend with AI Agent, Gallery, About Page & Fixes
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -38,14 +38,14 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import edge_tts 
 
-# Local Tool Imports
+# Local Tool Imports (Added run_agent_task)
 from tools_lab import (
     generate_prompt_only, generate_qr_code, generate_image_hf,
     analyze_resume, review_github, currency_tool,
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,
     solve_math_problem, smart_todo_maker, build_pro_resume,
-    sing_with_me_tool 
+    sing_with_me_tool, run_agent_task 
 )
 
 # ==================================================================================
@@ -114,7 +114,7 @@ chats_collection = db.chats
 otp_collection = db.otps 
 feedback_collection = db.feedback 
 diary_collection = db.diary
-gallery_collection = db.gallery  # NEW: Added for gallery support
+gallery_collection = db.gallery # NEW: Added Gallery Collection
 
 # ==================================================================================
 # [CATEGORY] 5. HELPER FUNCTIONS
@@ -239,7 +239,7 @@ class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 class FeedbackRequest(BaseModel): message_id: str; user_email: str; type: str; category: str; comment: str | None = None
 class UpdateProfileRequest(BaseModel): name: str
-class GalleryDeleteRequest(BaseModel): url: str # NEW
+class GalleryDeleteRequest(BaseModel): url: str
 
 # ==================================================================================
 # [CATEGORY] 8. APP SETUP & AUTH
@@ -354,14 +354,14 @@ async def diary_page(request: Request):
 
 @app.get("/about", response_class=HTMLResponse)
 async def about_page(request: Request):
+    # This renders the new about.html file
     return templates.TemplateResponse("about.html", {"request": request})
 
 @app.get("/gallery", response_class=HTMLResponse)
 async def gallery_page(request: Request):
     user = request.session.get('user')
     if not user: return RedirectResponse("/login")
-    # Fetch user images if you implement image saving later. 
-    # For now returning empty list to prevent 404/Crash
+    # Stub: Return empty list or fetch from DB if you save images later
     images = [] 
     return templates.TemplateResponse("gallery.html", {"request": request, "images": images})
 
@@ -451,7 +451,7 @@ async def delete_memory(req: MemoryRequest, request: Request):
 
 @app.post("/api/delete_gallery_item")
 async def delete_gallery_item(req: GalleryDeleteRequest, request: Request):
-    # Stub for gallery deletion if you add persistence later
+    # Stub: Add deletion logic here if saving images
     return {"status": "ok"}
 
 @app.post("/api/feedback")
@@ -480,6 +480,7 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
+        # Auto-save memory only in normal chat mode
         if mode == "chat":
             background_tasks.add_task(extract_and_save_memory, user['email'], msg)
 
@@ -511,7 +512,11 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             recent_msgs = chat_doc.get("messages", [])[-4:] 
             for m in recent_msgs: context_history += f"{m['role']}: {m['content']} | "
 
-        if mode == "image_gen": reply = await generate_image_hf(msg)
+        # === AI AGENT & TOOLS LOGIC ===
+        if mode == "agent_mode":  # NEW: Agent Mode
+            reply = await run_agent_task(msg)
+
+        elif mode == "image_gen": reply = await generate_image_hf(msg)
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
         elif mode == "resume_analyzer": reply = await analyze_resume(req.file_data, msg)
