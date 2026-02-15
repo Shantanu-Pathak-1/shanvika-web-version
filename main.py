@@ -120,13 +120,23 @@ oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_C
 # ==================================================================================
 def get_random_groq_key():
     keys = os.getenv("GROQ_API_KEY_POOL", "").split(",")
-    return random.choice([k.strip() for k in keys if k.strip()]) or os.getenv("GROQ_API_KEY")
+    # List banao aur empty keys hatao
+    possible_keys = [k.strip() for k in keys if k.strip()]
+    # Agar pool hai to random pick karo, nahi to fallback key use karo
+    return random.choice(possible_keys) if possible_keys else os.getenv("GROQ_API_KEY")
 
 def get_groq():
     key = get_random_groq_key()
     return Groq(api_key=key) if key else None
 
+# --- NEW: Gemini Key Pool Logic ---
+def get_random_gemini_key():
+    keys = os.getenv("GEMINI_API_KEY_POOL", "").split(",")
+    possible_keys = [k.strip() for k in keys if k.strip()]
+    return random.choice(possible_keys) if possible_keys else os.getenv("GEMINI_API_KEY")
+
 async def get_current_user(request: Request): return request.session.get('user')
+
 def verify_password(plain, hashed): return pwd_context.verify(hashlib.sha256(plain.encode()).hexdigest(), hashed) if plain and hashed else False
 def get_password_hash(password): return pwd_context.hash(hashlib.sha256(password.encode()).hexdigest())
 
@@ -141,10 +151,13 @@ def send_email(to, subject, body):
 # --- RAG (Retrieval Augmented Generation) Helpers ---
 def get_embedding(text):
     try:
-        key = os.getenv("GEMINI_API_KEY")
+        # Ab ye har baar nayi random Gemini key use karega embedding ke liye
+        key = get_random_gemini_key()
         if key: genai.configure(api_key=key)
         return genai.embed_content(model="models/embedding-001", content=text, task_type="retrieval_document")['embedding']
-    except: return []
+    except Exception as e:
+        print(f"Embedding Error: {e}")
+        return []
 
 def search_vector_db(query, session_id):
     if not index: return ""
