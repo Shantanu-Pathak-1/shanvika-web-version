@@ -116,20 +116,17 @@ oauth = OAuth()
 oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
 
 # ==================================================================================
-# [CATEGORY] 6. HELPER FUNCTIONS
+# [CATEGORY] 6. HELPER FUNCTIONS (POOL & ROTATION)
 # ==================================================================================
 def get_random_groq_key():
     keys = os.getenv("GROQ_API_KEY_POOL", "").split(",")
-    # List banao aur empty keys hatao
     possible_keys = [k.strip() for k in keys if k.strip()]
-    # Agar pool hai to random pick karo, nahi to fallback key use karo
     return random.choice(possible_keys) if possible_keys else os.getenv("GROQ_API_KEY")
 
 def get_groq():
     key = get_random_groq_key()
     return Groq(api_key=key) if key else None
 
-# --- NEW: Gemini Key Pool Logic ---
 def get_random_gemini_key():
     keys = os.getenv("GEMINI_API_KEY_POOL", "").split(",")
     possible_keys = [k.strip() for k in keys if k.strip()]
@@ -148,10 +145,9 @@ def send_email(to, subject, body):
         return True
     except: return False
 
-# --- RAG (Retrieval Augmented Generation) Helpers ---
+# --- RAG Helpers (Using Random Keys) ---
 def get_embedding(text):
     try:
-        # Ab ye har baar nayi random Gemini key use karega embedding ke liye
         key = get_random_gemini_key()
         if key: genai.configure(api_key=key)
         return genai.embed_content(model="models/embedding-001", content=text, task_type="retrieval_document")['embedding']
@@ -171,7 +167,7 @@ async def perform_research_task(query):
     except: return "⚠️ Research failed."
 
 # ==================================================================================
-# [CATEGORY] 7. PYDANTIC MODELS (Data Validation)
+# [CATEGORY] 7. PYDANTIC MODELS
 # ==================================================================================
 class ChatRequest(BaseModel): message: str; session_id: str; mode: str = "chat"; file_data: str | None = None; file_type: str | None = None
 class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: str; username: str
@@ -184,16 +180,12 @@ class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 
 # ==================================================================================
-# [CATEGORY] 8. AUTHENTICATION ROUTES
+# [CATEGORY] 8. AUTH ROUTES (FIXED FOR 403 ERROR)
 # ==================================================================================
 @app.get("/auth/login")
 async def login(request: Request):
-    # Determine the correct Redirect URI
-    redirect_uri = request.url_for('auth_callback')
-    
-    # Ensure it's HTTPS (Crucial for Hugging Face Spaces)
-    redirect_uri = str(redirect_uri).replace("http://", "https://")
-    
+    # Determine the correct Redirect URI and force HTTPS
+    redirect_uri = str(request.url_for('auth_callback')).replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth/callback")
@@ -202,7 +194,6 @@ async def auth_callback(request: Request):
         token = await oauth.google.authorize_access_token(request)
         user = token.get('userinfo')
         request.session['user'] = user
-        # Save Google User to MongoDB
         await users_collection.update_one(
             {"email": user['email']},
             {"$set": {"name": user.get('name'), "picture": user.get('picture'), "username": user['email'].split('@')[0]}},
@@ -250,7 +241,7 @@ async def login_manual(req: LoginRequest, request: Request):
     return JSONResponse({"status": "error"}, 400)
 
 # ==================================================================================
-# [CATEGORY] 9. PAGE ROUTES (Frontend)
+# [CATEGORY] 9. PAGE ROUTES
 # ==================================================================================
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
@@ -261,13 +252,11 @@ async def onboarding_page(request: Request): return templates.TemplateResponse("
 @app.get("/")
 async def read_root(request: Request):
     user = request.session.get('user')
-    # If Logged In -> Show App (Index.html)
     if user: return templates.TemplateResponse("index.html", {"request": request, "user": user})
-    # If Logged Out -> Show Landing Page
     return templates.TemplateResponse("landing.html", {"request": request})
 
 # ==================================================================================
-# [CATEGORY] 10. API ROUTES (Chat, Profile, Tools)
+# [CATEGORY] 10. API ROUTES
 # ==================================================================================
 @app.get("/api/profile")
 async def get_profile(request: Request):
@@ -318,7 +307,7 @@ async def add_memory(req: MemoryRequest): return {"status": "ok"}
 async def delete_memory(req: MemoryRequest): return {"status": "ok"}
 
 # --------------------------
-# CHAT ENDPOINT (THE BRAIN)
+# CHAT ENDPOINT (FIXED MEMORY & CRASH ISSUE)
 # --------------------------
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
@@ -342,6 +331,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             })
             chat_doc = {"messages": []}
 
+        # 1. Update DB with new User Message
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
 
         reply = ""
@@ -383,15 +373,29 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         else: # Standard Chat
             client = get_groq()
             if client: 
+                # --- MEMORY LOGIC (Fixing Context Overflow) ---
+                # Get existing messages from DB doc
+                existing_msgs = chat_doc.get("messages", [])
+                
+                # Combine: Old History + Current Message
+                full_history = existing_msgs + [{"role": "user", "content": msg}]
+                
+                # SLICING: Keep only last 15 messages to prevent crash
+                recent_history = full_history[-15:]
+                
+                # Construct final payload
+                messages_payload = [
+                    {"role": "system", "content": FINAL_SYSTEM_PROMPT},
+                    *recent_history
+                ]
+
                 reply = client.chat.completions.create(
                     model="llama-3.3-70b-versatile", 
-                    messages=[
-                        {"role": "system", "content": FINAL_SYSTEM_PROMPT},
-                        {"role": "user", "content": msg}
-                    ]
+                    messages=messages_payload
                 ).choices[0].message.content
             else: reply = "⚠️ API Error."
 
+        # 2. Update DB with Assistant Reply
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
         
         if len(chat_doc['messages']) < 2 and mode != "chat":
