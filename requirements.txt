@@ -26,3 +26,4 @@ pinecone-client
 numpy
 edge-tts
 lyricsgenius
+beautifulsoup4
