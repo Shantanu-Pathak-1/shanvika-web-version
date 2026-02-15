@@ -1,6 +1,6 @@
 // ==================================================================================
 //  FILE: static/js/script.js
-//  DESCRIPTION: Main Frontend Logic (Fixed: Dark=Halo, Light=Rings)
+//  DESCRIPTION: Main Frontend Logic (Fixed: Dark=Halo Small, Light=Rings)
 // ==================================================================================
 
 let currentSessionId = localStorage.getItem('session_id') || null;
@@ -51,7 +51,7 @@ function initVanta() {
             color: 0x2563eb // Blue Rings
         });
     } else {
-        // DARK MODE = HALO
+        // DARK MODE = HALO (FIXED: SMALLER SIZE)
         vantaEffect = VANTA.HALO({
             el: "#vanta-bg",
             mouseControls: true,
@@ -61,9 +61,9 @@ function initVanta() {
             minWidth: 200.00,
             baseColor: 0xec4899, // Pink
             backgroundColor: 0x000000, // Black
-            size: 1.5,
-            amplitudeFactor: 1.5,
-            xOffset: 0.1,
+            size: 0.8, // Reduced from 1.5 to 0.8
+            amplitudeFactor: 1.0,
+            xOffset: 0.15, // Adjusted offset
             yOffset: 0.1
         });
     }
