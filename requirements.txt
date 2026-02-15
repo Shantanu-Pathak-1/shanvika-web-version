@@ -30,3 +30,4 @@ qrcode
 sympy
 edge-tts
 lyricsgenius
+apscheduler

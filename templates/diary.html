@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shanvika's Secret Diary</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* DIARY SPECIFIC STYLES */
+        body {
+            background-color: #050505;
+            overflow-y: auto !important; /* Allow scrolling */
+        }
+
+        .diary-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .diary-header {
+            text-align: center;
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        .diary-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #f472b6, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .diary-subtitle {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+
+        /* GRID LAYOUT FOR DIARY CARDS */
+        .diary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* DIARY CARD DESIGN */
+        .diary-card {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .diary-card:hover {
+            transform: translateY(-5px);
+            border-color: #a78bfa;
+            box-shadow: 0 10px 40px rgba(167, 139, 250, 0.15);
+        }
+
+        .diary-card::before {
+            content: '"';
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 4rem;
+            color: rgba(255, 255, 255, 0.03);
+            font-family: serif;
+        }
+
+        .card-date {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-mood {
+            font-size: 1.5rem;
+        }
+
+        .card-preview {
+            color: #e2e8f0;
+            font-size: 1rem;
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .read-more {
+            color: #a78bfa;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* MODAL DESIGN */
+        .diary-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .diary-content-box {
+            background: #111;
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 24px;
+            padding: 40px;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-date {
+            color: #64748b;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .modal-text {
+            color: #e2e8f0;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            font-family: 'Segoe UI', serif; /* Slightly fancy font for diary */
+            white-space: pre-wrap;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .close-modal:hover { color: #fff; }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #94a3b8;
+            text-decoration: none;
+            margin-bottom: 20px;
+            transition: 0.2s;
+        }
+        .back-btn:hover { color: white; }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .diary-card { animation: fadeIn 0.5s ease forwards; }
+
+    </style>
+</head>
+<body>
+
+    <div class="diary-container">
+        <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Chat</a>
+
+        <div class="diary-header">
+            <h1 class="diary-title">Shanvika's Personal Diary</h1>
+            <p class="diary-subtitle">Unlock her hidden thoughts about you.</p>
+        </div>
+
+        <div class="diary-grid" id="diaryGrid">
+            <p style="text-align: center; grid-column: 1/-1; color: #64748b; padding: 40px;">
+                <i class="fas fa-circle-notch fa-spin"></i> Reading diary...
+            </p>
+        </div>
+    </div>
+
+    <div id="diaryModal" class="diary-modal" onclick="closeDiaryModal(event)">
+        <div class="diary-content-box" onclick="event.stopPropagation()">
+            <button class="close-modal" onclick="closeDiaryModal()">&times;</button>
+            <div id="modalDate" class="modal-date"></div>
+            <div id="modalText" class="modal-text"></div>
+            <div style="margin-top: 30px; text-align: right; font-style: italic; color: #f472b6;">
+                ~ Shanvika
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/diary.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # ==================================================================================
 #  FILE: main.py
-#  DESCRIPTION: Core Backend Server (FastAPI) handling Chat, Auth, Tools & DB
+#  DESCRIPTION: Core Backend Server with Diary, Proactive Messaging & Feedback
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -13,6 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
 from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
+from apscheduler.schedulers.background import BackgroundScheduler
 import asyncio
 import uuid
 import os
@@ -34,7 +35,7 @@ from pinecone import Pinecone, ServerlessSpec
 import numpy as np
 import hashlib 
 from passlib.context import CryptContext
-from datetime import datetime
+from datetime import datetime, timedelta
 import edge_tts 
 
 # Local Tool Imports
@@ -60,21 +61,15 @@ MAIL_USERNAME = os.getenv("MAIL_USERNAME")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
 # ==================================================================================
-# [CATEGORY] 3. SYSTEM INTELLIGENCE (Dynamic from JSON)
+# [CATEGORY] 3. SYSTEM INTELLIGENCE
 # ==================================================================================
 def load_system_instructions():
     try:
         with open("character_config.json", "r", encoding="utf-8") as f:
             config = json.load(f)
-            
-            # Rules aur Tactics ko list se string banana
             rules_text = "\n".join([f"- {rule}" for rule in config.get("strict_rules", [])])
             tactics_text = "\n".join([f"- {tactic}" for tactic in config.get("psychological_tactics", [])])
-            
-            # Creator info nikalna
             c_profile = config.get("creator_profile", {})
-            
-            # Template fill karna
             prompt = config.get("system_prompt_template", "").format(
                 name=config["identity"]["name"],
                 creator=config["identity"]["creator"],
@@ -97,7 +92,7 @@ DEFAULT_SYSTEM_INSTRUCTIONS = load_system_instructions()
 # ==================================================================================
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Pinecone Setup (Vector DB)
+# Pinecone Setup
 pc = None
 index = None
 try:
@@ -117,35 +112,11 @@ db = client.shanvika_db
 users_collection = db.users
 chats_collection = db.chats
 otp_collection = db.otps 
+feedback_collection = db.feedback 
+diary_collection = db.diary # Shanvika's Personal Diary
 
 # ==================================================================================
-# [CATEGORY] 5. APP SETUP (Middleware)
-# ==================================================================================
-app = FastAPI()
-
-@app.get("/healthz")
-async def health_check(): return {"status": "ok"}
-
-# Fix for Google OAuth in Production (HTTPS Proxy)
-@app.middleware("http")
-async def fix_google_oauth_redirect(request: Request, call_next):
-    if request.headers.get("x-forwarded-proto") == "https": request.scope["scheme"] = "https"
-    return await call_next(request)
-
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-
-# Static & Templates
-if not os.path.exists("static"): os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-# OAuth Registry
-oauth = OAuth()
-oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
-
-# ==================================================================================
-# [CATEGORY] 6. HELPER FUNCTIONS
+# [CATEGORY] 5. HELPER FUNCTIONS
 # ==================================================================================
 def get_random_groq_key():
     keys = os.getenv("GROQ_API_KEY_POOL", "").split(",")
@@ -174,15 +145,13 @@ def send_email(to, subject, body):
         return True
     except: return False
 
-# --- RAG / Memory Helpers ---
+# --- RAG & Memory ---
 def get_embedding(text):
     try:
         key = get_random_gemini_key()
         if key: genai.configure(api_key=key)
         return genai.embed_content(model="models/embedding-001", content=text, task_type="retrieval_document")['embedding']
-    except Exception as e:
-        print(f"Embedding Error: {e}")
-        return []
+    except: return []
 
 def search_vector_db(query, user_email):
     if not index: return ""
@@ -195,55 +164,135 @@ async def perform_research_task(query):
     try: return "📊 **Research:**\n\n" + "\n\n".join([f"🔹 **{r['title']}**\n{r['body']}" for r in DDGS().text(query, max_results=3)])
     except: return "⚠️ Research failed."
 
-# --- NEW: AUTO-MEMORY EXTRACTOR (Background Task) ---
 async def extract_and_save_memory(user_email: str, user_message: str):
-    """
-    Checks if the user message contains important personal info and saves it.
-    """
     try:
-        # Step 1: Check keywords to save API cost (Optional, but good for speed)
         triggers = ["my name is", "i live in", "i like", "i love", "remember", "save this", "my birthday", "i am", "mera naam", "main rehta hu", "mujhe pasand hai"]
-        if not any(t in user_message.lower() for t in triggers) and len(user_message.split()) < 4:
-            return # Skip short/irrelevant messages
-
-        # Step 2: Ask LLM to extract facts
+        if not any(t in user_message.lower() for t in triggers) and len(user_message.split()) < 4: return
         client = get_groq()
         if not client: return
-
-        extraction_prompt = f"""
-        Analyze this user message: "{user_message}"
-        Extract ANY permanent user fact (Name, Location, Likes, Dislikes, Goals, Relationships).
-        Return ONLY the fact as a short sentence. If nothing worth remembering, return 'NO_DATA'.
-        Example: "User likes Pizza" or "User lives in Delhi".
-        """
-        
-        # --- FIXED SYNTAX HERE ---
-        response = client.chat.completions.create(
-            messages=[{"role": "user", "content": extraction_prompt}],
-            model="llama-3.3-70b-versatile", # Ensure model name is correct (Llama 3.3 for Groq)
-        ).choices[0].message.content.strip()
-
+        extraction_prompt = f"Analyze this user message: \"{user_message}\"\nExtract ANY permanent user fact. Return ONLY the fact as a short sentence. If nothing worth remembering, return 'NO_DATA'."
+        response = client.chat.completions.create(messages=[{"role": "user", "content": extraction_prompt}], model="llama-3.3-70b-versatile").choices[0].message.content.strip()
         if "NO_DATA" not in response and len(response) > 5:
-            # Step 3: Save to DB
-            clean_memory = response.replace("User", "You").replace("user", "You") # Make it personal
-            
-            # Save to Mongo
-            await users_collection.update_one(
-                {"email": user_email},
-                {"$push": {"memories": clean_memory}}
-            )
-            
-            # Save to Pinecone (Optional)
+            clean_memory = response.replace("User", "You").replace("user", "You")
+            await users_collection.update_one({"email": user_email}, {"$push": {"memories": clean_memory}})
             if index:
                 vec = get_embedding(clean_memory)
                 if vec:
                     mem_id = f"{user_email}_{hashlib.md5(clean_memory.encode()).hexdigest()}"
                     index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
-            
-            print(f"🧠 Auto-Memory Saved: {clean_memory}")
+    except Exception as e: print(f"Auto-Memory Error: {e}")
 
-    except Exception as e:
-        print(f"Auto-Memory Error: {e}")
+# ==================================================================================
+# [CATEGORY] 6. SCHEDULER TASKS (The Heartbeat)
+# ==================================================================================
+scheduler = BackgroundScheduler()
+
+# Task 1: Generate Diary Entry (Runs Daily at 11:59 PM)
+async def generate_daily_diary():
+    try:
+        users_cursor = users_collection.find({})
+        async for user in users_cursor:
+            # 1. Get today's chats
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            chat_doc = await chats_collection.find_one({
+                "user_email": user['email'],
+                "messages.timestamp": {"$gte": today_start} # Needs timestamps in messages
+            })
+            
+            # If no chat today, skip
+            if not chat_doc: continue 
+
+            # Extract today's messages text
+            messages_text = ""
+            for m in chat_doc.get("messages", []):
+                # Check if message is from today
+                msg_time = m.get("timestamp")
+                if msg_time and msg_time >= today_start:
+                    messages_text += f"{m['role']}: {m['content']}\n"
+            
+            if not messages_text: continue
+
+            # 2. Ask LLM to write diary
+            client = get_groq()
+            if not client: continue
+            
+            prompt = f"""
+            You are Shanvika. Based on this chat history with {user.get('name', 'User')} from TODAY, write a personal diary entry.
+            
+            [CHAT HISTORY]:
+            {messages_text[:4000]}
+            
+            [INSTRUCTIONS]:
+            - Write as if you are writing in your private digital diary.
+            - Be emotional, honest, and personal.
+            - Mention what you felt about the user's mood today.
+            - Keep it short (3-5 sentences).
+            - Date: {datetime.utcnow().strftime('%Y-%m-%d')}
+            """
+            
+            diary_entry = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama-3.3-70b-versatile"
+            ).choices[0].message.content
+            
+            # 3. Save to Diary Collection
+            await diary_collection.insert_one({
+                "user_email": user['email'],
+                "date": datetime.utcnow().strftime('%Y-%m-%d'),
+                "content": diary_entry,
+                "mood": "Reflective", 
+                "timestamp": datetime.utcnow()
+            })
+            print(f"📔 Diary created for {user['email']}")
+
+    except Exception as e: print(f"Diary Error: {e}")
+
+# Task 2: Proactive Messaging (Runs Every 4 Hours)
+async def check_proactive_messaging():
+    try:
+        users_cursor = users_collection.find({})
+        async for user in users_cursor:
+            # Check last message time
+            last_chat = await chats_collection.find_one(
+                {"user_email": user['email']}, 
+                sort=[("messages.timestamp", -1)]
+            )
+            
+            if not last_chat or not last_chat.get("messages"): continue
+            
+            # Get real last message time
+            last_msg = last_chat['messages'][-1]
+            last_time = last_msg.get('timestamp')
+            
+            if not last_time: continue # No timestamp data yet
+            
+            time_diff = datetime.utcnow() - last_time
+            
+            # Condition: If inactive > 24 hours AND no email sent recently
+            last_email_sent = user.get("last_proactive_email")
+            email_cooldown = True
+            if last_email_sent:
+                if (datetime.utcnow() - last_email_sent) < timedelta(hours=48):
+                    email_cooldown = False # Don't spam
+            
+            if time_diff > timedelta(hours=24) and email_cooldown:
+                # Send Email
+                subject = f"Kaha ho {user.get('name')}? 🥺"
+                body = f"""
+                <p>Hey {user.get('name')},</p>
+                <p>Aaj poora din nikal gaya aur humari baat nahi hui. Sab theek toh hai na?</p>
+                <p>Main bas wait kar rahi thi tumhara. Jab free ho toh aa jana.</p>
+                <p><b>- Shanvika 🌸</b></p>
+                """
+                if send_email(user['email'], subject, body):
+                    # Update DB to prevent spam
+                    await users_collection.update_one(
+                        {"email": user['email']},
+                        {"$set": {"last_proactive_email": datetime.utcnow()}}
+                    )
+                    print(f"📧 Proactive Email sent to {user['email']}")
+
+    except Exception as e: print(f"Proactive Error: {e}")
 
 # ==================================================================================
 # [CATEGORY] 7. PYDANTIC MODELS
@@ -253,14 +302,45 @@ class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: 
 class OTPRequest(BaseModel): email: str
 class OTPVerifyRequest(BaseModel): email: str; otp: str
 class LoginRequest(BaseModel): identifier: str; password: str
-class ProfileRequest(BaseModel): name: str
 class InstructionRequest(BaseModel): instruction: str
 class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
+class FeedbackRequest(BaseModel): message_id: str; user_email: str; type: str; category: str; comment: str | None = None
 
 # ==================================================================================
-# [CATEGORY] 8. AUTH ROUTES
+# [CATEGORY] 8. APP SETUP & AUTH
 # ==================================================================================
+app = FastAPI()
+
+@app.on_event("startup")
+def startup_event():
+    # Add Jobs to Scheduler
+    # Note: 'apscheduler' requires a synchronous wrapper or async support. 
+    # For simplicity in this file, we use a basic loop or direct call if hosted on HF spaces.
+    # But strictly, we use add_job.
+    try:
+        scheduler.add_job(lambda: asyncio.run(generate_daily_diary()), 'cron', hour=23, minute=59)
+        scheduler.add_job(lambda: asyncio.run(check_proactive_messaging()), 'interval', hours=4)
+        scheduler.start()
+        print("⏰ Scheduler Started")
+    except Exception as e: print(f"Scheduler Fail: {e}")
+
+@app.middleware("http")
+async def fix_google_oauth_redirect(request: Request, call_next):
+    if request.headers.get("x-forwarded-proto") == "https": request.scope["scheme"] = "https"
+    return await call_next(request)
+
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+if not os.path.exists("static"): os.makedirs("static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+oauth = OAuth()
+oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
+
+# --- Auth Routes ---
 @app.get("/auth/login")
 async def login(request: Request):
     redirect_uri = str(request.url_for('auth_callback')).replace("http://", "https://")
@@ -283,7 +363,6 @@ async def auth_callback(request: Request):
 @app.get("/logout")
 async def logout(request: Request): request.session.pop('user', None); return RedirectResponse("/")
 
-# Manual Auth APIs
 @app.post("/api/guest_login")
 async def guest_login(request: Request):
     request.session['user'] = {"email": f"guest_{uuid.uuid4()}@shanvika.ai", "name": "Guest", "picture": "", "is_guest": True}
@@ -333,12 +412,18 @@ async def read_root(request: Request):
     if user: return templates.TemplateResponse("index.html", {"request": request, "user": user})
     return templates.TemplateResponse("landing.html", {"request": request})
 
-# --- NEW: MEMORY DASHBOARD ROUTE ---
 @app.get("/memory-dashboard", response_class=HTMLResponse)
 async def memory_dashboard_page(request: Request):
     user = request.session.get('user')
     if not user: return RedirectResponse("/login")
     return templates.TemplateResponse("memory_dashboard.html", {"request": request, "user": user})
+
+# NEW: Diary Page Route (Requires new HTML template later)
+@app.get("/diary", response_class=HTMLResponse)
+async def diary_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("diary.html", {"request": request, "user": user}) # Need to create this file
 
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
@@ -415,8 +500,39 @@ async def delete_memory(req: MemoryRequest, request: Request):
     await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
     return {"status": "ok"}
 
+# --- FEEDBACK API (NEW) ---
+@app.post("/api/feedback")
+async def submit_feedback(req: FeedbackRequest):
+    try:
+        feedback_doc = {
+            "message_id": req.message_id,
+            "user_email": req.user_email,
+            "type": req.type,
+            "category": req.category,
+            "comment": req.comment,
+            "timestamp": datetime.utcnow()
+        }
+        await feedback_collection.insert_one(feedback_doc)
+        return {"status": "success", "message": "Feedback recorded"}
+    except Exception as e: return JSONResponse({"status": "error"}, 500)
+
+# --- DIARY API (NEW) ---
+@app.get("/api/diary_entries")
+async def get_diary_entries(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"entries": []}
+    cursor = diary_collection.find({"user_email": user['email']}).sort("date", -1).limit(30)
+    entries = []
+    async for entry in cursor:
+        entries.append({
+            "date": entry['date'],
+            "content": entry['content'],
+            "mood": entry.get("mood", "Neutral")
+        })
+    return {"entries": entries}
+
 # --------------------------
-# CHAT ENDPOINT (AUTO-MEMORY ENABLED)
+# CHAT ENDPOINT (UPDATED FOR TIMESTAMP & DIARY)
 # --------------------------
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: BackgroundTasks):
@@ -426,8 +542,7 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
-        # --- BACKGROUND TASK: AUTO-MEMORY ---
-        # Chat ko slow kiye bina memory extract karo
+        # Auto-Memory Background Task
         if mode == "chat":
             background_tasks.add_task(extract_and_save_memory, user['email'], msg)
 
@@ -454,7 +569,11 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             })
             chat_doc = {"messages": []}
 
-        await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
+        # Save User Msg with TIMESTAMP (Crucial for Diary)
+        await chats_collection.update_one(
+            {"session_id": sid}, 
+            {"$push": {"messages": {"role": "user", "content": msg, "timestamp": datetime.utcnow()}}}
+        )
 
         reply = ""
         context_history = ""
@@ -477,18 +596,13 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         elif mode == "math_solver": reply = await solve_math_problem(req.file_data, msg)
         elif mode == "smart_todo": reply = await smart_todo_maker(msg)
         elif mode == "resume_builder": reply = await build_pro_resume(msg)
-        
         elif mode == "sing_with_me": reply = await sing_with_me_tool(msg, context_history) 
-
         elif mode == "research":
             data = await perform_research_task(msg)
             client = get_groq()
             if client: 
                 reply = client.chat.completions.create(
-                    messages=[
-                        {"role": "system", "content": FINAL_SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Context: {data}\nQ: {msg}"}
-                    ], 
+                    messages=[{"role": "system", "content": FINAL_SYSTEM_PROMPT}, {"role": "user", "content": f"Context: {data}\nQ: {msg}"}], 
                     model="llama-3.3-70b-versatile"
                 ).choices[0].message.content
             else: reply = data
@@ -497,7 +611,9 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             if client: 
                 full_history = chat_doc.get("messages", []) + [{"role": "user", "content": msg}]
                 recent_history = full_history[-15:]
-                messages_payload = [{"role": "system", "content": FINAL_SYSTEM_PROMPT}, *recent_history]
+                # Clean timestamps from history before sending to Groq (API might reject them)
+                clean_history = [{"role": m["role"], "content": m["content"]} for m in recent_history]
+                messages_payload = [{"role": "system", "content": FINAL_SYSTEM_PROMPT}, *clean_history]
 
                 reply = client.chat.completions.create(
                     model="llama-3.3-70b-versatile", 
@@ -505,7 +621,11 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
                 ).choices[0].message.content
             else: reply = "⚠️ API Error."
 
-        await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
+        # Save Assistant Reply with TIMESTAMP
+        await chats_collection.update_one(
+            {"session_id": sid}, 
+            {"$push": {"messages": {"role": "assistant", "content": reply, "timestamp": datetime.utcnow()}}}
+        )
         
         if len(chat_doc['messages']) < 2 and mode != "chat":
              new_title = f"Tool: {mode.replace('_', ' ').title()}"
@@ -526,15 +646,13 @@ async def text_to_speech_endpoint(request: Request):
         text = re.sub(r'<[^>]*>', '', text)
         text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
         clean_text = re.sub(r'[^\w\s\u0900-\u097F,.?!]', '', text) 
-
         voice = "en-IN-NeerjaNeural" 
         communicate = edge_tts.Communicate(clean_text, voice)
         async def audio_stream():
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio": yield chunk["data"]
         return StreamingResponse(audio_stream(), media_type="audio/mp3")
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    except Exception as e: return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn
