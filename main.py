@@ -217,9 +217,10 @@ async def extract_and_save_memory(user_email: str, user_message: str):
         Example: "User likes Pizza" or "User lives in Delhi".
         """
         
+        # --- FIXED SYNTAX HERE ---
         response = client.chat.completions.create(
-            messages=[{"role": "user", "content extraction_prompt"}],
-            model="llama3-8b-8192", # Small, fast model
+            messages=[{"role": "user", "content": extraction_prompt}],
+            model="llama-3.3-70b-versatile", # Ensure model name is correct (Llama 3.3 for Groq)
         ).choices[0].message.content.strip()
 
         if "NO_DATA" not in response and len(response) > 5:
