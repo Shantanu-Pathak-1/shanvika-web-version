@@ -114,6 +114,7 @@ chats_collection = db.chats
 otp_collection = db.otps 
 feedback_collection = db.feedback 
 diary_collection = db.diary
+gallery_collection = db.gallery  # NEW: Added for gallery support
 
 # ==================================================================================
 # [CATEGORY] 5. HELPER FUNCTIONS
@@ -237,8 +238,8 @@ class InstructionRequest(BaseModel): instruction: str
 class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 class FeedbackRequest(BaseModel): message_id: str; user_email: str; type: str; category: str; comment: str | None = None
-# NEW: Profile Update Request
 class UpdateProfileRequest(BaseModel): name: str
+class GalleryDeleteRequest(BaseModel): url: str # NEW
 
 # ==================================================================================
 # [CATEGORY] 8. APP SETUP & AUTH
@@ -325,7 +326,7 @@ async def login_manual(req: LoginRequest, request: Request):
     return JSONResponse({"status": "error"}, 400)
 
 # ==================================================================================
-# [CATEGORY] 9. PAGE ROUTES
+# [CATEGORY] 9. PAGE ROUTES (FIXED: Added Gallery & About)
 # ==================================================================================
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
@@ -351,6 +352,19 @@ async def diary_page(request: Request):
     if not user: return RedirectResponse("/login")
     return templates.TemplateResponse("diary.html", {"request": request, "user": user})
 
+@app.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    return templates.TemplateResponse("about.html", {"request": request})
+
+@app.get("/gallery", response_class=HTMLResponse)
+async def gallery_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    # Fetch user images if you implement image saving later. 
+    # For now returning empty list to prevent 404/Crash
+    images = [] 
+    return templates.TemplateResponse("gallery.html", {"request": request, "images": images})
+
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
 # ==================================================================================
@@ -367,12 +381,10 @@ async def get_profile(request: Request):
         "custom_instruction": db_user.get("custom_instruction", "") 
     }
 
-# --- NEW: UPDATE PROFILE API (Fixes Save Button) ---
 @app.post("/api/update_profile")
 async def update_profile(req: UpdateProfileRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
-    
     await users_collection.update_one(
         {"email": user['email']},
         {"$set": {"name": req.name}}
@@ -435,6 +447,11 @@ async def delete_memory(req: MemoryRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error"}, 400)
     await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
+    return {"status": "ok"}
+
+@app.post("/api/delete_gallery_item")
+async def delete_gallery_item(req: GalleryDeleteRequest, request: Request):
+    # Stub for gallery deletion if you add persistence later
     return {"status": "ok"}
 
 @app.post("/api/feedback")
