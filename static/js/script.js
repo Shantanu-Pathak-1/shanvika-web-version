@@ -1,6 +1,6 @@
 // ==================================================================================
 //  FILE: static/js/script.js
-//  DESCRIPTION: Main Frontend Logic (Fixed Theme Toggle & Profile Save)
+//  DESCRIPTION: Main Frontend Logic (Fixed: Vanta Halo Background)
 // ==================================================================================
 
 let currentSessionId = localStorage.getItem('session_id') || null;
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('light-mode');
     }
 
-    // Initialize Vanta
+    // Initialize Vanta Background (HALO EFFECT)
     initVanta();
 
     loadHistory();
@@ -25,28 +25,34 @@ document.addEventListener('DOMContentLoaded', () => {
     else loadChat(currentSessionId);
 });
 
-// --- THEME & VANTA ---
+// --- THEME & VANTA HALO CONFIG ---
 let vantaEffect = null;
 
 function initVanta() {
     if (!window.VANTA) return;
     
-    // Config based on Theme
+    // Check if Light Mode is active
     const isLight = document.body.classList.contains('light-mode');
     
+    // Destroy previous effect to prevent overlap
     if (vantaEffect) vantaEffect.destroy();
 
-    vantaEffect = VANTA.RINGS({
+    // RESTORED: VANTA HALO EFFECT
+    vantaEffect = VANTA.HALO({
         el: "#vanta-bg",
         mouseControls: true,
         touchControls: true,
         gyroControls: false,
         minHeight: 200.00,
         minWidth: 200.00,
-        scale: 1.00,
-        scaleMobile: 1.00,
-        backgroundColor: isLight ? 0xe0e7ff : 0x000000, // Light Blue vs Black
-        color: 0xec4899 // Pink Accent
+        // Light Mode vs Dark Mode Colors
+        backgroundColor: isLight ? 0xffffff : 0x000000, 
+        baseColor: isLight ? 0x2563eb : 0xec4899, // Blue in Light, Pink in Dark
+        backgroundColor: isLight ? 0xffffff : 0x000000,
+        size: 1.5,
+        amplitudeFactor: 1.5,
+        xOffset: 0.1,
+        yOffset: 0.1
     });
 }
 
@@ -55,11 +61,11 @@ function toggleTheme() {
     const isLight = document.body.classList.contains('light-mode');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
     
-    // Re-init background to match theme
+    // Restart Vanta to apply new colors
     initVanta();
 }
 
-// --- PROFILE SAVE (FIXED) ---
+// --- PROFILE SAVE ---
 async function saveProfile() {
     const nameInput = document.getElementById('profile-name-input');
     const newName = nameInput.value.trim();
@@ -216,6 +222,7 @@ function appendMessage(role, text) {
     }
 }
 
+// --- ACTIONS ---
 function copyText(msgId) {
     const content = document.getElementById(msgId + '_content').innerText;
     navigator.clipboard.writeText(content).then(() => {
