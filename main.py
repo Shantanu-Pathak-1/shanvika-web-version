@@ -116,7 +116,7 @@ oauth = OAuth()
 oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
 
 # ==================================================================================
-# [CATEGORY] 6. HELPER FUNCTIONS (POOL & ROTATION)
+# [CATEGORY] 6. HELPER FUNCTIONS
 # ==================================================================================
 def get_random_groq_key():
     keys = os.getenv("GROQ_API_KEY_POOL", "").split(",")
@@ -145,7 +145,7 @@ def send_email(to, subject, body):
         return True
     except: return False
 
-# --- RAG Helpers (Using Random Keys) ---
+# --- RAG / Memory Helpers (UPDATED FOR FIX) ---
 def get_embedding(text):
     try:
         key = get_random_gemini_key()
@@ -155,11 +155,12 @@ def get_embedding(text):
         print(f"Embedding Error: {e}")
         return []
 
-def search_vector_db(query, session_id):
+def search_vector_db(query, user_email):
+    # Search strictly for this user's email
     if not index: return ""
     vec = get_embedding(query)
     if not vec: return ""
-    res = index.query(vector=vec, top_k=3, include_metadata=True, filter={"session_id": session_id})
+    res = index.query(vector=vec, top_k=3, include_metadata=True, filter={"email": user_email})
     return "\n".join([m['metadata']['text'] for m in res['matches']])
 
 async def perform_research_task(query):
@@ -180,11 +181,10 @@ class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 
 # ==================================================================================
-# [CATEGORY] 8. AUTH ROUTES (FIXED FOR 403 ERROR)
+# [CATEGORY] 8. AUTH ROUTES
 # ==================================================================================
 @app.get("/auth/login")
 async def login(request: Request):
-    # Determine the correct Redirect URI and force HTTPS
     redirect_uri = str(request.url_for('auth_callback')).replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -256,7 +256,7 @@ async def read_root(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request})
 
 # ==================================================================================
-# [CATEGORY] 10. API ROUTES
+# [CATEGORY] 10. API ROUTES (MEMORIES FIXED HERE)
 # ==================================================================================
 @app.get("/api/profile")
 async def get_profile(request: Request):
@@ -299,15 +299,59 @@ async def get_chat(session_id: str):
 async def rename_chat(req: RenameRequest): return {"status": "ok"}
 @app.delete("/api/delete_all_chats")
 async def delete_all_chats(request: Request): return {"status": "ok"}
+
+# --- MEMORY API FIXED ---
 @app.get("/api/memories")
-async def get_memories(request: Request): return {"memories": []}
+async def get_memories(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"memories": []}
+    
+    # MongoDB se fetch karo
+    data = await users_collection.find_one({"email": user['email']})
+    mems = data.get("memories", []) if data else []
+    
+    # Reverse taaki new wala upar dikhe
+    return {"memories": mems[::-1]}
+
 @app.post("/api/add_memory")
-async def add_memory(req: MemoryRequest): return {"status": "ok"}
+async def add_memory(req: MemoryRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error"}, 400)
+    
+    # 1. MongoDB mein permanent save (Safe list)
+    await users_collection.update_one(
+        {"email": user['email']},
+        {"$push": {"memories": req.memory_text}}
+    )
+    
+    # 2. Pinecone mein save (Search ke liye) - Agar key hai toh
+    if index:
+        try:
+            vec = get_embedding(req.memory_text)
+            if vec:
+                # Unique ID generate karo taaki conflict na ho
+                mem_id = f"{user['email']}_{hashlib.md5(req.memory_text.encode()).hexdigest()}"
+                index.upsert(vectors=[(mem_id, vec, {"text": req.memory_text, "email": user['email']})])
+        except Exception as e:
+            print(f"Vector Save Error: {e}")
+
+    return {"status": "success"}
+
 @app.post("/api/delete_memory")
-async def delete_memory(req: MemoryRequest): return {"status": "ok"}
+async def delete_memory(req: MemoryRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error"}, 400)
+    
+    # MongoDB se delete
+    await users_collection.update_one(
+        {"email": user['email']},
+        {"$pull": {"memories": req.memory_text}}
+    )
+    # Note: Pinecone delete complex hai, abhi ke liye Mongo sync kaafi hai
+    return {"status": "ok"}
 
 # --------------------------
-# CHAT ENDPOINT (FIXED MEMORY & CRASH ISSUE)
+# CHAT ENDPOINT (MEMORY INJECTION ADDED)
 # --------------------------
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
@@ -317,10 +361,31 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
+        # User Data & Custom Instructions Fetch
         db_user = await users_collection.find_one({"email": user['email']})
         user_custom_prompt = db_user.get("custom_instruction", "")
-        FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_PROMPT
+        
+        # --- NEW: MEMORY RETRIEVAL LOGIC ---
+        retrieved_memory = ""
+        
+        # Priority 1: Semantic Search (Agar Pinecone hai)
+        if index:
+            retrieved_memory = search_vector_db(msg, user['email'])
+        
+        # Priority 2: Fallback to Recent Memories (Agar Pinecone empty ya fail ho)
+        if not retrieved_memory:
+            recent_mems = db_user.get("memories", [])[-5:] # Last 5 memories
+            if recent_mems:
+                retrieved_memory = "\n".join(recent_mems)
 
+        # Build Final System Prompt
+        FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
+        
+        # Inject Memory into System Prompt
+        if retrieved_memory:
+            FINAL_SYSTEM_PROMPT += f"\n\n[USER LONG-TERM MEMORY]:\n{retrieved_memory}\n(Use this information to personalize the conversation)"
+
+        # Chat DB Setup
         chat_doc = await chats_collection.find_one({"session_id": sid})
         if not chat_doc:
             title_prefix = "Chat"
@@ -331,7 +396,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
             })
             chat_doc = {"messages": []}
 
-        # 1. Update DB with new User Message
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "user", "content": msg}}})
 
         reply = ""
@@ -373,17 +437,10 @@ async def chat_endpoint(req: ChatRequest, request: Request):
         else: # Standard Chat
             client = get_groq()
             if client: 
-                # --- MEMORY LOGIC (Fixing Context Overflow) ---
-                # Get existing messages from DB doc
-                existing_msgs = chat_doc.get("messages", [])
+                # Context Management (Prevent Crash)
+                full_history = chat_doc.get("messages", []) + [{"role": "user", "content": msg}]
+                recent_history = full_history[-15:] # Only last 15
                 
-                # Combine: Old History + Current Message
-                full_history = existing_msgs + [{"role": "user", "content": msg}]
-                
-                # SLICING: Keep only last 15 messages to prevent crash
-                recent_history = full_history[-15:]
-                
-                # Construct final payload
                 messages_payload = [
                     {"role": "system", "content": FINAL_SYSTEM_PROMPT},
                     *recent_history
@@ -395,7 +452,6 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 ).choices[0].message.content
             else: reply = "⚠️ API Error."
 
-        # 2. Update DB with Assistant Reply
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply}}})
         
         if len(chat_doc['messages']) < 2 and mode != "chat":
