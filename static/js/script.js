@@ -115,6 +115,7 @@ async function createNewChat() {
     loadHistory();
 }
 
+// --- 1. LOAD CHAT (Database wala time pass karega) ---
 async function loadChat(sid) {
     currentSessionId = sid;
     localStorage.setItem('session_id', sid);
@@ -125,10 +126,12 @@ async function loadChat(sid) {
     chatBox.innerHTML = '';
     
     data.messages.forEach(msg => {
-        appendMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content);
+        // Yaha hum msg.timestamp pass kar rahe hain
+        appendMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content, msg.timestamp);
     });
 }
 
+// --- 2. SEND MESSAGE (Abhi ka time use karega) ---
 async function sendMessage() {
     const input = document.getElementById('user-input');
     const msg = input.value.trim();
@@ -137,7 +140,8 @@ async function sendMessage() {
     const welcome = document.getElementById('welcome-screen');
     if (welcome) welcome.remove();
 
-    appendMessage('user', msg);
+    // Naya message hai, timestamp null bhejo (appendMessage khud abhi ka time lega)
+    appendMessage('user', msg, null); 
     input.value = '';
     
     const chatBox = document.getElementById('chat-box');
@@ -169,7 +173,8 @@ async function sendMessage() {
         document.getElementById(thinkingId).remove();
         currentFile = null; 
         
-        appendMessage('assistant', data.reply);
+        // AI ka reply aaya, timestamp null bhejo (wo abhi ka time lega)
+        appendMessage('assistant', data.reply, null);
         loadHistory();
 
         if (document.getElementById('voice-toggle') && document.getElementById('voice-toggle').checked) {
@@ -181,11 +186,23 @@ async function sendMessage() {
     }
 }
 
-function appendMessage(role, text) {
+// --- 3. APPEND MESSAGE (Time Logic Fixed) ---
+function appendMessage(role, text, timestamp = null) {
     const chatBox = document.getElementById('chat-box');
     const div = document.createElement('div');
     const msgId = 'msg_' + Date.now();
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // --- TIME FIX LOGIC ---
+    let displayTime;
+    if (timestamp) {
+        // Agar DB se time aaya hai, toh usse format karo
+        const dateObj = new Date(timestamp);
+        displayTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else {
+        // Agar naya message hai, toh abhi ka time lo
+        displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    // ---------------------
 
     div.className = role === 'user' ? 'msg-user' : 'msg-ai';
     
@@ -198,7 +215,7 @@ function appendMessage(role, text) {
     if (role === 'assistant') {
         actionHTML = `
             <div class="msg-meta">
-                <span class="msg-time">${time}</span>
+                <span class="msg-time">${displayTime}</span>
                 <div class="msg-actions">
                     <button class="action-btn" onclick="copyText('${msgId}')" title="Copy"><i class="fas fa-copy"></i></button>
                     <button class="action-btn" onclick="handleFeedback('${msgId}', 'good')" title="Good"><i class="fas fa-thumbs-up"></i></button>
@@ -208,7 +225,7 @@ function appendMessage(role, text) {
             </div>
         `;
     } else {
-        actionHTML = `<div class="msg-meta" style="border-top:none; justify-content:flex-end;"><span class="msg-time">${time}</span></div>`;
+        actionHTML = `<div class="msg-meta" style="border-top:none; justify-content:flex-end;"><span class="msg-time">${displayTime}</span></div>`;
     }
 
     div.innerHTML = `<div id="${msgId}_content">${content}</div> ${actionHTML}`;
