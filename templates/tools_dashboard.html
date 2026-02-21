@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tools Dashboard - Shanvika</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -35,10 +35,7 @@
             </div>
         </div>
         <div class="p-4 border-t border-gray-700 space-y-2">
-            <a href="/settings" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-700 transition text-gray-300 hover:text-white">
-                <i class="fas fa-cog w-5 text-center"></i> <span class="font-medium">Settings</span>
-            </a>
-            <div class="flex items-center gap-3 p-3 mt-2 rounded-xl bg-gray-700/50">
+            <div class="flex items-center gap-3 p-3 mt-2 rounded-xl bg-gray-700/50 border border-gray-600">
                 <img src="{{ user.picture if user.picture else url_for('static', filename='images/logo.png') }}" alt="Profile" class="w-9 h-9 rounded-full object-cover border-2 border-purple-500">
                 <span class="font-medium truncate">{{ user.name }}</span>
             </div>
