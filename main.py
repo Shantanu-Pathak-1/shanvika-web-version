@@ -366,6 +366,17 @@ async def gallery_page(request: Request):
     images = [] 
     return templates.TemplateResponse("gallery.html", {"request": request, "images": images})
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    user = request.session.get('user')
+    
+    # Double Security: Agar user login nahi hai ya uska email admin email nahi hai, toh home page par bhej do
+    if not user or user.get('email') != ADMIN_EMAIL:
+        return RedirectResponse("/")
+        
+    # Agar Shantanu (Admin) hai, toh admin.html show karo
+    return templates.TemplateResponse("admin.html", {"request": request, "user": user})
+
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
 # ==================================================================================
