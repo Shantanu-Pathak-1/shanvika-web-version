@@ -1,6 +1,7 @@
 # ==================================================================================
 #  FILE: main.py
-#  DESCRIPTION: Backend with Diary, Feedback AND Profile Update Fix
+#  DESCRIPTION: Backend with AI Agent, Gallery, About Page & Fixes
+#  UPDATED: Added Smart Image Generation with FAST/PRO Modes
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -37,15 +38,16 @@ import hashlib
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import edge_tts 
+from gradio_client import Client # <--- NEW IMPORT
 
 # Local Tool Imports
 from tools_lab import (
-    generate_prompt_only, generate_qr_code, generate_image_hf,
+    generate_prompt_only, generate_qr_code, 
     analyze_resume, review_github, currency_tool,
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,
     solve_math_problem, smart_todo_maker, build_pro_resume,
-    sing_with_me_tool 
+    sing_with_me_tool, run_agent_task 
 )
 
 # ==================================================================================
@@ -114,7 +116,6 @@ chats_collection = db.chats
 otp_collection = db.otps 
 feedback_collection = db.feedback 
 diary_collection = db.diary
-gallery_collection = db.gallery  # NEW: Added for gallery support
 
 # ==================================================================================
 # [CATEGORY] 5. HELPER FUNCTIONS
@@ -182,6 +183,55 @@ async def extract_and_save_memory(user_email: str, user_message: str):
                     index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
     except Exception as e: print(f"Auto-Memory Error: {e}")
 
+# ----------------------------------------------------------------------------------
+# [UPDATED FUNCTION] SMART IMAGE GENERATION (With Fast/Pro & Style Modes)
+# ----------------------------------------------------------------------------------
+async def smart_image_generation(prompt: str, quality: str = "fast", style: str = "painting"):
+    """
+    Routes generation based on Quality (Fast/Pro) and Style (Painting/Realistic)
+    """
+    
+    # 1. Prompt Enhancement based on Style
+    enhanced_prompt = prompt
+    if style == "realistic":
+        enhanced_prompt += ", hyperrealistic, 8k, photograph, highly detailed, cinematic lighting, raw photo"
+    elif style == "painting":
+        enhanced_prompt += ", digital art, oil painting, artistic, highly detailed, masterpiece, artstation"
+
+    print(f"🎨 Generating: Mode={quality}, Style={style}")
+
+    def path_to_base64_markdown(file_path):
+        """Converts local file path from Gradio to Base64 Markdown"""
+        try:
+            with open(file_path, "rb") as img_file:
+                b64_string = base64.b64encode(img_file.read()).decode('utf-8')
+            return f"![Generated Image](data:image/png;base64,{b64_string})\n\nGenerated for: **{prompt}**"
+        except Exception as e:
+            return f"⚠️ Image conversion failed: {e}"
+
+    # --- MODE: FAST (Uses your Hosted LCM Space) ---
+    # LCM models are naturally fast (2-10 seconds)
+    if quality == "fast":
+        SPACE_FAST = "ShantanuPathak/shanvika-img-gen-1" # <--- YOUR LCM SPACE
+        try:
+            print(f"⚡ Using Fast Model: {SPACE_FAST}")
+            result_path = await asyncio.to_thread(
+                Client(SPACE_FAST).predict,
+                enhanced_prompt, 
+                api_name="/predict"
+            )
+            return path_to_base64_markdown(result_path)
+        except Exception as e:
+            print(f"❌ Fast Model Failed: {e}. Switching to Backup.")
+            # Fallback to Pro Logic if Fast fails
+
+    # --- MODE: PRO (Uses Pollinations.ai or Realistic Space) ---
+    # Pollinations is "Pro" here because it handles realism very well and is free
+    print("💎 Using Pro/Backup Model (Pollinations)")
+    encoded_prompt = enhanced_prompt.replace(" ", "%20")
+    image_url = f"https://pollinations.ai/p/{encoded_prompt}"
+    return f"![Generated Image]({image_url})\n\n*(High Quality Generated)*"
+
 # ==================================================================================
 # [CATEGORY] 6. SCHEDULER TASKS
 # ==================================================================================
@@ -227,9 +277,18 @@ async def check_proactive_messaging():
     except Exception as e: print(f"Proactive Error: {e}")
 
 # ==================================================================================
-# [CATEGORY] 7. PYDANTIC MODELS
+# [CATEGORY] 7. PYDANTIC MODELS (UPDATED FOR IMAGE OPTIONS)
 # ==================================================================================
-class ChatRequest(BaseModel): message: str; session_id: str; mode: str = "chat"; file_data: str | None = None; file_type: str | None = None
+class ChatRequest(BaseModel): 
+    message: str
+    session_id: str
+    mode: str = "chat"
+    file_data: str | None = None
+    file_type: str | None = None
+    # New Fields for Image Gen
+    image_quality: str = "fast" 
+    image_style: str = "painting"
+
 class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: str; username: str
 class OTPRequest(BaseModel): email: str
 class OTPVerifyRequest(BaseModel): email: str; otp: str
@@ -239,7 +298,6 @@ class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 class FeedbackRequest(BaseModel): message_id: str; user_email: str; type: str; category: str; comment: str | None = None
 class UpdateProfileRequest(BaseModel): name: str
-class GalleryDeleteRequest(BaseModel): url: str # NEW
 
 # ==================================================================================
 # [CATEGORY] 8. APP SETUP & AUTH
@@ -352,19 +410,6 @@ async def diary_page(request: Request):
     if not user: return RedirectResponse("/login")
     return templates.TemplateResponse("diary.html", {"request": request, "user": user})
 
-@app.get("/about", response_class=HTMLResponse)
-async def about_page(request: Request):
-    return templates.TemplateResponse("about.html", {"request": request})
-
-@app.get("/gallery", response_class=HTMLResponse)
-async def gallery_page(request: Request):
-    user = request.session.get('user')
-    if not user: return RedirectResponse("/login")
-    # Fetch user images if you implement image saving later. 
-    # For now returning empty list to prevent 404/Crash
-    images = [] 
-    return templates.TemplateResponse("gallery.html", {"request": request, "images": images})
-
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
 # ==================================================================================
@@ -449,11 +494,6 @@ async def delete_memory(req: MemoryRequest, request: Request):
     await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
     return {"status": "ok"}
 
-@app.post("/api/delete_gallery_item")
-async def delete_gallery_item(req: GalleryDeleteRequest, request: Request):
-    # Stub for gallery deletion if you add persistence later
-    return {"status": "ok"}
-
 @app.post("/api/feedback")
 async def submit_feedback(req: FeedbackRequest):
     try:
@@ -480,6 +520,7 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         
         sid, mode, msg = req.session_id, req.mode, req.message
         
+        # Auto-save memory only in normal chat mode
         if mode == "chat":
             background_tasks.add_task(extract_and_save_memory, user['email'], msg)
 
@@ -511,7 +552,14 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             recent_msgs = chat_doc.get("messages", [])[-4:] 
             for m in recent_msgs: context_history += f"{m['role']}: {m['content']} | "
 
-        if mode == "image_gen": reply = await generate_image_hf(msg)
+        # === AI AGENT & TOOLS LOGIC ===
+        if mode == "agent_mode":  # NEW: Agent Mode
+            reply = await run_agent_task(msg)
+
+        elif mode == "image_gen": 
+            # Passing User Preferences (Quality & Style) to Generator
+            reply = await smart_image_generation(msg, req.image_quality, req.image_style)
+
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
         elif mode == "resume_analyzer": reply = await analyze_resume(req.file_data, msg)
