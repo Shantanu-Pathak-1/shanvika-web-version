@@ -370,12 +370,29 @@ async def gallery_page(request: Request):
 async def admin_page(request: Request):
     user = request.session.get('user')
     
-    # Double Security: Agar user login nahi hai ya uska email admin email nahi hai, toh home page par bhej do
+    # Security Check
     if not user or user.get('email') != ADMIN_EMAIL:
         return RedirectResponse("/")
         
-    # Agar Shantanu (Admin) hai, toh admin.html show karo
-    return templates.TemplateResponse("admin.html", {"request": request, "user": user})
+    # 📊 Database se stats fetch karna
+    total_users = await users_collection.count_documents({})
+    total_chats = await chats_collection.count_documents({})
+    
+    # Sabhi users ki list nikalna (latest 50 users)
+    users_cursor = users_collection.find({}).sort("_id", -1).limit(50)
+    all_users = []
+    async for u in users_cursor:
+        u["_id"] = str(u["_id"]) # ObjectID ko string mein convert karna zaroori hai
+        all_users.append(u)
+        
+    # Ab yeh saara data admin.html ko bhej rahe hain
+    return templates.TemplateResponse("admin.html", {
+        "request": request, 
+        "user": user,
+        "total_users": total_users,
+        "total_chats": total_chats,
+        "all_users": all_users
+    })
 
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
