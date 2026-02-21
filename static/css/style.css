@@ -102,7 +102,7 @@ main { position: relative; z-index: 10; }
     padding: 0 8px; margin-bottom: 4px; border-radius: 12px;
     cursor: pointer; transition: 0.2s; color: #d1d5db; position: relative;
 }
-.history-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.history-item:hover { background: rgba(255,255,255,0.1); color: #ec4899; }
 .history-icon { width: 36px; display: flex; justify-content: center; align-items: center; font-size: 1rem; color: #6b7280; }
 .history-item:hover .history-icon { color: #ec4899; }
 
@@ -236,6 +236,10 @@ body.light-mode .msg-ai { background: #ffffff; border: 1px solid #e2e8f0; color:
 body.light-mode .msg-user { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white !important; }
 body.light-mode .modal-content { background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; }
 body.light-mode .modal-content input, body.light-mode .modal-content textarea { background: #f1f5f9; color: #000; border: 1px solid #cbd5e1; }
+/* Old Chats Light Mode Fixes */
+body.light-mode .history-item { color: #000000; }
+body.light-mode .history-item:hover { background: rgba(0,0,0,0.05); color: #ec4899; }
+body.light-mode .history-icon { color: #475569; }
 
 /* =========================================
    [CATEGORY] 7. CODE BLOCKS
