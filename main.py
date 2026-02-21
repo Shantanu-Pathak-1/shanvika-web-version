@@ -242,22 +242,20 @@ class ToolRequest(BaseModel): topic: str
 # ==================================================================================
 # [CATEGORY] 8. APP SETUP & AUTH
 # ==================================================================================
-# ==================================================================================
-# [CATEGORY] 8. APP SETUP & AUTH
-# ==================================================================================
 app = FastAPI()
 
-# 1. Sabse pehle Static folder mount karo (Templates se pehle)
-if not os.path.exists("static"): 
-    os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# 2. Ab Templates initialize karo
-templates = Jinja2Templates(directory="templates")
-
-# 3. Middlewares (OAuth aur Session ke liye sahi order)
+# 1. Middlewares (Inhe TOP par rakho)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
+
+# 2. Static Files Mounting (Name "static" explicitly define kiya hai)
+if not os.path.exists("static"): 
+    os.makedirs("static")
+# Is line ko replace karo
+app.mount("/static", StaticFiles(directory=os.path.join(os.getcwd(), "static")), name="static")
+
+# 3. Templates Initialization
+templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
 def startup_event():
@@ -269,11 +267,12 @@ def startup_event():
 
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
+    # Forced HTTPS scheme for Hugging Face
     if request.headers.get("x-forwarded-proto") == "https": 
         request.scope["scheme"] = "https"
     return await call_next(request)
 
-# 4. OAuth Registration
+# 4. OAuth Setup
 oauth = OAuth()
 oauth.register(
     name='google', 
