@@ -103,13 +103,13 @@
             </div>
         </div>
 
-        <div class="input-fixed-bottom">
-            <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 px-2 no-scrollbar justify-start md:justify-center">
-    <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
-    <div class="mode-btn flex-shrink-0" onclick="setMode('agent_mode', this)">🤖 Agent</div> <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
-    <div class="mode-btn flex-shrink-0" onclick="setMode('image_gen', this)">🎨 Image Gen</div>
-    <div class="mode-btn flex-shrink-0" onclick="setMode('research', this)">🔍 Research</div>
-</div>
+<div class="input-fixed-bottom">
+            <div class="input-wrapper"> <div class="flex gap-2 overflow-x-auto mode-scroll pb-1 px-2 no-scrollbar justify-start md:justify-center">
+                    <div class="mode-btn active flex-shrink-0" onclick="setMode('chat', this)">💬 Chat</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('coding', this)">💻 Coding</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('image_gen', this)">🎨 Image Gen</div>
+                    <div class="mode-btn flex-shrink-0" onclick="setMode('research', this)">🔍 Research</div>
+                </div>
                 
                 <form class="input-container flex items-center p-1.5 md:p-2 shadow-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl" onsubmit="event.preventDefault(); sendMessage();">
                     <button type="button" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 flex-shrink-0 transition" onclick="document.getElementById('file-upload').click()"><i class="fas fa-paperclip text-sm md:text-base"></i></button>
@@ -121,8 +121,7 @@
                     
                     <button type="submit" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-gray-200 shadow-md transition transform active:scale-95 flex-shrink-0"><i class="fas fa-arrow-up text-sm md:text-base"></i></button>
                 </form>
-            </div>
-        </div>
+            </div> </div>
     </main>
 
     <div id="settings-modal" class="modal" style="display: none;">

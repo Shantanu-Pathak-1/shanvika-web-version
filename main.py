@@ -39,8 +39,9 @@ from datetime import datetime, timedelta
 import edge_tts 
 
 # Local Tool Imports
+# Aisa dikhna chahiye
 from tools_lab import (
-    generate_prompt_only, generate_qr_code, generate_image_hf,
+    generate_prompt_only, generate_qr_code, 
     analyze_resume, review_github, currency_tool,
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,

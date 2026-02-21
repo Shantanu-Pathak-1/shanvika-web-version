@@ -58,6 +58,7 @@ function initVanta() {
         });
     } else {
         // DARK MODE = HALO (FIXED: SMALLER SIZE)
+      // DARK MODE = HALO 
         vantaEffect = VANTA.HALO({
             el: "#vanta-bg",
             mouseControls: true,
@@ -67,10 +68,10 @@ function initVanta() {
             minWidth: 200.00,
             baseColor: 0xec4899, // Pink
             backgroundColor: 0x000000, // Black
-            size: 0.8, // Reduced from 1.5 to 0.8
+            size: 0.8, 
             amplitudeFactor: 1.0,
-            xOffset: 0.15, // Adjusted offset
-            yOffset: 0.1
+            xOffset: 0.0, // <-- Ise 0.0 kar do
+            yOffset: 0.0  // <-- Ise bhi 0.0 kar do
         });
     }
 }
