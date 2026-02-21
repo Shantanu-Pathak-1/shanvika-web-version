@@ -456,14 +456,14 @@ async function loadHistory() {
     list.innerHTML = '';
     data.history.forEach(chat => {
         const div = document.createElement('div');
-        div.className = 'history-item truncate text-xs md:text-sm';
-        div.innerHTML = `<i class="far fa-comment-alt mr-2 text-gray-500"></i> ${chat.title}`;
+        div.className = 'history-item';
+        // Yaha par nav-label class add ki hai taaki title hide ho sake
+        div.innerHTML = `<div class="history-icon"><i class="far fa-comment-alt"></i></div><span class="nav-label truncate text-xs md:text-sm flex-1">${chat.title}</span>`;
         div.onclick = () => loadChat(chat.id);
         div.oncontextmenu = (e) => { e.preventDefault(); showContextMenu(e, chat.id); };
         list.appendChild(div);
     });
 }
-
 async function loadProfile() {
     const res = await fetch('/api/profile');
     const data = await res.json();
