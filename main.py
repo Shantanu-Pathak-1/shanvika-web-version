@@ -410,37 +410,7 @@ async def admin_page(request: Request):
         "users": users_list,
         "admin_email": ADMIN_EMAIL
     })
-   @app.post("/admin/promote_user")
-async def promote_user(request: Request, email: str = Form(...)):
-    user = request.session.get('user')
-    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
-    
-    await users_collection.update_one({"email": email}, {"$set": {"is_pro": True}})
-    return RedirectResponse("/admin", status_code=303)
 
-@app.post("/admin/demote_user")
-async def demote_user(request: Request, email: str = Form(...)):
-    user = request.session.get('user')
-    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
-    
-    await users_collection.update_one({"email": email}, {"$set": {"is_pro": False}})
-    return RedirectResponse("/admin", status_code=303)
-
-@app.post("/admin/ban_user")
-async def ban_user(request: Request, email: str = Form(...)):
-    user = request.session.get('user')
-    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
-    
-    await users_collection.update_one({"email": email}, {"$set": {"is_banned": True}})
-    return RedirectResponse("/admin", status_code=303)
-
-@app.post("/admin/unban_user")
-async def unban_user(request: Request, email: str = Form(...)):
-    user = request.session.get('user')
-    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
-    
-    await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
-    return RedirectResponse("/admin", status_code=303)
 
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
@@ -651,6 +621,48 @@ async def text_to_speech_endpoint(request: Request):
         return StreamingResponse(audio_stream(), media_type="audio/mp3")
     except Exception as e: return JSONResponse({"error": str(e)}, status_code=500)
 
+# ==========================================
+# 👑 ADMIN PANEL ACTIONS (God Mode Controls)
+# ==========================================
+
+@app.post("/admin/promote_user")
+async def promote_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": True}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/demote_user")
+async def demote_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": False}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/ban_user")
+async def ban_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": True}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/unban_user")
+async def unban_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
+    return RedirectResponse("/admin", status_code=303)
+
+# Tumhari file ka END yahan hota hai (iske niche kuch mat badalna)
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 10000))
