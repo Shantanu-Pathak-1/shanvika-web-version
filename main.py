@@ -674,6 +674,9 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             if recent_mems: retrieved_memory = "\n".join(recent_mems)
 
         FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
+        # Ye line AI ko batayegi ki wo kis se baat kar rahi hai
+        user_display_name = db_user.get("name") or user.get("name", "User")
+        FINAL_SYSTEM_PROMPT += f"\n\n[IMPORTANT CONTEXT]: You are Shanvika. The person you are talking to is {user_display_name}. DO NOT call the user 'Shanvika'."
         if retrieved_memory:
             FINAL_SYSTEM_PROMPT += f"\n\n[USER LONG-TERM MEMORY]:\n{retrieved_memory}\n(Use this information to personalize the conversation)"
 
