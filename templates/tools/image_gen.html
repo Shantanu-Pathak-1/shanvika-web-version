@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Studio - Shanvika</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .image-card {
+            animation: fadeIn 0.5s ease-in-out;
+            transition: transform 0.3s ease;
+        }
+        .image-card:hover {
+            transform: scale(1.02);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Custom loader for image generation */
+        .magic-loader {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .magic-loader i {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex h-screen overflow-hidden">
+
+    <nav class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col justify-between hidden md:flex z-20">
+        <div class="p-4">
+            <h2 class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500 mb-6 flex items-center gap-2">
+                <i class="fas fa-image"></i> Image Studio
+            </h2>
+            <div class="space-y-2">
+                <a href="/tools" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-700 transition text-gray-300 hover:text-white">
+                    <i class="fas fa-arrow-left w-5 text-center"></i> 
+                    <span class="font-medium">Back to Tools</span>
+                </a>
+                <a href="/" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-700 transition text-gray-300 hover:text-white">
+                    <i class="fas fa-home w-5 text-center"></i> 
+                    <span class="font-medium">Main Chat</span>
+                </a>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-700 space-y-2">
+            <div class="flex items-center gap-3 p-3 mt-2 rounded-xl bg-gray-700/50">
+                <img src="{{ user.picture if user.picture else url_for('static', filename='images/logo.png') }}" alt="Profile" class="w-9 h-9 rounded-full object-cover border-2 border-pink-500">
+                <span class="font-medium truncate">{{ user.name }}</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-1 flex flex-col h-full bg-gray-900 relative">
+        <header class="p-5 border-b border-gray-800 bg-gray-900/80 backdrop-blur-md flex justify-between items-center z-10">
+            <div>
+                <h1 class="text-2xl font-bold text-white">AI Image Studio 🎨</h1>
+                <p class="text-sm text-gray-400 mt-1">Apni imagination ko reality mein badlo!</p>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 relative" id="main-content-area">
+            <div class="max-w-4xl mx-auto flex flex-col gap-6" id="gallery-container">
+                
+                <div class="text-center text-gray-400 mt-10" id="welcome-msg">
+                    <i class="fas fa-magic text-4xl mb-4 text-gray-600"></i>
+                    <p class="text-lg">Niche apni imagination likho. Jaise: "A futuristic city in cyberpunk style"</p>
+                </div>
+
+                <div id="loading" class="magic-loader">
+                    <i class="fas fa-wand-magic-sparkles mb-3"></i>
+                    <p class="text-pink-400 font-medium animate-pulse">Shanvika tumhare liye art create kar rahi hai... ✨</p>
+                </div>
+
+                </div>
+        </div>
+
+        <div class="p-5 bg-gray-800 border-t border-gray-700">
+            <div class="max-w-4xl mx-auto flex gap-3 relative">
+                <input type="text" id="prompt-input" class="flex-1 bg-gray-700 border border-gray-600 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-pink-500 shadow-inner" placeholder="Describe the image you want to see...">
+                <button onclick="generateImage()" id="gen-btn" class="bg-gradient-to-r from-pink-500 to-rose-500 px-8 py-4 rounded-xl font-bold hover:opacity-90 transition shadow-lg shadow-pink-500/30 flex items-center gap-2">
+                    <i class="fas fa-paint-brush"></i> Generate
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Ek unique session id banate hain is tool ki history ke liye
+        const sessionId = 'img_tool_' + Date.now();
+
+        async function generateImage() {
+            const promptInput = document.getElementById('prompt-input');
+            const prompt = promptInput.value.trim();
+            const container = document.getElementById('gallery-container');
+            const loading = document.getElementById('loading');
+            const welcomeMsg = document.getElementById('welcome-msg');
+            const genBtn = document.getElementById('gen-btn');
+
+            if(!prompt) {
+                alert("Shantanu, pehle kuch imagine toh karo aur likho! 🥺");
+                return;
+            }
+
+            // UI Updates
+            if(welcomeMsg) welcomeMsg.style.display = 'none';
+            loading.style.display = 'block';
+            promptInput.value = '';
+            promptInput.disabled = true;
+            genBtn.disabled = true;
+
+            try {
+                // Humhara main.py wala '/api/chat' endpoint use kar rahe hain
+                // Kyunki wahan mode="image_gen" ka logic pehle se hai!
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: prompt, 
+                        session_id: sessionId,
+                        mode: 'image_gen'
+                    })
+                });
+
+                const data = await response.json();
+                loading.style.display = 'none';
+                promptInput.disabled = false;
+                genBtn.disabled = false;
+                promptInput.focus();
+
+                // Backend se direct HTML aayega jisme image tag hoga
+                if(data.reply && !data.reply.includes("⚠️ Server Error")) {
+                    const imageCardHTML = `
+                        <div class="image-card bg-gray-800 border border-gray-700 rounded-2xl p-4 shadow-xl">
+                            <div class="flex items-center gap-3 mb-3 border-b border-gray-700 pb-3">
+                                <div class="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center"><i class="fas fa-user text-white text-xs"></i></div>
+                                <p class="text-gray-300 text-sm font-medium">"${prompt}"</p>
+                            </div>
+                            <div class="overflow-hidden rounded-xl">
+                                ${data.reply}
+                            </div>
+                        </div>
+                    `;
+                    // Nayi image upar aayegi
+                    container.insertAdjacentHTML('afterbegin', imageCardHTML);
+                } else {
+                    container.insertAdjacentHTML('afterbegin', `<p class="text-red-400 text-center bg-red-900/20 p-4 rounded-xl">Oops: ${data.reply}</p>`);
+                }
+
+            } catch (error) {
+                loading.style.display = 'none';
+                promptInput.disabled = false;
+                genBtn.disabled = false;
+                container.insertAdjacentHTML('afterbegin', `<p class="text-red-400 text-center bg-red-900/20 p-4 rounded-xl">Network error aaya hai. API check karo!</p>`);
+            }
+        }
+
+        // Enter press karne par submit ho jaye
+        document.getElementById('prompt-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') generateImage();
+        });
+    </script>
+</body>
+</html>

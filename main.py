@@ -1,7 +1,6 @@
 # ==================================================================================
 #  FILE: main.py
-#  DESCRIPTION: Backend with AI Agent, Gallery, About Page & Fixes
-#  UPDATED: Added Smart Image Generation with FAST/PRO Modes
+#  DESCRIPTION: Backend with Diary, Feedback, Profile Update Fix & Tools Lab
 # ==================================================================================
 
 # [CATEGORY] 1. IMPORTS
@@ -38,7 +37,6 @@ import hashlib
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import edge_tts 
-from gradio_client import Client # <--- NEW IMPORT
 
 # Local Tool Imports
 from tools_lab import (
@@ -47,7 +45,7 @@ from tools_lab import (
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,
     solve_math_problem, smart_todo_maker, build_pro_resume,
-    sing_with_me_tool, run_agent_task 
+    sing_with_me_tool, generate_flashcards_tool
 )
 
 # ==================================================================================
@@ -116,7 +114,7 @@ chats_collection = db.chats
 otp_collection = db.otps 
 feedback_collection = db.feedback 
 diary_collection = db.diary
-gallery_collection = db.gallery 
+gallery_collection = db.gallery  
 
 # ==================================================================================
 # [CATEGORY] 5. HELPER FUNCTIONS
@@ -184,55 +182,6 @@ async def extract_and_save_memory(user_email: str, user_message: str):
                     index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
     except Exception as e: print(f"Auto-Memory Error: {e}")
 
-# ----------------------------------------------------------------------------------
-# [UPDATED FUNCTION] SMART IMAGE GENERATION (With Fast/Pro & Style Modes)
-# ----------------------------------------------------------------------------------
-async def smart_image_generation(prompt: str, quality: str = "fast", style: str = "painting"):
-    """
-    Routes generation based on Quality (Fast/Pro) and Style (Painting/Realistic)
-    """
-    
-    # 1. Prompt Enhancement based on Style
-    enhanced_prompt = prompt
-    if style == "realistic":
-        enhanced_prompt += ", hyperrealistic, 8k, photograph, highly detailed, cinematic lighting, raw photo"
-    elif style == "painting":
-        enhanced_prompt += ", digital art, oil painting, artistic, highly detailed, masterpiece, artstation"
-
-    print(f"🎨 Generating: Mode={quality}, Style={style}")
-
-    def path_to_base64_markdown(file_path):
-        """Converts local file path from Gradio to Base64 Markdown"""
-        try:
-            with open(file_path, "rb") as img_file:
-                b64_string = base64.b64encode(img_file.read()).decode('utf-8')
-            return f"![Generated Image](data:image/png;base64,{b64_string})\n\nGenerated for: **{prompt}**"
-        except Exception as e:
-            return f"⚠️ Image conversion failed: {e}"
-
-    # --- MODE: FAST (Uses your Hosted LCM Space) ---
-    # LCM models are naturally fast (2-10 seconds)
-    if quality == "fast":
-        SPACE_FAST = "ShantanuPathak/shanvika-img-gen-1" # <--- YOUR LCM SPACE
-        try:
-            print(f"⚡ Using Fast Model: {SPACE_FAST}")
-            result_path = await asyncio.to_thread(
-                Client(SPACE_FAST).predict,
-                enhanced_prompt, 
-                api_name="/predict"
-            )
-            return path_to_base64_markdown(result_path)
-        except Exception as e:
-            print(f"❌ Fast Model Failed: {e}. Switching to Backup.")
-            # Fallback to Pro Logic if Fast fails
-
-    # --- MODE: PRO (Uses Pollinations.ai or Realistic Space) ---
-    # Pollinations is "Pro" here because it handles realism very well and is free
-    print("💎 Using Pro/Backup Model (Pollinations)")
-    encoded_prompt = enhanced_prompt.replace(" ", "%20")
-    image_url = f"https://pollinations.ai/p/{encoded_prompt}"
-    return f"![Generated Image]({image_url})\n\n*(High Quality Generated)*"
-
 # ==================================================================================
 # [CATEGORY] 6. SCHEDULER TASKS
 # ==================================================================================
@@ -278,18 +227,9 @@ async def check_proactive_messaging():
     except Exception as e: print(f"Proactive Error: {e}")
 
 # ==================================================================================
-# [CATEGORY] 7. PYDANTIC MODELS (UPDATED FOR IMAGE OPTIONS)
+# [CATEGORY] 7. PYDANTIC MODELS
 # ==================================================================================
-class ChatRequest(BaseModel): 
-    message: str
-    session_id: str
-    mode: str = "chat"
-    file_data: str | None = None
-    file_type: str | None = None
-    # New Fields for Image Gen
-    image_quality: str = "fast" 
-    image_style: str = "painting"
-
+class ChatRequest(BaseModel): message: str; session_id: str; mode: str = "chat"; file_data: str | None = None; file_type: str | None = None
 class SignupRequest(BaseModel): email: str; password: str; full_name: str; dob: str; username: str
 class OTPRequest(BaseModel): email: str
 class OTPVerifyRequest(BaseModel): email: str; otp: str
@@ -299,7 +239,8 @@ class MemoryRequest(BaseModel): memory_text: str
 class RenameRequest(BaseModel): session_id: str; new_title: str
 class FeedbackRequest(BaseModel): message_id: str; user_email: str; type: str; category: str; comment: str | None = None
 class UpdateProfileRequest(BaseModel): name: str
-class GalleryDeleteRequest(BaseModel): url: str
+class GalleryDeleteRequest(BaseModel): url: str 
+class ToolRequest(BaseModel): topic: str  # Added for Flashcards
 
 # ==================================================================================
 # [CATEGORY] 8. APP SETUP & AUTH
@@ -386,7 +327,7 @@ async def login_manual(req: LoginRequest, request: Request):
     return JSONResponse({"status": "error"}, 400)
 
 # ==================================================================================
-# [CATEGORY] 9. PAGE ROUTES (FIXED: Added Gallery & About)
+# [CATEGORY] 9. PAGE ROUTES (Main Pages + ALL Tools)
 # ==================================================================================
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request): return templates.TemplateResponse("login.html", {"request": request})
@@ -414,16 +355,148 @@ async def diary_page(request: Request):
 
 @app.get("/about", response_class=HTMLResponse)
 async def about_page(request: Request):
-    # This renders the new about.html file
     return templates.TemplateResponse("about.html", {"request": request})
 
 @app.get("/gallery", response_class=HTMLResponse)
 async def gallery_page(request: Request):
     user = request.session.get('user')
     if not user: return RedirectResponse("/login")
-    # Stub: Return empty list or fetch from DB if you save images later
     images = [] 
     return templates.TemplateResponse("gallery.html", {"request": request, "images": images})
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL:
+        return RedirectResponse("/")
+        
+    total_users = await users_collection.count_documents({})
+    total_chats = await chats_collection.count_documents({})
+    banned_count = await users_collection.count_documents({"is_banned": True})
+    
+    users_cursor = users_collection.find({}).sort("_id", -1).limit(50)
+    users_list = []
+    
+    async for u in users_cursor:
+        u["_id"] = str(u["_id"])
+        user_chats = await chats_collection.find({"user_email": u.get("email")}).to_list(length=None)
+        msg_count = sum(len(chat.get("messages", [])) for chat in user_chats)
+        u["msg_count"] = msg_count
+        u.setdefault("picture", "/static/images/logo.png")
+        u.setdefault("name", "Unknown")
+        u.setdefault("username", "")
+        u.setdefault("dob", "")
+        u.setdefault("is_pro", False)
+        u.setdefault("is_banned", False)
+        users_list.append(u)
+        
+    return templates.TemplateResponse("admin.html", {
+        "request": request, "total_users": total_users, "total_chats": total_chats,
+        "banned_count": banned_count, "users": users_list, "admin_email": ADMIN_EMAIL
+    })
+
+# --- ALL TOOLS LAB PAGE ROUTES ---
+@app.get("/tools", response_class=HTMLResponse)
+async def tools_dashboard_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools_dashboard.html", {"request": request, "user": user})
+
+@app.get("/tools/flashcards", response_class=HTMLResponse)
+async def flashcards_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/flashcards.html", {"request": request, "user": user})
+
+@app.get("/tools/image_gen", response_class=HTMLResponse)
+async def image_gen_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/image_gen.html", {"request": request, "user": user})
+
+@app.get("/tools/prompt_writer", response_class=HTMLResponse)
+async def prompt_writer_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/prompt_writer.html", {"request": request, "user": user})
+
+@app.get("/tools/qr_generator", response_class=HTMLResponse)
+async def qr_generator_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/qr_generator.html", {"request": request, "user": user})
+
+@app.get("/tools/resume_analyzer", response_class=HTMLResponse)
+async def resume_analyzer_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/resume_analyzer.html", {"request": request, "user": user})
+
+@app.get("/tools/github_review", response_class=HTMLResponse)
+async def github_review_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/github_review.html", {"request": request, "user": user})
+
+@app.get("/tools/currency_converter", response_class=HTMLResponse)
+async def currency_converter_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/currency_converter.html", {"request": request, "user": user})
+
+@app.get("/tools/youtube_summarizer", response_class=HTMLResponse)
+async def youtube_summarizer_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/youtube_summarizer.html", {"request": request, "user": user})
+
+@app.get("/tools/password_generator", response_class=HTMLResponse)
+async def password_generator_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/password_generator.html", {"request": request, "user": user})
+
+@app.get("/tools/grammar_fixer", response_class=HTMLResponse)
+async def grammar_fixer_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/grammar_fixer.html", {"request": request, "user": user})
+
+@app.get("/tools/interview_questions", response_class=HTMLResponse)
+async def interview_questions_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/interview_questions.html", {"request": request, "user": user})
+
+@app.get("/tools/mock_interviewer", response_class=HTMLResponse)
+async def mock_interviewer_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/mock_interviewer.html", {"request": request, "user": user})
+
+@app.get("/tools/math_solver", response_class=HTMLResponse)
+async def math_solver_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/math_solver.html", {"request": request, "user": user})
+
+@app.get("/tools/smart_todo", response_class=HTMLResponse)
+async def smart_todo_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/smart_todo.html", {"request": request, "user": user})
+
+@app.get("/tools/resume_builder", response_class=HTMLResponse)
+async def resume_builder_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/resume_builder.html", {"request": request, "user": user})
+
+@app.get("/tools/sing_with_me", response_class=HTMLResponse)
+async def sing_with_me_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/sing_with_me.html", {"request": request, "user": user})
 
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
@@ -445,10 +518,7 @@ async def get_profile(request: Request):
 async def update_profile(req: UpdateProfileRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
-    await users_collection.update_one(
-        {"email": user['email']},
-        {"$set": {"name": req.name}}
-    )
+    await users_collection.update_one({"email": user['email']}, {"$set": {"name": req.name}})
     return {"status": "success"}
 
 @app.post("/api/save_instruction")
@@ -510,9 +580,7 @@ async def delete_memory(req: MemoryRequest, request: Request):
     return {"status": "ok"}
 
 @app.post("/api/delete_gallery_item")
-async def delete_gallery_item(req: GalleryDeleteRequest, request: Request):
-    # Stub: Add deletion logic here if saving images
-    return {"status": "ok"}
+async def delete_gallery_item(req: GalleryDeleteRequest, request: Request): return {"status": "ok"}
 
 @app.post("/api/feedback")
 async def submit_feedback(req: FeedbackRequest):
@@ -528,8 +596,7 @@ async def get_diary_entries(request: Request):
     if not user: return {"entries": []}
     cursor = diary_collection.find({"user_email": user['email']}).sort("date", -1).limit(30)
     entries = []
-    async for entry in cursor:
-        entries.append({"date": entry['date'], "content": entry['content'], "mood": entry.get("mood", "Neutral")})
+    async for entry in cursor: entries.append({"date": entry['date'], "content": entry['content'], "mood": entry.get("mood", "Neutral")})
     return {"entries": entries}
 
 @app.post("/api/chat")
@@ -539,14 +606,12 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         if not user: return {"reply": "⚠️ Login required."}
         
         sid, mode, msg = req.session_id, req.mode, req.message
-        
-        # Auto-save memory only in normal chat mode
-        if mode == "chat":
-            background_tasks.add_task(extract_and_save_memory, user['email'], msg)
+        if mode == "chat": background_tasks.add_task(extract_and_save_memory, user['email'], msg)
 
         db_user = await users_collection.find_one({"email": user['email']})
+        if db_user and db_user.get("is_banned"): return {"reply": "🚫 You have been banned by the Admin. Access Denied."}
+
         user_custom_prompt = db_user.get("custom_instruction", "")
-        
         retrieved_memory = ""
         if index: retrieved_memory = search_vector_db(msg, user['email'])
         if not retrieved_memory:
@@ -559,8 +624,7 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
 
         chat_doc = await chats_collection.find_one({"session_id": sid})
         if not chat_doc:
-            title_prefix = "Chat"
-            if mode != "chat": title_prefix = f"Tool: {mode.replace('_', ' ').title()}"
+            title_prefix = "Chat" if mode == "chat" else f"Tool: {mode.replace('_', ' ').title()}"
             await chats_collection.insert_one({"session_id": sid, "user_email": user['email'], "title": f"{title_prefix} - {msg[:15]}...", "messages": []})
             chat_doc = {"messages": []}
 
@@ -569,17 +633,9 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         reply = ""
         context_history = ""
         if mode == "sing_with_me":
-            recent_msgs = chat_doc.get("messages", [])[-4:] 
-            for m in recent_msgs: context_history += f"{m['role']}: {m['content']} | "
+            for m in chat_doc.get("messages", [])[-4:]: context_history += f"{m['role']}: {m['content']} | "
 
-        # === AI AGENT & TOOLS LOGIC ===
-        if mode == "agent_mode":  # NEW: Agent Mode
-            reply = await run_agent_task(msg)
-
-        elif mode == "image_gen": 
-            # Passing User Preferences (Quality & Style) to Generator
-            reply = await smart_image_generation(msg, req.image_quality, req.image_style)
-
+        if mode == "image_gen": reply = await generate_image_hf(msg)
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
         elif mode == "resume_analyzer": reply = await analyze_resume(req.file_data, msg)
@@ -597,44 +653,76 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         elif mode == "research":
             data = await perform_research_task(msg)
             client = get_groq()
-            if client: 
-                reply = client.chat.completions.create(messages=[{"role": "system", "content": FINAL_SYSTEM_PROMPT}, {"role": "user", "content": f"Context: {data}\nQ: {msg}"}], model="llama-3.3-70b-versatile").choices[0].message.content
-            else: reply = data
+            reply = client.chat.completions.create(messages=[{"role": "system", "content": FINAL_SYSTEM_PROMPT}, {"role": "user", "content": f"Context: {data}\nQ: {msg}"}], model="llama-3.3-70b-versatile").choices[0].message.content if client else data
         else: 
             client = get_groq()
             if client: 
-                full_history = chat_doc.get("messages", []) + [{"role": "user", "content": msg}]
-                recent_history = full_history[-15:]
-                clean_history = [{"role": m["role"], "content": m["content"]} for m in recent_history]
-                messages_payload = [{"role": "system", "content": FINAL_SYSTEM_PROMPT}, *clean_history]
-                reply = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages_payload).choices[0].message.content
+                clean_history = [{"role": m["role"], "content": m["content"]} for m in (chat_doc.get("messages", []) + [{"role": "user", "content": msg}])[-15:]]
+                reply = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": FINAL_SYSTEM_PROMPT}, *clean_history]).choices[0].message.content
             else: reply = "⚠️ API Error."
 
         await chats_collection.update_one({"session_id": sid}, {"$push": {"messages": {"role": "assistant", "content": reply, "timestamp": datetime.utcnow()}}})
         
         if len(chat_doc['messages']) < 2 and mode != "chat":
-             new_title = f"Tool: {mode.replace('_', ' ').title()}"
-             await chats_collection.update_one({"session_id": sid}, {"$set": {"title": new_title}})
+             await chats_collection.update_one({"session_id": sid}, {"$set": {"title": f"Tool: {mode.replace('_', ' ').title()}"}})
 
         return {"reply": reply}
-
     except Exception as e: return {"reply": f"⚠️ Server Error: {str(e)}"}
 
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:
         data = await request.json()
-        text = data.get("text", "")
-        text = re.sub(r'<[^>]*>', '', text)
-        clean_text = re.sub(r'[^\w\s\u0900-\u097F,.?!]', '', text) 
-        voice = "en-IN-NeerjaNeural" 
-        communicate = edge_tts.Communicate(clean_text, voice)
+        clean_text = re.sub(r'[^\w\s\u0900-\u097F,.?!]', '', re.sub(r'<[^>]*>', '', data.get("text", ""))) 
+        communicate = edge_tts.Communicate(clean_text, "en-IN-NeerjaNeural")
         async def audio_stream():
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio": yield chunk["data"]
         return StreamingResponse(audio_stream(), media_type="audio/mp3")
     except Exception as e: return JSONResponse({"error": str(e)}, status_code=500)
 
+@app.post("/api/tools/flashcards")
+async def api_generate_flashcards(req: ToolRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
+    raw_json_str = await generate_flashcards_tool(req.topic)
+    try: return {"status": "success", "data": json.loads(raw_json_str)}
+    except: return {"status": "error", "message": "AI couldn't format the flashcards properly.", "raw": raw_json_str}
+
+# ==========================================
+# 👑 ADMIN PANEL ACTIONS (God Mode Controls)
+# ==========================================
+@app.post("/admin/promote_user")
+async def promote_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": True}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/demote_user")
+async def demote_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": False}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/ban_user")
+async def ban_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": True}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/unban_user")
+async def unban_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
+    return RedirectResponse("/admin", status_code=303)
+
+# ==========================================
+# APP ENTRY POINT
+# ==========================================
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 10000))

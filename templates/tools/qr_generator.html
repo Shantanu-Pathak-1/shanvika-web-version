@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator - Shanvika</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white flex h-screen overflow-hidden">
+    <nav class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col justify-between hidden md:flex z-20">
+        <div class="p-4">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i class="fas fa-qrcode text-gray-400"></i> QR Maker</h2>
+            <div class="space-y-2">
+                <a href="/tools" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-700 text-gray-300"><i class="fas fa-arrow-left w-5 text-center"></i> <span>Back to Tools</span></a>
+                <a href="/" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-700 text-gray-300"><i class="fas fa-home w-5 text-center"></i> <span>Main Chat</span></a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-1 flex flex-col h-full bg-gray-900 relative">
+        <header class="p-5 border-b border-gray-800 bg-gray-900/80 z-10">
+            <h1 class="text-2xl font-bold">QR Code Generator 🔳</h1>
+            <p class="text-sm text-gray-400">Kisi bhi link ya text ka instant QR Code banao!</p>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6" id="main-content-area">
+            <div class="max-w-4xl mx-auto flex flex-col gap-6" id="qr-container">
+                <div class="text-center text-gray-400 mt-16" id="welcome-msg">
+                    <i class="fas fa-qrcode text-5xl text-gray-500 mb-4"></i>
+                    <h3 class="text-2xl text-gray-200">Paste your link below!</h3>
+                </div>
+                <div id="loading" style="display: none;" class="text-center py-8"><i class="fas fa-spinner fa-spin text-4xl text-white mb-3"></i></div>
+            </div>
+        </div>
+
+        <div class="p-5 bg-gray-800 border-t border-gray-700">
+            <div class="max-w-4xl mx-auto flex gap-3">
+                <input type="text" id="qr-input" class="flex-1 bg-gray-700 border border-gray-600 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-white" placeholder="Enter URL or text (e.g., https://github.com/shantanu-pathak)">
+                <button onclick="makeQR()" id="qr-btn" class="bg-white text-black px-8 py-4 rounded-xl font-bold hover:bg-gray-200 transition">Generate</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const sessionId = 'qr_tool_' + Date.now();
+        async function makeQR() {
+            const input = document.getElementById('qr-input');
+            if(!input.value.trim()) return;
+
+            document.getElementById('welcome-msg').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: input.value, session_id: sessionId, mode: 'qr_generator' })
+                });
+                const data = await res.json();
+                document.getElementById('loading').style.display = 'none';
+                input.value = '';
+
+                if(data.reply) {
+                    document.getElementById('qr-container').innerHTML += `
+                        <div class="bg-gray-800 border border-gray-700 rounded-2xl p-6 mb-4 text-center">
+                            <p class="text-gray-400 mb-4">Here is your QR Code:</p>
+                            ${data.reply} 
+                        </div>
+                    `;
+                    document.getElementById('main-content-area').scrollTop = document.getElementById('main-content-area').scrollHeight;
+                }
+            } catch (e) { alert("Error!"); }
+        }
+    </script>
+</body>
+</html>

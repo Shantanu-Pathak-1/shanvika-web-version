@@ -299,3 +299,28 @@ async def currency_tool(query):
         res = DDGS().text(f"convert {query}", max_results=1)
         return f"💱 **Conversion:**\n{res[0]['body']}" if res else "⚠️ Error."
     except: return "⚠️ Service unavailable."
+
+# ==================================================================================
+# [NEW TOOL] FLASHCARDS GENERATOR
+# ==================================================================================
+async def generate_flashcards_tool(topic):
+    # Hum AI ko bolenge ki strictly JSON format de taaki frontend par card flip banana asaan ho
+    prompt = f"""
+    You are an expert study assistant. Generate exactly 6 highly effective flashcards for the topic: "{topic}".
+    The questions should be conceptual and answers should be clear and concise.
+    
+    Return the output STRICTLY in a valid JSON array format like this:
+    [
+        {{"question": "What is Python?", "answer": "A high-level programming language."}},
+        {{"question": "...", "answer": "..."}}
+    ]
+    Do not add any other text, explanation, or markdown formatting outside this JSON array.
+    """
+    try:
+        response = get_llm_response(prompt)
+        # Markdown backticks hatane ke liye safety
+        if response.startswith("```"):
+            response = response.replace("```json", "").replace("```", "").strip()
+        return response
+    except Exception as e:
+        return f'[{{"question": "Error", "answer": "{str(e)}"}}]'
