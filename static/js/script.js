@@ -8,6 +8,20 @@ let currentMode = 'chat';
 let isRecording = false;
 let recognition = null;
 let currentFile = null;
+// Naya variable add karo top par
+let lastMessageDate = null; 
+
+// Helper function date calculate karne ke liye
+function getDateLabel(timestamp) {
+    const date = timestamp ? new Date(timestamp) : new Date();
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 // New Global Variables for Image Settings
 let imageSettings = {
@@ -144,6 +158,9 @@ async function loadChat(sid) {
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = '';
     
+    // Nayi chat load hone par date reset
+    lastMessageDate = null; 
+    
     data.messages.forEach(msg => {
         appendMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content, msg.timestamp);
     });
@@ -207,17 +224,23 @@ async function sendMessage() {
 // --- APPEND MESSAGE (Time & Actions) ---
 function appendMessage(role, text, timestamp = null) {
     const chatBox = document.getElementById('chat-box');
-    const div = document.createElement('div');
-    const msgId = 'msg_' + Date.now();
     
-    let displayTime;
-    if (timestamp) {
-        const dateObj = new Date(timestamp);
-        displayTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else {
-        displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Exact time aur date fix karne ke liye
+    const msgDateObj = timestamp ? new Date(timestamp) : new Date();
+    const displayTime = msgDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateLabel = getDateLabel(timestamp);
+
+    // Date Divider Logic (Agar day change hua toh divider aayega)
+    if (lastMessageDate !== dateLabel) {
+        const divider = document.createElement('div');
+        divider.className = 'date-divider';
+        divider.innerText = dateLabel;
+        chatBox.appendChild(divider);
+        lastMessageDate = dateLabel;
     }
 
+    const msgId = 'msg_' + Date.now() + Math.floor(Math.random() * 1000);
+    const div = document.createElement('div');
     div.className = role === 'user' ? 'msg-user' : 'msg-ai';
     
     let content = text;
@@ -239,7 +262,13 @@ function appendMessage(role, text, timestamp = null) {
             </div>
         `;
     } else {
-        actionHTML = `<div class="msg-meta" style="border-top:none; justify-content:flex-end;"><span class="msg-time">${displayTime}</span></div>`;
+        // User ke message mein Edit icon aur fix time
+        actionHTML = `
+            <div class="msg-meta" style="border-top:none; justify-content:flex-end; gap: 8px;">
+                <button class="action-btn" onclick="editMyMessage('${msgId}')" title="Edit Message"><i class="fas fa-pen text-[11px]"></i></button>
+                <span class="msg-time">${displayTime}</span>
+            </div>
+        `;
     }
 
     div.innerHTML = `<div id="${msgId}_content">${content}</div> ${actionHTML}`;
@@ -252,7 +281,6 @@ function appendMessage(role, text, timestamp = null) {
         });
     }
 }
-
 // --- ACTIONS ---
 function copyText(msgId) {
     const content = document.getElementById(msgId + '_content').innerText;
@@ -455,5 +483,14 @@ async function deleteAllChats() {
     if(confirm("Delete all history?")) {
         await fetch('/api/delete_all_chats', { method: 'DELETE' });
         loadHistory(); createNewChat(); closeModal('settings-modal');
+    }
+}
+// Message Edit Function
+function editMyMessage(msgId) {
+    const contentDiv = document.getElementById(msgId + '_content');
+    if(contentDiv) {
+        const text = contentDiv.innerText;
+        document.getElementById('user-input').value = text;
+        document.getElementById('user-input').focus();
     }
 }
