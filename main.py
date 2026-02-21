@@ -370,29 +370,77 @@ async def gallery_page(request: Request):
 async def admin_page(request: Request):
     user = request.session.get('user')
     
-    # Security Check
+    # Double Security Check
     if not user or user.get('email') != ADMIN_EMAIL:
         return RedirectResponse("/")
         
-    # 📊 Database se stats fetch karna
+    # 📊 Database se exact stats nikalna
     total_users = await users_collection.count_documents({})
     total_chats = await chats_collection.count_documents({})
+    banned_count = await users_collection.count_documents({"is_banned": True})
     
-    # Sabhi users ki list nikalna (latest 50 users)
+    # Sabhi users ki list nikalna HTML ke exact format mein
     users_cursor = users_collection.find({}).sort("_id", -1).limit(50)
-    all_users = []
+    users_list = []
+    
     async for u in users_cursor:
-        u["_id"] = str(u["_id"]) # ObjectID ko string mein convert karna zaroori hai
-        all_users.append(u)
+        u["_id"] = str(u["_id"])
         
-    # Ab yeh saara data admin.html ko bhej rahe hain
+        # User ke total messages count karna
+        user_chats = await chats_collection.find({"user_email": u.get("email")}).to_list(length=None)
+        msg_count = sum(len(chat.get("messages", [])) for chat in user_chats)
+        u["msg_count"] = msg_count
+        
+        # Agar koi data database mein missing ho toh error na aaye uske liye default values
+        u.setdefault("picture", "/static/images/logo.png")
+        u.setdefault("name", "Unknown")
+        u.setdefault("username", "")
+        u.setdefault("dob", "")
+        u.setdefault("is_pro", False)
+        u.setdefault("is_banned", False)
+        
+        users_list.append(u)
+        
+    # Ab yeh saara data exactly admin.html ko bhej rahe hain
     return templates.TemplateResponse("admin.html", {
         "request": request, 
-        "user": user,
         "total_users": total_users,
         "total_chats": total_chats,
-        "all_users": all_users
+        "banned_count": banned_count,
+        "users": users_list,
+        "admin_email": ADMIN_EMAIL
     })
+   @app.post("/admin/promote_user")
+async def promote_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": True}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/demote_user")
+async def demote_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_pro": False}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/ban_user")
+async def ban_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": True}})
+    return RedirectResponse("/admin", status_code=303)
+
+@app.post("/admin/unban_user")
+async def unban_user(request: Request, email: str = Form(...)):
+    user = request.session.get('user')
+    if not user or user.get('email') != ADMIN_EMAIL: return RedirectResponse("/")
+    
+    await users_collection.update_one({"email": email}, {"$set": {"is_banned": False}})
+    return RedirectResponse("/admin", status_code=303)
 
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
@@ -513,9 +561,16 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             background_tasks.add_task(extract_and_save_memory, user['email'], msg)
 
         db_user = await users_collection.find_one({"email": user['email']})
+        
+        # 👇 YAHAN PASTE KARNA HAI 👇
+        if db_user and db_user.get("is_banned"):
+            return {"reply": "🚫 You have been banned by the Admin. Access Denied."}
+        # 👆 ---------------------- 👆
+
         user_custom_prompt = db_user.get("custom_instruction", "")
         
         retrieved_memory = ""
+        # ... (baaki ka poora code waise ka waisa hi rahega)
         if index: retrieved_memory = search_vector_db(msg, user['email'])
         if not retrieved_memory:
             recent_mems = db_user.get("memories", [])[-5:]
