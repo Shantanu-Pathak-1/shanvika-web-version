@@ -162,7 +162,6 @@ async def run_agent_task(query):
 # ==================================================================================
 # (Copy paste your existing Image Gen, Resume, Singing, etc. functions here as is)
 async def generate_image_hf(prompt):
-    # ... (Keep previous code)
     # Step 1: Enhance Prompt using Gemini
     enhanced_prompt = prompt
     try:
@@ -175,7 +174,7 @@ async def generate_image_hf(prompt):
         pass 
 
     # Step 2: Try Hugging Face (FLUX)
-    API_URL = "[https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev](https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev)"
+    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     
     try:
@@ -197,7 +196,7 @@ async def generate_image_hf(prompt):
         # Step 3: FALLBACK to Pollinations AI
         try:
             safe_prompt = enhanced_prompt.replace(" ", "%20")
-            pollinations_url = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){safe_prompt}"
+            pollinations_url = f"https://image.pollinations.ai/prompt/{safe_prompt}"
             return f"""
             <div class="glass p-2 rounded-xl">
                 <p class="text-xs text-yellow-400 mb-2">⚠️ Server Busy. Switched to Backup AI.</p>
@@ -206,7 +205,6 @@ async def generate_image_hf(prompt):
             """
         except:
             return "⚠️ All Image Servers are currently down. Please try again later."
-
 async def analyze_resume(file_data, user_msg):
     if not file_data: return "⚠️ Please upload a PDF resume first."
     try:
@@ -223,13 +221,15 @@ async def review_github(url):
     username = url.split("/")[-1]
     if not username: return "⚠️ Invalid GitHub URL."
     try:
-        user_data = requests.get(f"[https://api.github.com/users/](https://api.github.com/users/){username}").json()
-        repos_data = requests.get(f"[https://api.github.com/users/](https://api.github.com/users/){username}/repos?sort=updated").json()
+        user_data = requests.get(f"https://api.github.com/users/{username}").json()
+        repos_data = requests.get(f"https://api.github.com/users/{username}/repos?sort=updated").json()
+        
         if "message" in user_data: return "⚠️ User not found."
         top_repos = [r['name'] for r in repos_data[:5]]
         prompt = f"Review GitHub Profile: {username}, Bio: {user_data.get('bio')}, Repos: {user_data.get('public_repos')}, Recent: {', '.join(top_repos)}. Give rating and advice."
         return get_llm_response(prompt)
-    except Exception as e: return f"⚠️ Error: {str(e)}"
+    except Exception as e: 
+        return f"⚠️ Error: {str(e)}"
 
 async def summarize_youtube(url):
     try:
