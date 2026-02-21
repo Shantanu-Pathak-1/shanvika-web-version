@@ -242,9 +242,22 @@ class ToolRequest(BaseModel): topic: str
 # ==================================================================================
 # [CATEGORY] 8. APP SETUP & AUTH
 # ==================================================================================
+# ==================================================================================
+# [CATEGORY] 8. APP SETUP & AUTH
+# ==================================================================================
 app = FastAPI()
 
+# 1. Sabse pehle Static folder mount karo (Templates se pehle)
+if not os.path.exists("static"): 
+    os.makedirs("static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# 2. Ab Templates initialize karo
+templates = Jinja2Templates(directory="templates")
+
+# 3. Middlewares (OAuth aur Session ke liye sahi order)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
 
 @app.on_event("startup")
 def startup_event():
@@ -256,19 +269,21 @@ def startup_event():
 
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
-    if request.headers.get("x-forwarded-proto") == "https": request.scope["scheme"] = "https"
+    if request.headers.get("x-forwarded-proto") == "https": 
+        request.scope["scheme"] = "https"
     return await call_next(request)
 
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-
-if not os.path.exists("static"): os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
+# 4. OAuth Registration
 oauth = OAuth()
-oauth.register(name='google', client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET, server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', client_kwargs={'scope': 'openid email profile'})
+oauth.register(
+    name='google', 
+    client_id=GOOGLE_CLIENT_ID, 
+    client_secret=GOOGLE_CLIENT_SECRET, 
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration', 
+    client_kwargs={'scope': 'openid email profile'}
+)
 
+# 5. Auth & API Routes
 @app.get("/auth/login")
 async def login(request: Request):
     redirect_uri = str(request.url_for('auth_callback')).replace("http://", "https://")
@@ -285,7 +300,9 @@ async def auth_callback(request: Request):
     except: return RedirectResponse("/login")
 
 @app.get("/logout")
-async def logout(request: Request): request.session.pop('user', None); return RedirectResponse("/")
+async def logout(request: Request): 
+    request.session.pop('user', None)
+    return RedirectResponse("/")
 
 @app.post("/api/guest_login")
 async def guest_login(request: Request):
