@@ -39,13 +39,17 @@ from datetime import datetime, timedelta
 import edge_tts 
 
 # Local Tool Imports
+# Local Tool Imports
 from tools_lab import (
     generate_prompt_only, generate_qr_code, 
     analyze_resume, review_github, currency_tool,
     summarize_youtube, generate_password_tool, fix_grammar_tool,
     generate_interview_questions, handle_mock_interview,
     solve_math_problem, smart_todo_maker, build_pro_resume,
-    sing_with_me_tool, run_agent_task, generate_flashcards_tool
+    sing_with_me_tool, run_agent_task, generate_flashcards_tool,
+    # YE NAYE ADD KIYE HAIN:
+    cold_email_tool, fitness_coach_tool, feynman_explainer_tool, 
+    code_debugger_tool, movie_talker_tool, anime_talker_tool
 )
 
 # ==================================================================================
@@ -506,6 +510,42 @@ async def sing_with_me_page(request: Request):
     if not user: return RedirectResponse("/login")
     return templates.TemplateResponse("tools/sing_with_me.html", {"request": request, "user": user})
 
+@app.get("/tools/cold_email", response_class=HTMLResponse)
+async def cold_email_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/cold_email.html", {"request": request, "user": user})
+
+@app.get("/tools/fitness_coach", response_class=HTMLResponse)
+async def fitness_coach_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/fitness_coach.html", {"request": request, "user": user})
+
+@app.get("/tools/feynman_explainer", response_class=HTMLResponse)
+async def feynman_explainer_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/feynman_explainer.html", {"request": request, "user": user})
+
+@app.get("/tools/code_debugger", response_class=HTMLResponse)
+async def code_debugger_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/code_debugger.html", {"request": request, "user": user})
+
+@app.get("/tools/movie_talker", response_class=HTMLResponse)
+async def movie_talker_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/movie_talker.html", {"request": request, "user": user})
+
+@app.get("/tools/anime_talker", response_class=HTMLResponse)
+async def anime_talker_page(request: Request):
+    user = request.session.get('user')
+    if not user: return RedirectResponse("/login")
+    return templates.TemplateResponse("tools/anime_talker.html", {"request": request, "user": user})
+
 # ==================================================================================
 # [CATEGORY] 10. API ROUTES
 # ==================================================================================
@@ -647,11 +687,13 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
 
         reply = ""
         context_history = ""
-        if mode == "sing_with_me":
-            for m in chat_doc.get("messages", [])[-4:]: context_history += f"{m['role']}: {m['content']} | "
+        
+        # 🔥 YAHAN CHANGE KIYA HAI 🔥: Sing With Me ke sath ab Movie aur Anime bhi context yaad rakhenge!
+        if mode in ["sing_with_me", "movie_talker", "anime_talker"]:
+            for m in chat_doc.get("messages", [])[-6:]: 
+                context_history += f"{m['role']}: {m['content']} | "
 
         # Assuming generate_image_hf is handled inside tools_lab or agent task now. 
-        # If it throws an error later we'll adjust, but I've kept your logic intact!
         if mode == "image_gen": reply = await generate_image_hf(msg) 
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
@@ -667,6 +709,12 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         elif mode == "smart_todo": reply = await smart_todo_maker(msg)
         elif mode == "resume_builder": reply = await build_pro_resume(msg)
         elif mode == "sing_with_me": reply = await sing_with_me_tool(msg, context_history) 
+        elif mode == "cold_email": reply = await cold_email_tool(msg)
+        elif mode == "fitness_coach": reply = await fitness_coach_tool(msg)
+        elif mode == "feynman_explainer": reply = await feynman_explainer_tool(msg)
+        elif mode == "code_debugger": reply = await code_debugger_tool(msg)
+        elif mode == "movie_talker": reply = await movie_talker_tool(msg, context_history)
+        elif mode == "anime_talker": reply = await anime_talker_tool(msg, context_history)
         elif mode == "research":
             data = await perform_research_task(msg)
             client = get_groq()
@@ -685,7 +733,7 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
 
         return {"reply": reply}
     except Exception as e: return {"reply": f"⚠️ Server Error: {str(e)}"}
-
+    
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:

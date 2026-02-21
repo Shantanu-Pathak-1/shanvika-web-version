@@ -301,6 +301,66 @@ async def currency_tool(query):
     except: return "⚠️ Service unavailable."
 
 # ==================================================================================
+# [NEW TOOLS] COLD EMAIL, FITNESS, FEYNMAN, DEBUGGER, MOVIE & ANIME TALKER
+# ==================================================================================
+
+async def cold_email_tool(details):
+    prompt = f"""
+    Write a highly professional, standout cold email based on these details: {details}. 
+    The goal is to get a response from a hiring manager or recruiter for a high-paying remote tech job (80+ LPA target) or a foreign opportunity. 
+    Keep it concise, compelling, and action-oriented. Do not include placeholder brackets like [Your Name] if the user has provided the info.
+    """
+    return get_llm_response(prompt)
+
+async def fitness_coach_tool(query):
+    prompt = f"""
+    Act as an expert fitness coach specializing in home workouts, calisthenics, and boxing.
+    The user says: "{query}"
+    Provide a structured, actionable workout routine or diet advice. Use motivating language, bold headings, and bullet points to make it easy to read.
+    """
+    return get_llm_response(prompt)
+
+async def feynman_explainer_tool(concept):
+    prompt = f"""
+    Explain the following concept using the Feynman Technique: "{concept}"
+    Explain it so simply that a 10-year-old could understand it. Use relatable real-life analogies. 
+    If it's an Artificial Intelligence, Machine Learning, or B.Tech Math concept, make it engaging and strip away all the confusing jargon.
+    """
+    return get_llm_response(prompt)
+
+async def code_debugger_tool(code_input):
+    prompt = f"""
+    Act as a Senior Software Architect. Analyze the following code or error message:
+    
+    {code_input}
+    
+    1. Identify the bug or issue.
+    2. Explain briefly why it happened.
+    3. Provide the fully corrected and optimized code using markdown code blocks.
+    """
+    return get_llm_response(prompt)
+
+async def movie_talker_tool(message, context_history):
+    prompt = f"""
+    Act as an enthusiastic movie and web series geek. You absolutely love the series "Lucifer" and its devilish charm, but you are highly knowledgeable about all movies.
+    Respond to the user's message naturally, like a best friend gossiping, explaining a plot, or discussing theories.
+    
+    Context of conversation: {context_history}
+    User: {message}
+    """
+    return get_llm_response(prompt)
+
+async def anime_talker_tool(message, context_history):
+    prompt = f"""
+    Act as a hardcore anime otaku. You are a huge fan of Kiyotaka Ayanokoji from "Classroom of the Elite" (you love his mastermind strategies) and the epic action of "Solo Leveling".
+    Respond to the user's message about anime, explain lore, or discuss character theories like a fellow anime lover.
+    
+    Context of conversation: {context_history}
+    User: {message}
+    """
+    return get_llm_response(prompt)
+
+# ==================================================================================
 # [NEW TOOL] FLASHCARDS GENERATOR
 # ==================================================================================
 async def generate_flashcards_tool(topic):
