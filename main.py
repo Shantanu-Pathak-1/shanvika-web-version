@@ -688,6 +688,45 @@ async def get_diary_entries(request: Request):
     async for entry in cursor: entries.append({"date": entry['date'], "content": entry['content'], "mood": entry.get("mood", "Neutral")})
     return {"entries": entries}
 
+@app.post("/api/trigger_diary")
+async def manual_trigger_diary(request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
+    
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    chat_doc = await chats_collection.find_one({
+        "user_email": user['email'],
+        "messages.timestamp": {"$gte": today_start}
+    })
+    
+    if not chat_doc or not chat_doc.get("messages"): 
+        return JSONResponse({"status": "error", "message": "Aaj humne koi baat hi nahi ki! Pehle thodi baatein toh karo. 🥺"})
+        
+    messages_text = ""
+    for m in chat_doc.get("messages", []):
+        msg_time = m.get("timestamp")
+        if msg_time and msg_time >= today_start:
+            messages_text += f"{m['role']}: {m['content']}\n"
+            
+    client = get_groq()
+    if not client: return JSONResponse({"status": "error", "message": "AI is sleeping."})
+    
+    prompt = f"You are Shanvika. Write a short, emotional, personal diary entry based on today's chat with Shantanu. Act like a real person writing in her private diary. Chat:\n{messages_text[:4000]}"
+    
+    diary_entry = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+    
+    # Aaj ki date
+    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+    
+    # Check if entry already exists for today, then update, else insert
+    await diary_collection.update_one(
+        {"user_email": user['email'], "date": today_date},
+        {"$set": {"content": diary_entry, "mood": "Happy", "timestamp": datetime.utcnow()}},
+        upsert=True
+    )
+    
+    return {"status": "success", "message": "Maine aaj ki diary likh li! 💖"}
+
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: BackgroundTasks):
     try:
