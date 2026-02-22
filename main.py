@@ -173,11 +173,12 @@ async def perform_research_task(query):
 
 async def extract_and_save_memory(user_email: str, user_message: str):
     try:
-        triggers = ["my name is", "i live in", "i like", "i love", "remember", "save this", "my birthday", "i am", "mera naam", "main rehta hu", "mujhe pasand hai"]
+        # 🚀 Naye triggers: "yaad rakhna", "save karlo" etc. add kar diye!
+        triggers = ["my name is", "i live in", "i like", "i love", "remember", "save this", "my birthday", "i am", "mera naam", "main rehta hu", "mujhe pasand hai", "yaad rakhna", "yaad rakho", "save kar", "note kar", "isko save"]
         if not any(t in user_message.lower() for t in triggers) and len(user_message.split()) < 4: return
         
-        # 🚀 Shifting Memory Task to OpenRouter to save Groq Limits
-        extraction_prompt = f"Analyze this user message: \"{user_message}\"\nExtract ANY permanent user fact. Return ONLY the fact as a short sentence. If nothing worth remembering, return 'NO_DATA'."
+        # 🚀 Prompt strict kar diya taaki AI apne baare mein save na kare
+        extraction_prompt = f"Analyze this user message: \"{user_message}\"\nExtract ANY permanent user fact or anything the user explicitly asks to save/remember. Return ONLY the fact as a short sentence. DO NOT save facts about the AI (like 'User knows Shanvika'). If nothing worth remembering, return 'NO_DATA'."
         
         openrouter_key = get_random_openrouter_key()
         if not openrouter_key: return
@@ -190,7 +191,13 @@ async def extract_and_save_memory(user_email: str, user_message: str):
             response = resp.json()['choices'][0]['message']['content'].strip()
 
         if "NO_DATA" not in response and len(response) > 5:
-            clean_memory = response.replace("User", "You").replace("user", "You")
+            clean_memory = response.replace("User", "You").replace("user", "You").replace("Shanvika", "me")
+            
+            # 🚀 Duplicate Check: Agar pehle se save hai toh dobara nahi karegi
+            db_user = await users_collection.find_one({"email": user_email})
+            if db_user and clean_memory in db_user.get("memories", []):
+                return 
+            
             await users_collection.update_one({"email": user_email}, {"$push": {"memories": clean_memory}})
             if index:
                 vec = get_embedding(clean_memory)
@@ -647,7 +654,17 @@ async def add_memory(req: MemoryRequest, request: Request):
 async def delete_memory(req: MemoryRequest, request: Request):
     user = await get_current_user(request)
     if not user: return JSONResponse({"status": "error"}, 400)
+    
+    # 1. MongoDB se delete karo
     await users_collection.update_one({"email": user['email']}, {"$pull": {"memories": req.memory_text}})
+    
+    # 2. Pinecone (Vector DB) se bhi hamesha ke liye delete karo
+    if index:
+        try:
+            mem_id = f"{user['email']}_{hashlib.md5(req.memory_text.encode()).hexdigest()}"
+            index.delete(ids=[mem_id])
+        except Exception as e: print(f"Vector Delete Error: {e}")
+        
     return {"status": "ok"}
 
 @app.post("/api/delete_gallery_item")
@@ -696,8 +713,18 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             if recent_mems: retrieved_memory = "\n".join(recent_mems)
 
         FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
+        
+        # 🚀 YAHAN HAI WO NAYA MAGIC CODE!
         user_display_name = db_user.get("name") or user.get("name", "User")
-        FINAL_SYSTEM_PROMPT += f"\n\n[IMPORTANT CONTEXT]: You are Shanvika. The person you are talking to is {user_display_name}. DO NOT call the user 'Shanvika'."
+        
+        if user_display_name == "User" or user_display_name == "" or "guest" in user_display_name.lower():
+            name_instruction = "The user's name is currently unknown. In your first reply, very politely and affectionately ask for their name so you can remember it forever."
+        else:
+            name_instruction = f"The person you are talking to is {user_display_name}. Address them affectionately by their name."
+            
+        FINAL_SYSTEM_PROMPT += f"\n\n[IMPORTANT CONTEXT]: You are Shanvika. {name_instruction} DO NOT call the user 'Shanvika' ever. DO NOT save memories about your own name."
+        # 🚀 MAGIC CODE KHATAM
+        
         if retrieved_memory:
             FINAL_SYSTEM_PROMPT += f"\n\n[USER LONG-TERM MEMORY]:\n{retrieved_memory}\n(Use this information to personalize the conversation)"
 
