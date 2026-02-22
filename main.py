@@ -117,6 +117,8 @@ otp_collection = db.otps
 feedback_collection = db.feedback 
 diary_collection = db.diary
 gallery_collection = db.gallery 
+tool_usage_collection = db.tool_usage
+error_logs_collection = db.error_logs
 
 # ==================================================================================
 # [CATEGORY] 5. HELPER FUNCTIONS
@@ -387,6 +389,13 @@ async def admin_page(request: Request):
     total_chats = await chats_collection.count_documents({})
     banned_count = await users_collection.count_documents({"is_banned": True})
     
+    # Fetch Usage Data
+    top_tools = await tool_usage_collection.find({}).sort("count", -1).limit(6).to_list(length=None)
+    max_tool_count = top_tools[0]['count'] if top_tools else 0
+
+    # Fetch Recent Errors
+    recent_errors = await error_logs_collection.find({}).sort("timestamp", -1).limit(10).to_list(length=None)
+    
     users_cursor = users_collection.find({}).sort("_id", -1).limit(50)
     users_list = []
     
@@ -404,8 +413,15 @@ async def admin_page(request: Request):
         users_list.append(u)
         
     return templates.TemplateResponse("admin.html", {
-        "request": request, "total_users": total_users, "total_chats": total_chats,
-        "banned_count": banned_count, "users": users_list, "admin_email": ADMIN_EMAIL
+        "request": request, 
+        "total_users": total_users, 
+        "total_chats": total_chats,
+        "banned_count": banned_count, 
+        "users": users_list, 
+        "admin_email": ADMIN_EMAIL,
+        "top_tools": top_tools,            # New passed variable
+        "max_tool_count": max_tool_count,  # New passed variable
+        "recent_errors": recent_errors     # New passed variable
     })
 
 @app.get("/tools", response_class=HTMLResponse)
@@ -696,6 +712,9 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             for m in chat_doc.get("messages", [])[-6:]: 
                 context_history += f"{m['role']}: {m['content']} | "
 
+        # 🚀 ADDED: TRACK TOOL USAGE HERE (Har request par ye database mein update hoga)
+        await tool_usage_collection.update_one({"tool_name": mode}, {"$inc": {"count": 1}}, upsert=True)
+
         # Assuming generate_image_hf is handled inside tools_lab or agent task now. 
         if mode == "image_gen": reply = await generate_image_hf(msg) 
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
@@ -735,8 +754,20 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
              await chats_collection.update_one({"session_id": sid}, {"$set": {"title": f"Tool: {mode.replace('_', ' ').title()}"}})
 
         return {"reply": reply}
-    except Exception as e: return {"reply": f"⚠️ Server Error: {str(e)}"}
-    
+        
+    # 🚀 ADDED: ERROR TRACKING HERE
+    except Exception as e: 
+        error_msg = str(e)
+        import traceback
+        full_trace = traceback.format_exc()
+        await error_logs_collection.insert_one({
+            "error": error_msg, 
+            "trace": full_trace, 
+            "endpoint": f"/api/chat ({req.mode})", 
+            "timestamp": datetime.utcnow()
+        })
+        return {"reply": f"⚠️ Server Error: We ran into a small issue."}
+        
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:
