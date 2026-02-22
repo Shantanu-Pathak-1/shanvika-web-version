@@ -224,7 +224,7 @@ async function sendMessage() {
     }
 }
 
-// --- APPEND MESSAGE (Time & Actions) ---
+// --- COMPLETE APPEND MESSAGE FUNCTION ---
 function appendMessage(role, text, timestamp = null) {
     const chatBox = document.getElementById('chat-box');
     
@@ -281,25 +281,18 @@ function appendMessage(role, text, timestamp = null) {
         `;
     }
 
+    // Message aur HTML ko add karna
     div.innerHTML = `<div id="${msgId}_content">${content}</div> ${actionHTML}`;
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
 
+    // Code blocks ke liye syntax highlight
     if (role === 'assistant') {
         div.querySelectorAll('pre code').forEach((block) => {
             if (window.hljs) hljs.highlightElement(block);
         });
     }
 }
-    div.innerHTML = `<div id="${msgId}_content">${content}</div> ${actionHTML}`;
-    chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    if (role === 'assistant') {
-        div.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightElement(block);
-        });
-    }
 // --- ACTIONS ---
 function copyText(msgId) {
     const content = document.getElementById(msgId + '_content').innerText;
@@ -383,12 +376,31 @@ function handleFileUpload(input) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
-        currentFile = { data: e.target.result.split(',')[1], type: file.type };
-        appendMessage('user', `📎 File attached: ${file.name}`);
+        // Data aur file ka naam save karo
+        currentFile = { data: e.target.result.split(',')[1], type: file.type, name: file.name };
+        
+        // Input bar ke upar Preview Box dikhao
+        const previewContainer = document.getElementById('file-preview-container');
+        const previewName = document.getElementById('file-preview-name');
+        if (previewContainer && previewName) {
+            previewName.innerText = file.name;
+            previewContainer.classList.remove('hidden');
+            previewContainer.classList.add('flex'); // Flex layout active karein
+        }
     };
     reader.readAsDataURL(file);
 }
 
+// File Cancel karne ka function
+function removeFile() {
+    currentFile = null;
+    document.getElementById('file-upload').value = '';
+    const previewContainer = document.getElementById('file-preview-container');
+    if (previewContainer) {
+        previewContainer.classList.add('hidden');
+        previewContainer.classList.remove('flex');
+    }
+}
 // --- UPDATED: SET MODE WITH POPUP FOR IMAGE GEN ---
 async function setMode(mode, btn) {
     currentMode = mode;
