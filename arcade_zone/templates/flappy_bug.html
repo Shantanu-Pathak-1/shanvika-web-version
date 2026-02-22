@@ -104,12 +104,30 @@
                 }
             },
             update: function() {
-                if (frames % 100 === 0) this.position.push({ x: canvas.width, y: Math.floor(Math.random() * (canvas.height - currentMode.gap - 100)) + 50 });
+                if (frames % 100 === 0) {
+                    // Yahan humne 'passed: false' flag add kiya hai track karne ke liye
+                    this.position.push({ x: canvas.width, y: Math.floor(Math.random() * (canvas.height - currentMode.gap - 100)) + 50, passed: false });
+                }
                 for (let i = 0; i < this.position.length; i++) {
-                    let p = this.position[i]; p.x -= currentMode.dx;
-                    if (bug.x + bug.width > p.x && bug.x < p.x + this.width && (bug.y < p.y || bug.y + bug.height > p.y + currentMode.gap)) gameOver();
-                    if (p.x + this.width === bug.x) { score++; scoreElement.innerText = score; }
-                    if (p.x + this.width <= 0) this.position.shift();
+                    let p = this.position[i]; 
+                    p.x -= currentMode.dx;
+                    
+                    // Collision check
+                    if (bug.x + bug.width > p.x && bug.x < p.x + this.width && (bug.y < p.y || bug.y + bug.height > p.y + currentMode.gap)) {
+                        gameOver();
+                    }
+                    
+                    // Score check - Naya Logic!
+                    if (!p.passed && bug.x > p.x + this.width) {
+                        score++; 
+                        scoreElement.innerText = score; 
+                        p.passed = true;
+                    }
+                }
+                
+                // Cleanup off-screen pipes
+                if (this.position.length > 0 && this.position[0].x + this.width <= 0) {
+                    this.position.shift();
                 }
             },
             reset: function() { this.position = []; }
