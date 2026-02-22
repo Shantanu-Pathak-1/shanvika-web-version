@@ -9,215 +9,92 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { background-color: #050505; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        .memory-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .memory-card {
-            aspect-ratio: 3/4;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-            cursor: pointer;
-        }
-
-        .memory-card.flip {
-            transform: rotateY(180deg);
-        }
-
-        .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-align: center;
-            padding: 10px;
-        }
-
-        /* Card Back (Hidden side that shows before flipping) */
-        .card-back {
-            background: linear-gradient(135deg, #ec4899, #8b5cf6);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .card-back::after {
-            content: '🃏';
-            font-size: 2rem;
-            opacity: 0.5;
-        }
-
-        /* Card Front (The Anime Character side) */
-        .card-front {
-            background: #1e293b;
-            border: 2px solid #ec4899;
-            transform: rotateY(180deg);
-        }
-
-        .card-front span {
-            font-size: 2.5rem;
-            margin-bottom: 5px;
-        }
-
-        .card-front p {
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: #fbcfe8;
-        }
+        .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 450px; margin: 0 auto; }
+        .memory-card { aspect-ratio: 3/4; position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); cursor: pointer; }
+        .memory-card.flip { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; padding: 5px; }
+        .card-back { background: linear-gradient(135deg, #ec4899, #8b5cf6); border: 2px solid rgba(255, 255, 255, 0.2); }
+        .card-back::after { content: '🃏'; font-size: 2rem; opacity: 0.5; }
+        .card-front { background: #1e293b; border: 2px solid #ec4899; transform: rotateY(180deg); }
+        .card-front span { font-size: 2.2rem; margin-bottom: 2px; }
+        .card-front p { font-size: 0.7rem; font-weight: bold; color: #fbcfe8; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="mb-6 text-center">
+    <a href="/tools" class="fixed top-4 left-4 z-50 bg-gray-800/80 hover:bg-gray-700 text-white p-2 md:px-4 md:py-2 rounded-full border border-gray-600 shadow-lg backdrop-blur-sm transition flex items-center gap-2">
+        <i class="fas fa-arrow-left"></i> <span class="hidden md:inline font-bold text-sm">Tools Lab</span>
+    </a>
+
+    <div class="mb-6 text-center mt-8">
         <h1 class="text-3xl md:text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500">
             <i class="fas fa-magic mr-2 text-pink-500"></i> Anime Match
         </h1>
-        <p class="text-gray-400 text-sm">Find all matching pairs to win!</p>
         <div class="mt-4 flex gap-6 justify-center text-sm font-bold">
             <div class="bg-gray-800 px-4 py-2 rounded-lg border border-gray-700">Flips: <span id="flip-count" class="text-pink-400">0</span></div>
             <div class="bg-gray-800 px-4 py-2 rounded-lg border border-gray-700">Matches: <span id="match-count" class="text-purple-400">0</span> / 8</div>
         </div>
     </div>
 
-    <div class="memory-grid w-full px-2" id="game-board">
-        </div>
+    <div class="memory-grid w-full px-2" id="game-board"></div>
 
     <button onclick="initGame()" class="mt-8 px-8 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-xl font-bold transition shadow-[0_0_15px_rgba(236,72,153,0.4)] flex items-center gap-2">
-        <i class="fas fa-redo"></i> Restart Game
+        <i class="fas fa-redo"></i> Shuffle & Restart
     </button>
 
     <script>
-        // Best Anime Characters List
-        const characters = [
-            { name: "Ayanokōji", emoji: "🧠" },
-            { name: "Lucifer", emoji: "😈" },
-            { name: "Sung Jinwoo", emoji: "🗡️" },
-            { name: "Gojo", emoji: "🤞" },
-            { name: "Zoro", emoji: "⚔️" },
-            { name: "Levi", emoji: "🛡️" },
-            { name: "Itachi", emoji: "👁️" },
-            { name: "Light", emoji: "📓" }
+        const allCharacters = [
+            { name: "Ayanokōji", emoji: "🧠" }, { name: "Lucifer", emoji: "😈" }, { name: "Sung Jinwoo", emoji: "🗡️" },
+            { name: "Gojo", emoji: "🤞" }, { name: "Zoro", emoji: "⚔️" }, { name: "Levi", emoji: "🛡️" },
+            { name: "Itachi", emoji: "👁️" }, { name: "Light", emoji: "📓" }, { name: "Naruto", emoji: "🍜" },
+            { name: "Luffy", emoji: "🍖" }, { name: "Saitama", emoji: "👊" }, { name: "Killua", emoji: "⚡" },
+            { name: "Eren", emoji: "🕊️" }, { name: "Kakashi", emoji: "📖" }, { name: "Sukuna", emoji: "👺" },
+            { name: "Goku", emoji: "🐉" }, { name: "Tanjiro", emoji: "🌊" }, { name: "L", emoji: "🍰" }
         ];
 
-        let gameGrid = [];
-        let firstCard = null;
-        let secondCard = null;
-        let lockBoard = false;
-        let flips = 0;
-        let matches = 0;
-
+        let gameGrid = []; let firstCard = null; let secondCard = null; let lockBoard = false; let flips = 0; let matches = 0;
         const boardElement = document.getElementById('game-board');
-        const flipCountElement = document.getElementById('flip-count');
-        const matchCountElement = document.getElementById('match-count');
 
         function initGame() {
-            // Reset variables
-            firstCard = null;
-            secondCard = null;
-            lockBoard = false;
-            flips = 0;
-            matches = 0;
-            flipCountElement.innerText = flips;
-            matchCountElement.innerText = matches;
+            firstCard = null; secondCard = null; lockBoard = false; flips = 0; matches = 0;
+            document.getElementById('flip-count').innerText = flips;
+            document.getElementById('match-count').innerText = matches;
             boardElement.innerHTML = '';
 
-            // Duplicate array to make pairs and shuffle
-            gameGrid = [...characters, ...characters];
+            // Randomly select 8 characters from the large pool
+            const shuffledPool = allCharacters.sort(() => 0.5 - Math.random());
+            const selectedChars = shuffledPool.slice(0, 8);
+            
+            gameGrid = [...selectedChars, ...selectedChars];
             gameGrid.sort(() => 0.5 - Math.random());
 
-            // Create cards
-            gameGrid.forEach((character, index) => {
-                const card = document.createElement('div');
-                card.classList.add('memory-card');
-                card.dataset.name = character.name;
-
-                card.innerHTML = `
-                    <div class="card-face card-back"></div>
-                    <div class="card-face card-front">
-                        <span>${character.emoji}</span>
-                        <p>${character.name}</p>
-                    </div>
-                `;
-
-                card.addEventListener('click', flipCard);
-                boardElement.appendChild(card);
+            gameGrid.forEach((character) => {
+                const card = document.createElement('div'); card.classList.add('memory-card'); card.dataset.name = character.name;
+                card.innerHTML = `<div class="card-face card-back"></div><div class="card-face card-front"><span>${character.emoji}</span><p>${character.name}</p></div>`;
+                card.addEventListener('click', flipCard); boardElement.appendChild(card);
             });
         }
 
         function flipCard() {
-            if (lockBoard) return;
-            if (this === firstCard) return;
-
+            if (lockBoard || this === firstCard) return;
             this.classList.add('flip');
-
-            if (!firstCard) {
-                // First click
-                firstCard = this;
-                return;
-            }
-
-            // Second click
-            secondCard = this;
-            flips++;
-            flipCountElement.innerText = flips;
-            
-            checkForMatch();
+            if (!firstCard) { firstCard = this; return; }
+            secondCard = this; flips++; document.getElementById('flip-count').innerText = flips; checkForMatch();
         }
 
         function checkForMatch() {
             let isMatch = firstCard.dataset.name === secondCard.dataset.name;
-
             if (isMatch) {
-                disableCards();
-                matches++;
-                matchCountElement.innerText = matches;
-                
-                if (matches === 8) {
-                    setTimeout(() => {
-                        confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
-                    }, 500);
-                }
+                firstCard.removeEventListener('click', flipCard); secondCard.removeEventListener('click', flipCard);
+                firstCard.querySelector('.card-front').style.borderColor = '#10b981'; secondCard.querySelector('.card-front').style.borderColor = '#10b981';
+                matches++; document.getElementById('match-count').innerText = matches;
+                if (matches === 8) setTimeout(() => confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } }), 500);
+                [firstCard, secondCard] = [null, null]; lockBoard = false;
             } else {
-                unflipCards();
+                lockBoard = true;
+                setTimeout(() => { firstCard.classList.remove('flip'); secondCard.classList.remove('flip'); [firstCard, secondCard] = [null, null]; lockBoard = false; }, 1000);
             }
         }
-
-        function disableCards() {
-            firstCard.removeEventListener('click', flipCard);
-            secondCard.removeEventListener('click', flipCard);
-            
-            // Add a little glow to matched cards
-            firstCard.querySelector('.card-front').style.borderColor = '#10b981';
-            secondCard.querySelector('.card-front').style.borderColor = '#10b981';
-
-            resetBoard();
-        }
-
-        function unflipCards() {
-            lockBoard = true;
-            setTimeout(() => {
-                firstCard.classList.remove('flip');
-                secondCard.classList.remove('flip');
-                resetBoard();
-            }, 1000);
-        }
-
-        function resetBoard() {
-            [firstCard, secondCard] = [null, null];
-            lockBoard = false;
-        }
-
-        // Start game on load
         initGame();
     </script>
 </body>
