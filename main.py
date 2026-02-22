@@ -39,7 +39,6 @@ from datetime import datetime, timedelta
 import edge_tts 
 
 # Local Tool Imports
-# Local Tool Imports
 from tools_lab import (
     generate_prompt_only, generate_qr_code, 
     analyze_resume, review_github, currency_tool,
@@ -47,7 +46,6 @@ from tools_lab import (
     generate_interview_questions, handle_mock_interview,
     solve_math_problem, smart_todo_maker, build_pro_resume,
     sing_with_me_tool, run_agent_task, generate_flashcards_tool,
-    # YE NAYE ADD KIYE HAIN:
     cold_email_tool, fitness_coach_tool, feynman_explainer_tool, 
     code_debugger_tool, movie_talker_tool, anime_talker_tool
 )
@@ -137,6 +135,11 @@ def get_random_gemini_key():
     possible_keys = [k.strip() for k in keys if k.strip()]
     return random.choice(possible_keys) if possible_keys else os.getenv("GEMINI_API_KEY")
 
+def get_random_openrouter_key():
+    keys = os.getenv("OPENROUTER_API_KEY_POOL", "").split(",")
+    possible_keys = [k.strip() for k in keys if k.strip()]
+    return random.choice(possible_keys) if possible_keys else os.getenv("OPENROUTER_API_KEY")
+
 async def get_current_user(request: Request): return request.session.get('user')
 
 def verify_password(plain, hashed): return pwd_context.verify(hashlib.sha256(plain.encode()).hexdigest(), hashed) if plain and hashed else False
@@ -172,10 +175,20 @@ async def extract_and_save_memory(user_email: str, user_message: str):
     try:
         triggers = ["my name is", "i live in", "i like", "i love", "remember", "save this", "my birthday", "i am", "mera naam", "main rehta hu", "mujhe pasand hai"]
         if not any(t in user_message.lower() for t in triggers) and len(user_message.split()) < 4: return
-        client = get_groq()
-        if not client: return
+        
+        # 🚀 Shifting Memory Task to OpenRouter to save Groq Limits
         extraction_prompt = f"Analyze this user message: \"{user_message}\"\nExtract ANY permanent user fact. Return ONLY the fact as a short sentence. If nothing worth remembering, return 'NO_DATA'."
-        response = client.chat.completions.create(messages=[{"role": "user", "content": extraction_prompt}], model="llama-3.3-70b-versatile").choices[0].message.content.strip()
+        
+        openrouter_key = get_random_openrouter_key()
+        if not openrouter_key: return
+
+        headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
+        data = {"model": "meta-llama/llama-3-8b-instruct:free", "messages": [{"role": "user", "content": extraction_prompt}]}
+        
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=15.0)
+            response = resp.json()['choices'][0]['message']['content'].strip()
+
         if "NO_DATA" not in response and len(response) > 5:
             clean_memory = response.replace("User", "You").replace("user", "You")
             await users_collection.update_one({"email": user_email}, {"$push": {"memories": clean_memory}})
@@ -252,8 +265,6 @@ app = FastAPI()
 
 # ==========================================================
 # 🎮 ARCADE ZONE (ISOLATED MOUNT)
-# Try-Except lagaya hai taaki agar game file mein error ho 
-# toh main.py crash na ho aur website chalti rahe!
 # ==========================================================
 try:
     from arcade_zone.arcade_backend import arcade_app
@@ -262,20 +273,13 @@ try:
 except Exception as e:
     print(f"Arcade module offline (Safe Mode Active): {e}")
 
-# 1. Middlewares (Inhe TOP par rakho)
-# ... tumhara baaki purana code ...
-
-# 1. Middlewares (Inhe TOP par rakho)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
 
-# 2. Static Files Mounting (Name "static" explicitly define kiya hai)
 if not os.path.exists("static"): 
     os.makedirs("static")
-# Is line ko replace karo
 app.mount("/static", StaticFiles(directory=os.path.join(os.getcwd(), "static")), name="static")
 
-# 3. Templates Initialization
 templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
@@ -288,12 +292,10 @@ def startup_event():
 
 @app.middleware("http")
 async def fix_google_oauth_redirect(request: Request, call_next):
-    # Forced HTTPS scheme for Hugging Face
     if request.headers.get("x-forwarded-proto") == "https": 
         request.scope["scheme"] = "https"
     return await call_next(request)
 
-# 4. OAuth Setup
 oauth = OAuth()
 oauth.register(
     name='google', 
@@ -303,7 +305,6 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# 5. Auth & API Routes
 @app.get("/auth/login")
 async def login(request: Request):
     redirect_uri = str(request.url_for('auth_callback')).replace("http://", "https://")
@@ -404,11 +405,8 @@ async def admin_page(request: Request):
     total_chats = await chats_collection.count_documents({})
     banned_count = await users_collection.count_documents({"is_banned": True})
     
-    # Fetch Usage Data
     top_tools = await tool_usage_collection.find({}).sort("count", -1).limit(6).to_list(length=None)
     max_tool_count = top_tools[0]['count'] if top_tools else 0
-
-    # Fetch Recent Errors
     recent_errors = await error_logs_collection.find({}).sort("timestamp", -1).limit(10).to_list(length=None)
     
     users_cursor = users_collection.find({}).sort("_id", -1).limit(50)
@@ -428,15 +426,9 @@ async def admin_page(request: Request):
         users_list.append(u)
         
     return templates.TemplateResponse("admin.html", {
-        "request": request, 
-        "total_users": total_users, 
-        "total_chats": total_chats,
-        "banned_count": banned_count, 
-        "users": users_list, 
-        "admin_email": ADMIN_EMAIL,
-        "top_tools": top_tools,            # New passed variable
-        "max_tool_count": max_tool_count,  # New passed variable
-        "recent_errors": recent_errors     # New passed variable
+        "request": request, "total_users": total_users, "total_chats": total_chats,
+        "banned_count": banned_count, "users": users_list, "admin_email": ADMIN_EMAIL,
+        "top_tools": top_tools, "max_tool_count": max_tool_count, "recent_errors": recent_errors     
     })
 
 @app.get("/tools", response_class=HTMLResponse)
@@ -692,7 +684,6 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
 
         db_user = await users_collection.find_one({"email": user['email']})
         
-        # Banned user check restored
         if db_user and db_user.get("is_banned"):
             return {"reply": "🚫 You have been banned by the Admin. Access Denied."}
 
@@ -705,7 +696,6 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             if recent_mems: retrieved_memory = "\n".join(recent_mems)
 
         FINAL_SYSTEM_PROMPT = user_custom_prompt if user_custom_prompt and user_custom_prompt.strip() else DEFAULT_SYSTEM_INSTRUCTIONS
-        # Ye line AI ko batayegi ki wo kis se baat kar rahi hai
         user_display_name = db_user.get("name") or user.get("name", "User")
         FINAL_SYSTEM_PROMPT += f"\n\n[IMPORTANT CONTEXT]: You are Shanvika. The person you are talking to is {user_display_name}. DO NOT call the user 'Shanvika'."
         if retrieved_memory:
@@ -722,15 +712,12 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
         reply = ""
         context_history = ""
         
-        # 🔥 YAHAN CHANGE KIYA HAI 🔥: Sing With Me ke sath ab Movie aur Anime bhi context yaad rakhenge!
         if mode in ["sing_with_me", "movie_talker", "anime_talker"]:
             for m in chat_doc.get("messages", [])[-6:]: 
                 context_history += f"{m['role']}: {m['content']} | "
 
-        # 🚀 ADDED: TRACK TOOL USAGE HERE (Har request par ye database mein update hoga)
         await tool_usage_collection.update_one({"tool_name": mode}, {"$inc": {"count": 1}}, upsert=True)
 
-        # Assuming generate_image_hf is handled inside tools_lab or agent task now. 
         if mode == "image_gen": reply = await generate_image_hf(msg) 
         elif mode == "prompt_writer": reply = await generate_prompt_only(msg)
         elif mode == "qr_generator": reply = await generate_qr_code(msg)
@@ -770,7 +757,6 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
 
         return {"reply": reply}
         
-    # 🚀 ADDED: ERROR TRACKING HERE
     except Exception as e: 
         error_msg = str(e)
         import traceback
@@ -803,8 +789,34 @@ async def api_generate_flashcards(req: ToolRequest, request: Request):
     try: return {"status": "success", "data": json.loads(raw_json_str)}
     except: return {"status": "error", "message": "AI couldn't format the flashcards properly.", "raw": raw_json_str}
 
+# ==================================================================================
+# [CATEGORY] ARCADE DATABASE APIs (NEW)
+# ==================================================================================
+class HighScoreRequest(BaseModel): game: str; score: int
+
+@app.post("/api/arcade/highscore")
+async def update_highscore(req: HighScoreRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return {"status": "error"}
+    db_user = await users_collection.find_one({"email": user['email']})
+    if not db_user: return {"status": "error"}
+    
+    current_score = db_user.get("arcade_scores", {}).get(req.game, 0)
+    if req.score > current_score:
+        await users_collection.update_one({"email": user['email']}, {"$set": {f"arcade_scores.{req.game}": req.score}})
+        return {"status": "success", "new_high": True}
+    return {"status": "success", "new_high": False}
+
+@app.get("/api/arcade/highscore/{game}")
+async def get_highscore(game: str, request: Request):
+    user = await get_current_user(request)
+    if not user: return {"score": 0}
+    db_user = await users_collection.find_one({"email": user['email']})
+    if not db_user: return {"score": 0}
+    return {"score": db_user.get("arcade_scores", {}).get(game, 0)}
+
 # ==========================================
-# 👑 ADMIN PANEL ACTIONS (God Mode Controls)
+# 👑 ADMIN PANEL ACTIONS
 # ==========================================
 @app.post("/admin/promote_user")
 async def promote_user(request: Request, email: str = Form(...)):

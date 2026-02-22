@@ -17,7 +17,7 @@ import google.generativeai as genai
 from groq import Groq
 import PIL.Image
 import lyricsgenius
-from bs4 import BeautifulSoup  # New for Web Surfing
+from bs4 import BeautifulSoup 
 import sys
 from io import StringIO
 import re
@@ -42,32 +42,57 @@ def get_llm_response(prompt, model="llama-3.3-70b-versatile"):
     except Exception as e:
         return f"⚠️ LLM Error: {str(e)}"
 
+# 🚀 Naya OpenRouter Helper Function
+def get_openrouter_response(prompt, model="meta-llama/llama-3-8b-instruct:free"):
+    try:
+        keys = os.getenv("OPENROUTER_API_KEY_POOL", "").split(",")
+        possible_keys = [k.strip() for k in keys if k.strip()]
+        key = random.choice(possible_keys) if possible_keys else os.getenv("OPENROUTER_API_KEY")
+        
+        if not key:
+            return "⚠️ API Key missing."
+            
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "HTTP-Referer": "https://shanvika.ai", 
+            "X-Title": "Shanvika AI", 
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+        
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+        response_json = response.json()
+        return response_json['choices'][0]['message']['content']
+    except Exception as e:
+        return f"⚠️ OpenRouter Error: {str(e)}"
+
 # ==================================================================================
 # [CATEGORY] NEW: AI AGENT TOOLS (Web Surfer, Python, File)
 # ==================================================================================
 
-# 1. Web Surfer (Link Reader)
 def scrape_website(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
         for script in soup(["script", "style", "nav", "footer"]):
-            script.decompose() # Remove junk
+            script.decompose() 
         text = soup.get_text()
         lines = (line.strip() for line in text.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         text = '\n'.join(chunk for chunk in chunks if chunk)
-        return text[:6000] # Limit content to avoid token overflow
+        return text[:6000] 
     except Exception as e:
         return f"Error reading website: {str(e)}"
 
-# 2. Python Code Executor (Sandboxed-ish)
 def execute_python_code(code):
     old_stdout = sys.stdout
     redirected_output = sys.stdout = StringIO()
     try:
-        # Dangerous! Only for personal use.
         exec(code, {'__builtins__': __builtins__, 'math': __import__('math'), 'random': __import__('random')})
         sys.stdout = old_stdout
         return redirected_output.getvalue()
@@ -75,10 +100,9 @@ def execute_python_code(code):
         sys.stdout = old_stdout
         return f"Python Error: {str(e)}"
 
-# 3. File Creator
 def create_file_tool(filename, content):
     try:
-        if ".." in filename or "/" in filename: filename = os.path.basename(filename) # Security
+        if ".." in filename or "/" in filename: filename = os.path.basename(filename) 
         path = f"static/user_files/{filename}"
         if not os.path.exists("static/user_files"): os.makedirs("static/user_files")
         with open(path, "w", encoding='utf-8') as f:
@@ -91,7 +115,6 @@ def create_file_tool(filename, content):
 # [CATEGORY] NEW: THE AGENT BRAIN (ReAct Loop)
 # ==================================================================================
 async def run_agent_task(query):
-    # This loop allows the AI to Think -> Act -> Observe -> Repeat
     max_steps = 5 
     history = f"Task: {query}\n"
     
@@ -116,12 +139,10 @@ async def run_agent_task(query):
         - Do not talk, just command.
         """
         
-        # 1. Think (Ask LLM for command)
         command = get_llm_response(prompt).strip()
         history += f"\nStep {step+1}: AI Thought: {command}\n"
         print(f"🤖 Agent Step {step+1}: {command}")
 
-        # 2. Act (Execute Tool)
         result = ""
         
         if command.startswith("SEARCH:"):
@@ -151,18 +172,15 @@ async def run_agent_task(query):
         else:
             result = "Invalid Command. Please use SEARCH, SCRAPE, PYTHON, CREATE_FILE, or ANSWER."
 
-        # 3. Observe (Add result to history)
-        history += f"Observation: {result[:1000]}...\n" # Limit history size
+        history += f"Observation: {result[:1000]}...\n" 
 
     return "⚠️ Agent timed out (Too many steps). Here is what I found:\n" + history
     
 
 # ==================================================================================
-# [EXISTING TOOLS BELOW - NO CHANGES NEEDED]
+# [EXISTING TOOLS BELOW]
 # ==================================================================================
-# (Copy paste your existing Image Gen, Resume, Singing, etc. functions here as is)
 async def generate_image_hf(prompt):
-    # Step 1: Enhance Prompt using Gemini
     enhanced_prompt = prompt
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -173,8 +191,7 @@ async def generate_image_hf(prompt):
     except:
         pass 
 
-    # Step 2: Try Hugging Face (FLUX)
-    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev"
+    API_URL = "[https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev](https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev)"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     
     try:
@@ -193,10 +210,9 @@ async def generate_image_hf(prompt):
             raise Exception("HF Busy")
 
     except Exception as e:
-        # Step 3: FALLBACK to Pollinations AI
         try:
             safe_prompt = enhanced_prompt.replace(" ", "%20")
-            pollinations_url = f"https://image.pollinations.ai/prompt/{safe_prompt}"
+            pollinations_url = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){safe_prompt}"
             return f"""
             <div class="glass p-2 rounded-xl">
                 <p class="text-xs text-yellow-400 mb-2">⚠️ Server Busy. Switched to Backup AI.</p>
@@ -205,6 +221,7 @@ async def generate_image_hf(prompt):
             """
         except:
             return "⚠️ All Image Servers are currently down. Please try again later."
+
 async def analyze_resume(file_data, user_msg):
     if not file_data: return "⚠️ Please upload a PDF resume first."
     try:
@@ -214,20 +231,24 @@ async def analyze_resume(file_data, user_msg):
         text = ""
         for page in reader.pages: text += page.extract_text()
         prompt = f"Act as an expert HR Manager. Analyze this resume:\n{text[:3000]}...\nProvide Score, Strengths, Weaknesses, and ATS tips."
-        return get_llm_response(prompt)
+        
+        # 🚀 Shifting to Gemini for large context
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        res = model.generate_content(prompt)
+        return res.text
     except Exception as e: return f"⚠️ Error: {str(e)}"
 
 async def review_github(url):
     username = url.split("/")[-1]
     if not username: return "⚠️ Invalid GitHub URL."
     try:
-        user_data = requests.get(f"https://api.github.com/users/{username}").json()
-        repos_data = requests.get(f"https://api.github.com/users/{username}/repos?sort=updated").json()
+        user_data = requests.get(f"[https://api.github.com/users/](https://api.github.com/users/){username}").json()
+        repos_data = requests.get(f"[https://api.github.com/users/](https://api.github.com/users/){username}/repos?sort=updated").json()
         
         if "message" in user_data: return "⚠️ User not found."
         top_repos = [r['name'] for r in repos_data[:5]]
         prompt = f"Review GitHub Profile: {username}, Bio: {user_data.get('bio')}, Repos: {user_data.get('public_repos')}, Recent: {', '.join(top_repos)}. Give rating and advice."
-        return get_llm_response(prompt)
+        return get_llm_response(prompt) # Complex task, keeping Groq
     except Exception as e: 
         return f"⚠️ Error: {str(e)}"
 
@@ -237,7 +258,7 @@ async def summarize_youtube(url):
         transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
         full_text = " ".join([i['text'] for i in transcript_list])
         prompt = f"Summarize this YouTube video transcript into 5 key bullet points:\n{full_text[:4000]}..."
-        return get_llm_response(prompt)
+        return get_openrouter_response(prompt) # 🚀 Shifted to OpenRouter
     except: return "⚠️ Could not fetch transcript."
 
 async def generate_interview_questions(role):
@@ -259,7 +280,7 @@ async def solve_math_problem(file_data, query):
     except Exception as e: return f"⚠️ Math Error: {str(e)}"
 
 async def smart_todo_maker(raw_text):
-    return get_llm_response(f"Convert to To-Do List with priorities:\n{raw_text}")
+    return get_openrouter_response(f"Convert to To-Do List with priorities:\n{raw_text}") # 🚀 Shifted to OpenRouter
 
 async def generate_password_tool(req):
     chars = string.ascii_letters + string.digits + "!@#$%^&*"
@@ -273,7 +294,7 @@ async def generate_qr_code(text):
     return f'<div class="flex justify-center p-4 bg-white rounded-xl w-fit mx-auto"><img src="data:image/png;base64,{img_str}" alt="QR Code" width="200"></div>'
 
 async def fix_grammar_tool(text):
-    return get_llm_response(f"Fix grammar and make professional:\n{text}")
+    return get_openrouter_response(f"Fix grammar and make professional:\n{text}") # 🚀 Shifted to OpenRouter
 
 async def generate_prompt_only(idea):
     return get_llm_response(f"Write a professional AI image prompt for: '{idea}'")
@@ -299,10 +320,6 @@ async def currency_tool(query):
         res = DDGS().text(f"convert {query}", max_results=1)
         return f"💱 **Conversion:**\n{res[0]['body']}" if res else "⚠️ Error."
     except: return "⚠️ Service unavailable."
-
-# ==================================================================================
-# [NEW TOOLS] COLD EMAIL, FITNESS, FEYNMAN, DEBUGGER, MOVIE & ANIME TALKER
-# ==================================================================================
 
 async def cold_email_tool(details):
     prompt = f"""
@@ -360,11 +377,7 @@ async def anime_talker_tool(message, context_history):
     """
     return get_llm_response(prompt)
 
-# ==================================================================================
-# [NEW TOOL] FLASHCARDS GENERATOR
-# ==================================================================================
 async def generate_flashcards_tool(topic):
-    # Hum AI ko bolenge ki strictly JSON format de taaki frontend par card flip banana asaan ho
     prompt = f"""
     You are an expert study assistant. Generate exactly 6 highly effective flashcards for the topic: "{topic}".
     The questions should be conceptual and answers should be clear and concise.
@@ -378,7 +391,6 @@ async def generate_flashcards_tool(topic):
     """
     try:
         response = get_llm_response(prompt)
-        # Markdown backticks hatane ke liye safety
         if response.startswith("```"):
             response = response.replace("```json", "").replace("```", "").strip()
         return response
