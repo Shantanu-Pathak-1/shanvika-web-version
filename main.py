@@ -250,6 +250,21 @@ class ToolRequest(BaseModel): topic: str
 # ==================================================================================
 app = FastAPI()
 
+# ==========================================================
+# 🎮 ARCADE ZONE (ISOLATED MOUNT)
+# Try-Except lagaya hai taaki agar game file mein error ho 
+# toh main.py crash na ho aur website chalti rahe!
+# ==========================================================
+try:
+    from arcade_zone.arcade_backend import arcade_app
+    app.mount("/arcade", arcade_app)
+    print("Arcade Module Loaded Successfully!")
+except Exception as e:
+    print(f"Arcade module offline (Safe Mode Active): {e}")
+
+# 1. Middlewares (Inhe TOP par rakho)
+# ... tumhara baaki purana code ...
+
 # 1. Middlewares (Inhe TOP par rakho)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=True, same_site="lax")
@@ -767,7 +782,7 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             "timestamp": datetime.utcnow()
         })
         return {"reply": f"⚠️ Server Error: We ran into a small issue."}
-        
+
 @app.post("/api/speak")
 async def text_to_speech_endpoint(request: Request):
     try:

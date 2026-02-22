@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo Board • Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; }
+        
+        .ludo-board {
+            width: 360px;
+            height: 360px;
+            background: white;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: grid;
+            grid-template-columns: 6fr 3fr 6fr;
+            grid-template-rows: 6fr 3fr 6fr;
+            gap: 2px;
+        }
+
+        /* Home Areas */
+        .home { border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .home-inner { width: 70%; height: 70%; background: white; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
+        .token-spot { width: 100%; height: 100%; border-radius: 50%; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); }
+
+        .red-home { background: #ef4444; border: 2px solid #b91c1c; }
+        .green-home { background: #10b981; border: 2px solid #047857; }
+        .blue-home { background: #3b82f6; border: 2px solid #1d4ed8; }
+        .yellow-home { background: #f59e0b; border: 2px solid #b45309; }
+
+        .token-spot.red { background: #ef4444; }
+        .token-spot.green { background: #10b981; }
+        .token-spot.blue { background: #3b82f6; }
+        .token-spot.yellow { background: #f59e0b; }
+
+        /* Paths */
+        .path-vertical, .path-horizontal { display: grid; background: #e5e7eb; border: 1px solid #9ca3af; }
+        .path-vertical { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(6, 1fr); }
+        .path-horizontal { grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(3, 1fr); }
+        
+        .cell { border: 1px solid #d1d5db; background: white; }
+        
+        /* Colored Path Cells */
+        .bg-red-path { background: #fca5a5; }
+        .bg-green-path { background: #6ee7b7; }
+        .bg-blue-path { background: #93c5fd; }
+        .bg-yellow-path { background: #fcd34d; }
+
+        .center {
+            width: 100%; height: 100%;
+            background: conic-gradient(
+                #ef4444 0deg 90deg,
+                #3b82f6 90deg 180deg,
+                #f59e0b 180deg 270deg,
+                #10b981 270deg 360deg
+            );
+            border: 1px solid #9ca3af;
+        }
+
+        /* 3D Dice */
+        .dice-container { perspective: 1000px; margin-top: 30px; cursor: pointer; }
+        .dice { width: 60px; height: 60px; position: relative; transform-style: preserve-3d; transition: transform 1s; }
+        .dice-face { position: absolute; width: 100%; height: 100%; background: white; border: 2px solid #ccc; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 30px; color: black; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
+        .front  { transform: translateZ(30px); }
+        .back   { transform: rotateY(180deg) translateZ(30px); }
+        .right  { transform: rotateY(90deg) translateZ(30px); }
+        .left   { transform: rotateY(-90deg) translateZ(30px); }
+        .top    { transform: rotateX(90deg) translateZ(30px); }
+        .bottom { transform: rotateX(-90deg) translateZ(30px); }
+
+        .rolling { animation: roll 1s infinite linear; }
+        @keyframes roll {
+            0% { transform: rotateX(0) rotateY(0) rotateZ(0); }
+            100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="text-center mb-6">
+        <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400">
+            <i class="fas fa-dice text-white mr-2"></i> Ludo Arena
+        </h1>
+        <p class="text-gray-400 mt-1">Roll the dice to start the game!</p>
+    </div>
+
+    <div class="ludo-board">
+        <div class="home red-home">
+            <div class="home-inner"><div class="token-spot red"></div><div class="token-spot red"></div><div class="token-spot red"></div><div class="token-spot red"></div></div>
+        </div>
+        
+        <div class="path-vertical">
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-green-path"></div><div class="cell bg-green-path"></div>
+            <div class="cell"></div><div class="cell bg-green-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-green-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-green-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-green-path"></div><div class="cell"></div>
+        </div>
+
+        <div class="home green-home">
+            <div class="home-inner"><div class="token-spot green"></div><div class="token-spot green"></div><div class="token-spot green"></div><div class="token-spot green"></div></div>
+        </div>
+
+        <div class="path-horizontal">
+            <div class="cell"></div><div class="cell bg-red-path"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-red-path"></div><div class="cell bg-red-path"></div><div class="cell bg-red-path"></div><div class="cell bg-red-path"></div><div class="cell bg-red-path"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+
+        <div class="center"></div>
+
+        <div class="path-horizontal">
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell bg-yellow-path"></div><div class="cell bg-yellow-path"></div><div class="cell bg-yellow-path"></div><div class="cell bg-yellow-path"></div><div class="cell bg-yellow-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell bg-yellow-path"></div><div class="cell"></div>
+        </div>
+
+        <div class="home blue-home">
+            <div class="home-inner"><div class="token-spot blue"></div><div class="token-spot blue"></div><div class="token-spot blue"></div><div class="token-spot blue"></div></div>
+        </div>
+
+        <div class="path-vertical">
+            <div class="cell"></div><div class="cell bg-blue-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-blue-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-blue-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell bg-blue-path"></div><div class="cell"></div>
+            <div class="cell bg-blue-path"></div><div class="cell bg-blue-path"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+
+        <div class="home yellow-home">
+            <div class="home-inner"><div class="token-spot yellow"></div><div class="token-spot yellow"></div><div class="token-spot yellow"></div><div class="token-spot yellow"></div></div>
+        </div>
+    </div>
+
+    <div class="dice-container" onclick="rollDice()">
+        <div class="dice" id="dice">
+            <div class="dice-face front">⚀</div>
+            <div class="dice-face back">⚅</div>
+            <div class="dice-face right">⚂</div>
+            <div class="dice-face left">⚃</div>
+            <div class="dice-face top">⚁</div>
+            <div class="dice-face bottom">⚄</div>
+        </div>
+    </div>
+    <div class="mt-4 text-xl font-bold text-gray-300">You Rolled: <span id="roll-result" class="text-white">Click Dice</span></div>
+
+    <script>
+        const diceElement = document.getElementById("dice");
+        const resultElement = document.getElementById("roll-result");
+        let isRolling = false;
+
+        function rollDice() {
+            if (isRolling) return;
+            isRolling = true;
+            resultElement.innerText = "Rolling...";
+            diceElement.classList.add("rolling");
+
+            setTimeout(() => {
+                diceElement.classList.remove("rolling");
+                const roll = Math.floor(Math.random() * 6) + 1;
+                resultElement.innerText = roll;
+
+                // Rotate dice to show correct face
+                switch(roll) {
+                    case 1: diceElement.style.transform = "rotateX(0deg) rotateY(0deg)"; break;
+                    case 2: diceElement.style.transform = "rotateX(-90deg) rotateY(0deg)"; break;
+                    case 3: diceElement.style.transform = "rotateX(0deg) rotateY(-90deg)"; break;
+                    case 4: diceElement.style.transform = "rotateX(0deg) rotateY(90deg)"; break;
+                    case 5: diceElement.style.transform = "rotateX(90deg) rotateY(0deg)"; break;
+                    case 6: diceElement.style.transform = "rotateX(180deg) rotateY(0deg)"; break;
+                }
+                isRolling = false;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
