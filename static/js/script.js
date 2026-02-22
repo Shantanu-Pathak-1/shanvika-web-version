@@ -12,15 +12,18 @@ let currentFile = null;
 let lastMessageDate = null; 
 
 // Helper function date calculate karne ke liye
+// Helper function date calculate karne ke liye
 function getDateLabel(timestamp) {
-    const date = timestamp ? new Date(timestamp) : new Date();
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    let ts = timestamp;
+    // Backend ke time ko strict UTC maan kar IST mein badalne ka logic
+    if (ts && typeof ts === 'string' && !ts.endsWith('Z') && !ts.includes('+')) {
+        ts += 'Z'; 
+    }
+    
+    const date = ts ? new Date(ts) : new Date();
+    
+    // Direct date dikhayega (e.g., "22 Feb 2026")
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // New Global Variables for Image Settings
@@ -225,12 +228,19 @@ async function sendMessage() {
 function appendMessage(role, text, timestamp = null) {
     const chatBox = document.getElementById('chat-box');
     
-    // Exact time aur date fix karne ke liye
-    const msgDateObj = timestamp ? new Date(timestamp) : new Date();
-    const displayTime = msgDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateLabel = getDateLabel(timestamp);
+    let ts = timestamp;
+    // Timezone Fix: Z lagane se browser exact Real Time (India) nikal lega
+    if (ts && typeof ts === 'string' && !ts.endsWith('Z') && !ts.includes('+')) {
+        ts += 'Z'; 
+    }
+    
+    const msgDateObj = ts ? new Date(ts) : new Date();
+    
+    // Exact 12-hour format time (jaise 10:15 PM)
+    const displayTime = msgDateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const dateLabel = getDateLabel(ts);
 
-    // Date Divider Logic (Agar day change hua toh divider aayega)
+    // Date Divider Logic (Agar day change hua toh bas 1 baar divider aayega)
     if (lastMessageDate !== dateLabel) {
         const divider = document.createElement('div');
         divider.className = 'date-divider';
@@ -277,10 +287,19 @@ function appendMessage(role, text, timestamp = null) {
 
     if (role === 'assistant') {
         div.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightElement(block);
+            if (window.hljs) hljs.highlightElement(block);
         });
     }
 }
+    div.innerHTML = `<div id="${msgId}_content">${content}</div> ${actionHTML}`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    if (role === 'assistant') {
+        div.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+    }
 // --- ACTIONS ---
 function copyText(msgId) {
     const content = document.getElementById(msgId + '_content').innerText;
