@@ -37,6 +37,8 @@ import hashlib
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import edge_tts 
+# main.py ke top par
+from image_generation import generate_image_free, generate_image_pro
 
 # Local Tool Imports
 from tools_lab import (
@@ -210,7 +212,7 @@ async def extract_and_save_memory(user_email: str, user_message: str):
                     mem_id = f"{user_email}_{hashlib.md5(clean_memory.encode()).hexdigest()}"
                     index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
     except Exception as e: print(f"Auto-Memory Error: {e}")
-    
+
 # ==================================================================================
 # [CATEGORY] 6. SCHEDULER TASKS
 # ==================================================================================
@@ -622,6 +624,48 @@ async def get_history(request: Request):
 
 @app.get("/api/new_chat")
 async def create_chat(request: Request): return {"session_id": str(uuid.uuid4())[:8], "messages": []}
+
+# ==================================================================================
+# [CATEGORY] NEW ADVANCED IMAGE GENERATION API
+# ==================================================================================
+class AdvancedImageGenRequest(BaseModel):
+    prompt: str
+    style: str = "realistic"  # 'realistic' ya 'painting'
+    tier: str = "free"        # 'free' ya 'pro'
+
+@app.post("/api/image_gen")
+async def advanced_image_gen_api(req: AdvancedImageGenRequest, request: Request):
+    try:
+        user = await get_current_user(request)
+        if not user: 
+            return JSONResponse({"status": "error", "message": "⚠️ Login required."}, 400)
+
+        if not req.prompt:
+            return {"status": "error", "message": "⚠️ Prompt cannot be empty."}
+        
+        image_url = ""
+        
+        # Free ya Pro engine select karna
+        if req.tier == "pro":
+            image_url = await generate_image_pro(req.prompt, req.style)
+        else:
+            image_url = await generate_image_free(req.prompt, req.style)
+
+        # Agar koi error message aaya ho (start with ⚠️)
+        if image_url.startswith("⚠️"):
+            return {"status": "error", "message": image_url}
+        
+        # Usage track karne ke liye (Optional, admin panel ke liye achha rahega)
+        await tool_usage_collection.update_one(
+            {"tool_name": f"image_gen_{req.tier}"}, 
+            {"$inc": {"count": 1}}, 
+            upsert=True
+        )
+        
+        return {"status": "success", "image_url": image_url}
+
+    except Exception as e:
+        return {"status": "error", "message": f"⚠️ Server Error: {str(e)}"}
 
 @app.get("/api/chat/{session_id}")
 async def get_chat(session_id: str):
