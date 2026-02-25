@@ -809,6 +809,22 @@ async def chat_endpoint(req: ChatRequest, request: Request, background_tasks: Ba
             data = await perform_research_task(msg)
             client = get_groq()
             reply = client.chat.completions.create(messages=[{"role": "system", "content": FINAL_SYSTEM_PROMPT}, {"role": "user", "content": f"Context: {data}\nQ: {msg}"}], model="llama-3.3-70b-versatile").choices[0].message.content if client else data
+        
+        # 🚀 YAHAN HAI WOH CUSTOM TOOL WALA ELIF LOGIC!
+        elif mode.startswith("custom_"):
+            custom_tool = next((t for t in db_user.get("custom_tools", []) if t["id"] == mode), None)
+            if custom_tool:
+                custom_instruction = custom_tool["instruction"]
+                tool_prompt = f"{FINAL_SYSTEM_PROMPT}\n\n[STRICT TOOL INSTRUCTION]: Act exactly as the following tool:\n{custom_instruction}"
+                client = get_groq()
+                if client:
+                    clean_history = [{"role": m["role"], "content": m["content"]} for m in (chat_doc.get("messages", []) + [{"role": "user", "content": msg}])[-15:]]
+                    reply = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": tool_prompt}, *clean_history]).choices[0].message.content
+                else: reply = "⚠️ API Error."
+            else:
+                reply = "⚠️ Custom tool deleted or not found."
+        # 🚀 KHATAM CUSTOM TOOL LOGIC
+        
         else: 
             client = get_groq()
             if client: 
@@ -880,6 +896,36 @@ async def get_highscore(game: str, request: Request):
     db_user = await users_collection.find_one({"email": user['email']})
     if not db_user: return {"score": 0}
     return {"score": db_user.get("arcade_scores", {}).get(game, 0)}
+
+
+# ==================================================================================
+# [CATEGORY] CUSTOM TOOLS APIs
+# ==================================================================================
+class CustomToolRequest(BaseModel): name: str; description: str; instruction: str; icon: str = "fas fa-wrench"
+
+@app.post("/api/create_custom_tool")
+async def create_custom_tool(req: CustomToolRequest, request: Request):
+    user = await get_current_user(request)
+    if not user: return JSONResponse({"status": "error", "message": "Login required"}, 400)
+    
+    tool_id = f"custom_{str(uuid.uuid4())[:8]}"
+    new_tool = {
+        "id": tool_id,
+        "name": req.name,
+        "description": req.description,
+        "instruction": req.instruction,
+        "icon": req.icon
+    }
+    
+    await users_collection.update_one({"email": user['email']}, {"$push": {"custom_tools": new_tool}})
+    return {"status": "success", "tool": new_tool}
+
+@app.get("/api/get_custom_tools")
+async def get_custom_tools(request: Request):
+    user = await get_current_user(request)
+    if not user: return {"tools": []}
+    db_user = await users_collection.find_one({"email": user['email']})
+    return {"tools": db_user.get("custom_tools", [])}
 
 # ==========================================
 # 👑 ADMIN PANEL ACTIONS

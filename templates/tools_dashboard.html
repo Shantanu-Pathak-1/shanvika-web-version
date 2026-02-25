@@ -48,6 +48,23 @@
             <p class="text-gray-400 text-lg">Aaj kya create karein? Apne favorite AI tool ko select karo.</p>
         </header>
 
+        <div class="mb-12 max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">
+                    <i class="fas fa-hammer mr-2 text-yellow-500"></i> My Custom Tools
+                </h2>
+                <button onclick="document.getElementById('customToolModal').classList.remove('hidden')" class="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-orange-500/30 transition transform hover:-translate-y-0.5">
+                    <i class="fas fa-plus mr-1"></i> Create Tool
+                </button>
+            </div>
+            <div id="customToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <p class="text-gray-500 text-sm italic col-span-full">Loading your custom tools...</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 mb-6 max-w-7xl mx-auto mt-8">
+            <h2 class="text-2xl font-bold text-white"><i class="fas fa-layer-group text-purple-500 mr-2"></i> Standard Tools</h2>
+        </div>
+        
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto pb-10">
             
             <a href="/tools/flashcards" class="tool-card bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6 cursor-pointer group">
@@ -248,61 +265,155 @@ Hear movie storytelling or dive into fun discussions.</p>
 Enjoy fun conversations about your favorite anime and characters.</p>
             </a>
         </div>
-        <div class="mt-16 mb-8">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-pink-500/20">
-                <i class="fas fa-gamepad text-xl"></i>
+
+        <div class="mt-8 mb-8 max-w-7xl mx-auto">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-pink-500/20">
+                    <i class="fas fa-gamepad text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Arcade Zone</h2>
+                    <p class="text-gray-400 text-sm">Take a break with zero API cost client-side games!</p>
+                </div>
             </div>
-            <div>
-                <h2 class="text-2xl font-bold text-white">Arcade Zone</h2>
-                <p class="text-gray-400 text-sm">Take a break with zero API cost client-side games!</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                
+                <a href="/arcade/tic-tac-toe" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-pink-500/40 transition duration-300">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-times"></i></div>
+                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-pink-400 transition">Tic-Tac-Toe</h3>
+                    </div>
+                    <p class="text-sm text-gray-400">Can you beat the Unbeatable AI in Hard mode?</p>
+                </a>
+                
+                <a href="/arcade/code-le" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-green-500/40 transition duration-300">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-xl bg-green-500/10 text-green-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-terminal"></i></div>
+                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-green-400 transition">Code-le</h3>
+                    </div>
+                    <p class="text-sm text-gray-400">Guess the 5-letter Tech Word. You have 6 attempts!</p>
+                </a>
+
+                <a href="/arcade/anime-match" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-purple-500/40 transition duration-300">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-magic"></i></div>
+                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-purple-400 transition">Anime Match</h3>
+                    </div>
+                    <p class="text-sm text-gray-400">Memory card game with Ayanokōji, Lucifer & more.</p>
+                </a>
+
+                <a href="/arcade/flappy-bug" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-blue-500/40 transition duration-300">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-bug"></i></div>
+                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-blue-400 transition">Flappy Bug</h3>
+                    </div>
+                    <p class="text-sm text-gray-400">Dodge the 404 Errors and save the Developer Bug!</p>
+                </a>
+
+                <a href="/arcade/ludo" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-yellow-500/40 transition duration-300">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-xl bg-yellow-500/10 text-yellow-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-dice"></i></div>
+                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-yellow-400 transition">Ludo Lite</h3>
+                    </div>
+                    <p class="text-sm text-gray-400">Roll the interactive 3D dice in this classic arena.</p>
+                </a>
             </div>
         </div>
-        
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            
-            <a href="/arcade/tic-tac-toe" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-pink-500/40 transition duration-300">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-times"></i></div>
-                    <h3 class="text-lg font-bold text-gray-200 group-hover:text-pink-400 transition">Tic-Tac-Toe</h3>
-                </div>
-                <p class="text-sm text-gray-400">Can you beat the Unbeatable AI in Hard mode?</p>
-            </a>
-            
-            <a href="/arcade/code-le" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-green-500/40 transition duration-300">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 rounded-xl bg-green-500/10 text-green-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-terminal"></i></div>
-                    <h3 class="text-lg font-bold text-gray-200 group-hover:text-green-400 transition">Code-le</h3>
-                </div>
-                <p class="text-sm text-gray-400">Guess the 5-letter Tech Word. You have 6 attempts!</p>
-            </a>
+    </main>
 
-            <a href="/arcade/anime-match" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-purple-500/40 transition duration-300">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-magic"></i></div>
-                    <h3 class="text-lg font-bold text-gray-200 group-hover:text-purple-400 transition">Anime Match</h3>
+    <div id="customToolModal" class="hidden fixed inset-0 bg-black bg-opacity-80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white"><i class="fas fa-magic text-pink-500"></i> Create AI Tool</h3>
+                <button onclick="document.getElementById('customToolModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Tool Name</label>
+                    <input type="text" id="ct-name" placeholder="e.g. Legal Advisor" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2 outline-none border border-gray-700 focus:border-pink-500">
                 </div>
-                <p class="text-sm text-gray-400">Memory card game with Ayanokōji, Lucifer & more.</p>
-            </a>
-
-            <a href="/arcade/flappy-bug" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-blue-500/40 transition duration-300">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-bug"></i></div>
-                    <h3 class="text-lg font-bold text-gray-200 group-hover:text-blue-400 transition">Flappy Bug</h3>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Short Description</label>
+                    <input type="text" id="ct-desc" placeholder="e.g. Helps with law questions" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2 outline-none border border-gray-700 focus:border-pink-500">
                 </div>
-                <p class="text-sm text-gray-400">Dodge the 404 Errors and save the Developer Bug!</p>
-            </a>
-
-            <a href="/arcade/ludo" class="group bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:bg-gray-800/80 hover:border-yellow-500/40 transition duration-300">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 rounded-xl bg-yellow-500/10 text-yellow-400 flex items-center justify-center text-2xl group-hover:scale-110 transition"><i class="fas fa-dice"></i></div>
-                    <h3 class="text-lg font-bold text-gray-200 group-hover:text-yellow-400 transition">Ludo Lite</h3>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">AI Instructions (Prompt)</label>
+                    <textarea id="ct-inst" rows="4" placeholder="Act as an expert lawyer. Give legal advice strictly based on Indian Law..." class="w-full bg-gray-800 text-white rounded-lg px-3 py-2 outline-none border border-gray-700 focus:border-pink-500"></textarea>
                 </div>
-                <p class="text-sm text-gray-400">Roll the interactive 3D dice in this classic arena.</p>
-            </a>
-
+                <button onclick="saveCustomTool()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg transition shadow-lg mt-2">
+                    Create My Tool
+                </button>
+            </div>
         </div>
     </div>
-    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadCustomTools);
+
+        async function loadCustomTools() {
+            try {
+                const res = await fetch('/api/get_custom_tools');
+                const data = await res.json();
+                const grid = document.getElementById('customToolsGrid');
+                grid.innerHTML = '';
+                
+                if (!data.tools || data.tools.length === 0) {
+                    grid.innerHTML = '<p class="text-gray-500 text-sm col-span-full">You haven\'t created any custom tools yet. Click "Create Tool" to build one!</p>';
+                    return;
+                }
+
+                data.tools.forEach(tool => {
+                    grid.innerHTML += `
+                        <div onclick="openCustomToolChat('${tool.id}', '${tool.name}')" class="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6 hover:border-yellow-500 hover:-translate-y-1 transition cursor-pointer shadow-lg group">
+                            <div class="w-14 h-14 rounded-xl bg-gray-900 flex items-center justify-center mb-4 group-hover:scale-110 transition shadow-inner">
+                                <i class="${tool.icon || 'fas fa-wrench'} text-2xl text-yellow-400"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-2">${tool.name}</h3>
+                            <p class="text-sm text-gray-400 line-clamp-2 leading-relaxed">${tool.description}</p>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error loading tools:", err);
+            }
+        }
+
+        async function saveCustomTool() {
+            const name = document.getElementById('ct-name').value.trim();
+            const desc = document.getElementById('ct-desc').value.trim();
+            const inst = document.getElementById('ct-inst').value.trim();
+            
+            if (!name || !inst) return alert("Please provide both a Name and AI Instructions for your tool!");
+
+            const btn = document.querySelector('#customToolModal button.bg-gradient-to-r');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Creating...';
+
+            await fetch('/api/create_custom_tool', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: name, 
+                    description: desc, 
+                    instruction: inst,
+                    icon: "fas fa-bolt" // Default custom icon
+                })
+            });
+
+            document.getElementById('ct-name').value = '';
+            document.getElementById('ct-desc').value = '';
+            document.getElementById('ct-inst').value = '';
+            btn.innerHTML = 'Create My Tool';
+            document.getElementById('customToolModal').classList.add('hidden');
+            
+            loadCustomTools();
+        }
+
+        function openCustomToolChat(toolId, toolName) {
+            // Setting the tool in local storage so the main chat knows which mode to open
+            localStorage.setItem("current_tool_mode", toolId);
+            localStorage.setItem("current_tool_name", toolName);
+            window.location.href = "/"; 
+        }
+    </script>
 </body>
 </html>
