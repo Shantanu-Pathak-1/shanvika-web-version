@@ -43,7 +43,8 @@ def get_llm_response(prompt, model="llama-3.3-70b-versatile"):
         return f"⚠️ LLM Error: {str(e)}"
 
 # 🚀 Naya OpenRouter Helper Function
-def get_openrouter_response(prompt, model="meta-llama/llama-3-8b-instruct:free"):
+# 🚀 SMART OPENROUTER HELPER (WITH TASK-BASED MODELS)
+def get_openrouter_response(prompt, task_type="fast"):
     try:
         keys = os.getenv("OPENROUTER_API_KEY_POOL", "").split(",")
         possible_keys = [k.strip() for k in keys if k.strip()]
@@ -51,6 +52,20 @@ def get_openrouter_response(prompt, model="meta-llama/llama-3-8b-instruct:free")
         
         if not key:
             return "⚠️ API Key missing."
+            
+        # 🧠 Smart Model Selection Logic
+        if task_type == "coding":
+            # Best for logic and debugging
+            model = random.choice(["deepseek/deepseek-coder", "deepseek/deepseek-chat:free"])
+        elif task_type == "vision":
+            # For image/PDF tasks if Gemini fails
+            model = "nvidia/nemotron-mini-4b-instruct" # Using Nemotron family for vision fallback
+        elif task_type == "heavy":
+            # Deep reasoning, writing, emails, resumes
+            model = random.choice(["meta-llama/llama-3.1-8b-instruct:free", "qwen/qwen-2.5-7b-instruct:free"])
+        else:
+            # Fast/Lightweight tasks: Grammar, Summaries, Memory
+            model = random.choice(["zhipu/glm-4-flash", "stepfun/step-1-flash", "meta-llama/llama-3-8b-instruct:free"])
             
         headers = {
             "Authorization": f"Bearer {key}",
@@ -258,7 +273,7 @@ async def summarize_youtube(url):
         transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
         full_text = " ".join([i['text'] for i in transcript_list])
         prompt = f"Summarize this YouTube video transcript into 5 key bullet points:\n{full_text[:4000]}..."
-        return get_openrouter_response(prompt) # 🚀 Shifted to OpenRouter
+        return get_openrouter_response(prompt, "fast")
     except: return "⚠️ Could not fetch transcript."
 
 async def generate_interview_questions(role):
@@ -280,7 +295,7 @@ async def solve_math_problem(file_data, query):
     except Exception as e: return f"⚠️ Math Error: {str(e)}"
 
 async def smart_todo_maker(raw_text):
-    return get_openrouter_response(f"Convert to To-Do List with priorities:\n{raw_text}") # 🚀 Shifted to OpenRouter
+    return get_openrouter_response(f"Convert to To-Do List with priorities:\n{raw_text}", "heavy")
 
 async def generate_password_tool(req):
     chars = string.ascii_letters + string.digits + "!@#$%^&*"
@@ -294,7 +309,7 @@ async def generate_qr_code(text):
     return f'<div class="flex justify-center p-4 bg-white rounded-xl w-fit mx-auto"><img src="data:image/png;base64,{img_str}" alt="QR Code" width="200"></div>'
 
 async def fix_grammar_tool(text):
-    return get_openrouter_response(f"Fix grammar and make professional:\n{text}") # 🚀 Shifted to OpenRouter
+    return get_openrouter_response(f"Fix grammar and make professional:\n{text}", "fast") # 🚀 Shifted to OpenRouter
 
 async def generate_prompt_only(idea):
     return get_llm_response(f"Write a professional AI image prompt for: '{idea}'")
@@ -348,14 +363,12 @@ async def feynman_explainer_tool(concept):
 async def code_debugger_tool(code_input):
     prompt = f"""
     Act as a Senior Software Architect. Analyze the following code or error message:
-    
     {code_input}
-    
     1. Identify the bug or issue.
     2. Explain briefly why it happened.
     3. Provide the fully corrected and optimized code using markdown code blocks.
     """
-    return get_llm_response(prompt)
+    return get_openrouter_response(prompt, "coding")
 
 async def movie_talker_tool(message, context_history):
     prompt = f"""

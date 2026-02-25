@@ -184,7 +184,12 @@ async def extract_and_save_memory(user_email: str, user_message: str):
         if not openrouter_key: return
 
         headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
-        data = {"model": "meta-llama/llama-3-8b-instruct:free", "messages": [{"role": "user", "content": extraction_prompt}]}
+        
+        # 🚀 YAHAN CHANGE KIYA HAI: Fast models ka Round Robin!
+        import random
+        fast_models = ["zhipu/glm-4-flash", "stepfun/step-1-flash", "meta-llama/llama-3-8b-instruct:free"]
+        selected_model = random.choice(fast_models)
+        data = {"model": selected_model, "messages": [{"role": "user", "content": extraction_prompt}]}
         
         async with httpx.AsyncClient() as http_client:
             resp = await http_client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=15.0)
@@ -205,7 +210,7 @@ async def extract_and_save_memory(user_email: str, user_message: str):
                     mem_id = f"{user_email}_{hashlib.md5(clean_memory.encode()).hexdigest()}"
                     index.upsert(vectors=[(mem_id, vec, {"text": clean_memory, "email": user_email})])
     except Exception as e: print(f"Auto-Memory Error: {e}")
-
+    
 # ==================================================================================
 # [CATEGORY] 6. SCHEDULER TASKS
 # ==================================================================================
