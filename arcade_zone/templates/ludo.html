@@ -10,99 +10,150 @@
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
         body { 
-            background-color: #0b0f19; 
+            background-color: #050810; 
             color: white; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
             height: 100vh; margin: 0; overflow: hidden; 
             font-family: 'Orbitron', sans-serif; 
             touch-action: none;
-            background-image: radial-gradient(circle at center, #1e293b 0%, #0b0f19 100%);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(239, 68, 68, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.05), transparent 25%);
         }
 
         .ludo-container {
             position: relative;
             width: 95vw;
-            max-width: 380px;
+            max-width: 400px;
             aspect-ratio: 1/1;
-            background: #0b0f19; /* Dark background */
-            border-radius: 15px;
-            padding: 8px;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.05);
-            border: 2px solid #1e293b;
+            padding: 5px;
         }
 
-        /* 15x15 Exact Ludo Grid */
+        /* The Grid: No background, only precise placement */
         .ludo-grid {
             display: grid;
             grid-template-columns: repeat(15, 1fr);
             grid-template-rows: repeat(15, 1fr);
             width: 100%;
             height: 100%;
-            gap: 2px;
-            position: relative;
+            gap: 3px;
         }
 
-        /* ONLY Track Cells are visible */
-        .cell { background: transparent; }
-        .track-cell {
-            background: #111827;
-            border: 1px solid rgba(0, 255, 255, 0.1);
+        /* Individual Path Cells */
+        .cell { 
+            background: #0f172a; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 4px;
             display: flex; align-items: center; justify-content: center;
-            border-radius: 3px;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.8);
             position: relative;
-            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.05);
         }
 
-        /* Base Homes */
-        .home-red { grid-column: 1 / 7; grid-row: 10 / 16; background: rgba(239, 68, 68, 0.08); border: 2px solid #ef4444; box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; border-radius: 10px; }
-        .home-blue { grid-column: 10 / 16; grid-row: 1 / 7; background: rgba(59, 130, 246, 0.08); border: 2px solid #3b82f6; box-shadow: inset 0 0 30px rgba(59, 130, 246, 0.3); display: flex; align-items: center; justify-content: center; border-radius: 10px; }
-        .home-green { grid-column: 1 / 7; grid-row: 1 / 7; background: rgba(16, 185, 129, 0.05); border: 2px solid rgba(16, 185, 129, 0.5); border-radius: 10px; }
-        .home-yellow { grid-column: 10 / 16; grid-row: 10 / 16; background: rgba(245, 158, 11, 0.05); border: 2px solid rgba(245, 158, 11, 0.5); border-radius: 10px; }
+        /* Specific Cell Colors */
+        .safe-zone { box-shadow: inset 0 0 15px rgba(250, 204, 21, 0.4); border-color: rgba(250, 204, 21, 0.6); }
+        .safe-zone::after { content: '★'; color: #facc15; font-size: 14px; text-shadow: 0 0 8px #facc15; }
         
-        .center-home { grid-column: 7 / 10; grid-row: 7 / 10; background: radial-gradient(circle, #fff, #1e293b); box-shadow: 0 0 20px rgba(255,255,255,0.3); border-radius: 5px; z-index: 10; }
+        .path-red { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.3); }
+        .path-blue { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.4); box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.3); }
 
-        .home-inner { width: 65%; height: 65%; background: #0b0f19; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; border: 1px solid rgba(255,255,255,0.1); }
-        .base-spot { width: 100%; height: 100%; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; }
+        /* Bases (The 4 Corners) */
+        .base-container {
+            border-radius: 15px;
+            display: flex; align-items: center; justify-content: center;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .red-base { background: rgba(239, 68, 68, 0.05); border: 2px solid #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.2), inset 0 0 30px rgba(239, 68, 68, 0.2); }
+        .blue-base { background: rgba(59, 130, 246, 0.05); border: 2px solid #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), inset 0 0 30px rgba(59, 130, 246, 0.2); }
+        .green-base { background: rgba(16, 185, 129, 0.03); border: 2px solid rgba(16, 185, 129, 0.3); opacity: 0.8; }
+        .yellow-base { background: rgba(245, 158, 11, 0.03); border: 2px solid rgba(245, 158, 11, 0.3); opacity: 0.8; }
 
-        /* Path Colors */
-        .path-red { background: rgba(239, 68, 68, 0.25) !important; box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.5); border-color: rgba(239, 68, 68, 0.5); }
-        .path-blue { background: rgba(59, 130, 246, 0.25) !important; box-shadow: inset 0 0 12px rgba(59, 130, 246, 0.5); border-color: rgba(59, 130, 246, 0.5); }
-        .safe-zone { font-size: 12px; color: #facc15; text-shadow: 0 0 8px #facc15; }
-        .safe-zone::after { content: '★'; }
+        .base-inner {
+            width: 100%; height: 100%;
+            background: #050810;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            padding: 12px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        }
+
+        .spot {
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            border: 2px dashed rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Center Home */
+        .center-home {
+            background: #111827;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 0 0 20px rgba(255,255,255,0.1), inset 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+        }
+        /* Center Triangles using CSS borders */
+        .center-home::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: conic-gradient(
+                rgba(59, 130, 246, 0.5) 0deg 90deg, 
+                rgba(245, 158, 11, 0.2) 90deg 180deg, 
+                rgba(239, 68, 68, 0.5) 180deg 270deg, 
+                rgba(16, 185, 129, 0.2) 270deg 360deg
+            );
+        }
 
         /* Gotis (Tokens) */
         .goti { 
-            width: 20px; height: 20px; 
+            width: 24px; height: 24px; 
             border-radius: 50%; position: absolute; 
-            z-index: 50; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            z-index: 50; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
             transform: translate(-50%, -50%); cursor: pointer;
             border: 2px solid white;
         }
-        .goti.red { background: radial-gradient(circle at 30% 30%, #ff7eb3, #ff0055); box-shadow: 0 0 15px #ff0055, 0 4px 8px rgba(0,0,0,0.6); }
-        .goti.blue { background: radial-gradient(circle at 30% 30%, #7efff5, #00b8ff); box-shadow: 0 0 15px #00b8ff, 0 4px 8px rgba(0,0,0,0.6); }
+        .goti.red { background: radial-gradient(circle at 30% 30%, #ff4d4d, #b91c1c); box-shadow: 0 0 15px #ef4444, 0 4px 8px rgba(0,0,0,0.8); }
+        .goti.blue { background: radial-gradient(circle at 30% 30%, #60a5fa, #1d4ed8); box-shadow: 0 0 15px #3b82f6, 0 4px 8px rgba(0,0,0,0.8); }
         
-        /* Animations */
-        .goti.active-anim { animation: pulseGlow 0.8s infinite alternate; z-index: 100; cursor: pointer; }
-        @keyframes pulseGlow { 0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 10px #fff; } 100% { transform: translate(-50%, -65%) scale(1.25); box-shadow: 0 0 25px #facc15, 0 0 40px #fff; border-color: #facc15; } }
+        .goti.active-anim { animation: pulseGlow 0.8s infinite alternate; z-index: 100; border-color: #facc15; }
+        @keyframes pulseGlow { 
+            0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 10px #fff; } 
+            100% { transform: translate(-50%, -60%) scale(1.3); box-shadow: 0 0 25px #facc15, 0 0 40px #fff; } 
+        }
 
-        /* Dice Area */
-        .control-panel { width: 95vw; max-width: 380px; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; background: rgba(30, 41, 59, 0.5); padding: 10px 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
-        .player-tag { text-align: center; font-weight: bold; font-size: 12px; transition: 0.3s; opacity: 0.5; padding: 5px 15px; border-radius: 8px; }
-        .player-tag.active { opacity: 1; transform: scale(1.1); background: rgba(255,255,255,0.1); box-shadow: 0 0 15px rgba(255,255,255,0.1); }
-        .player-red { color: #ff0055; text-shadow: 0 0 8px #ff0055; }
-        .player-blue { color: #00b8ff; text-shadow: 0 0 8px #00b8ff; }
+        /* Control Panel */
+        .control-panel { 
+            width: 95vw; max-width: 400px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-top: 25px; background: rgba(15, 23, 42, 0.8); 
+            padding: 12px 25px; border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+        .player-tag { text-align: center; font-weight: bold; font-size: 13px; transition: 0.3s; opacity: 0.4; padding: 8px 15px; border-radius: 12px; }
+        .player-tag.active { opacity: 1; transform: scale(1.1); background: rgba(255,255,255,0.05); }
+        .player-red.active { box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .player-blue.active { box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .player-red { color: #ef4444; text-shadow: 0 0 10px #ef4444; }
+        .player-blue { color: #3b82f6; text-shadow: 0 0 10px #3b82f6; }
         
         .dice { 
-            width: 50px; height: 50px; background: #fff; color: #0f172a; 
-            font-size: 28px; font-weight: 900; display: flex; align-items: center; justify-content: center; 
-            border-radius: 12px; cursor: pointer; box-shadow: 0 0 20px rgba(255,255,255,0.5);
-            transition: 0.1s;
+            width: 55px; height: 55px; background: #fff; color: #050810; 
+            font-size: 32px; font-weight: 900; display: flex; align-items: center; justify-content: center; 
+            border-radius: 14px; cursor: pointer; box-shadow: 0 0 25px rgba(255,255,255,0.3);
+            transition: 0.1s; border: 2px solid #cbd5e1;
         }
-        .dice:active { transform: scale(0.9); box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .dice:active { transform: scale(0.9); box-shadow: 0 0 10px rgba(255,255,255,0.2); }
         .dice.rolling { animation: shake 0.3s infinite; pointer-events: none; }
         @keyframes shake { 0% {transform: rotate(15deg);} 50% {transform: rotate(-15deg);} 100% {transform: rotate(15deg);} }
 
-        #status-bar { margin-top: 15px; font-size: 14px; color: #94a3b8; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; height: 20px; }
+        #status-bar { margin-top: 20px; font-size: 15px; color: #e2e8f0; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; height: 20px; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
@@ -111,9 +162,9 @@
         <i class="fas fa-arrow-left"></i>
     </a>
 
-    <div class="text-center mb-4 mt-8">
-        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-cyan-500 tracking-wider" style="filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));">
-            NEON LUDO
+    <div class="text-center mb-6 mt-6">
+        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 tracking-widest uppercase" style="filter: drop-shadow(0 0 15px rgba(255,255,255,0.2));">
+            Neon Ludo
         </h1>
     </div>
 
@@ -124,70 +175,78 @@
 
     <div class="control-panel">
         <div class="player-tag player-red active" id="p-red">
-            <i class="fas fa-user-astronaut text-lg block mb-1"></i> SHANTANU
+            <i class="fas fa-user-astronaut text-xl block mb-1"></i> SHANTANU
         </div>
         <div class="dice" id="dice" onclick="rollDice()">🎲</div>
         <div class="player-tag player-blue" id="p-blue">
-            <i class="fas fa-robot text-lg block mb-1"></i> SHANVIKA
+            <i class="fas fa-robot text-xl block mb-1"></i> SHANVIKA
         </div>
     </div>
     
     <div id="status-bar">Your Turn! Roll the Dice.</div>
 
     <script>
-        // --- 1. BOARD GENERATION & MAPPING ---
+        // --- 1. PRECISE BOARD GENERATION ---
+        // 52 Exact Coordinates for the outer Ludo Track (1-based CSS Grid index: [col, row])
         const pathCoords = [
-            [7,14], [7,13], [7,12], [7,11], [7,10], // Red start upwards
-            [6,9], [5,9], [4,9], [3,9], [2,9], [1,9], // Leftwards
-            [1,8], [1,7], // Up
-            [2,7], [3,7], [4,7], [5,7], [6,7], // Rightwards
-            [7,6], [7,5], [7,4], [7,3], [7,2], [7,1], // Upwards
-            [8,1], [9,1], // Right
-            [9,2], [9,3], [9,4], [9,5], [9,6], // Blue start downwards
-            [10,7], [11,7], [12,7], [13,7], [14,7], [15,7], // Rightwards
-            [15,8], [15,9], // Down
-            [14,9], [13,9], [12,9], [11,9], [10,9], // Leftwards
-            [9,10], [9,11], [9,12], [9,13], [9,14], [9,15], // Downwards
-            [8,15] // Left (Back to start)
+            [7,14], [7,13], [7,12], [7,11], [7,10], // 0-4 (Red start upwards)
+            [6,9], [5,9], [4,9], [3,9], [2,9], [1,9], // 5-10 (Leftwards)
+            [1,8], [1,7], // 11-12 (Up)
+            [2,7], [3,7], [4,7], [5,7], [6,7], // 13-17 (Rightwards)
+            [7,6], [7,5], [7,4], [7,3], [7,2], [7,1], // 18-23 (Upwards)
+            [8,1], [9,1], // 24-25 (Right)
+            [9,2], [9,3], [9,4], [9,5], [9,6], // 26-30 (Blue start downwards)
+            [10,7], [11,7], [12,7], [13,7], [14,7], [15,7], // 31-36 (Rightwards)
+            [15,8], [15,9], // 37-38 (Down)
+            [14,9], [13,9], [12,9], [11,9], [10,9], // 39-43 (Leftwards)
+            [9,10], [9,11], [9,12], [9,13], [9,14], [9,15], // 44-49 (Downwards)
+            [8,15] // 50-51 (Left)
         ];
 
         const redHomePath = [[8,14], [8,13], [8,12], [8,11], [8,10], [8,9]]; 
         const blueHomePath = [[8,2], [8,3], [8,4], [8,5], [8,6], [8,7]];
 
-        const safeSpots = [0, 9, 13, 22, 26, 35, 39, 48];
+        // Standard Ludo Safe Spots indices
+        const safeSpots = [0, 8, 13, 21, 26, 34, 39, 47];
 
         const grid = document.getElementById('grid');
         let html = '';
+
+        // 1. GENERATE ONLY VALID TRACK CELLS
         for(let r=1; r<=15; r++) {
             for(let c=1; c<=15; c++) {
-                // Ye logic sirf cross (+) wale dabbe banayega
-                let isTrack = (c >= 7 && c <= 9) || (r >= 7 && r <= 9);
-                if(c >= 7 && c <= 9 && r >= 7 && r <= 9) isTrack = false; // center excluded
+                // Check if this (c,r) is part of the vertical or horizontal track
+                let isVertical = (c >= 7 && c <= 9) && (r <= 6 || r >= 10);
+                let isHorizontal = (r >= 7 && r <= 9) && (c <= 6 || c >= 10);
                 
-                let cls = isTrack ? "cell track-cell" : "cell";
-                html += `<div class="${cls}" id="c-${c}-${r}"></div>`;
+                if(isVertical || isHorizontal) {
+                    html += `<div class="cell" id="c-${c}-${r}" style="grid-column: ${c}; grid-row: ${r};"></div>`;
+                }
             }
         }
         
-        // Add Homes overlay
+        // 2. GENERATE THE 4 CORNER BASES AND CENTER EXPLICITLY
         html += `
-            <div class="home-red"><div class="home-inner" id="base-red"></div></div>
-            <div class="home-blue"><div class="home-inner" id="base-blue"></div></div>
-            <div class="home-green"></div><div class="home-yellow"></div>
-            <div class="center-home"></div>
+            <div class="base-container green-base" style="grid-area: 1 / 1 / 7 / 7;"></div>
+            <div class="base-container blue-base" style="grid-area: 1 / 10 / 7 / 16;">
+                <div class="base-inner" id="base-blue"></div>
+            </div>
+            <div class="center-home" style="grid-area: 7 / 7 / 10 / 10;"></div>
+            <div class="base-container red-base" style="grid-area: 10 / 1 / 16 / 7;">
+                <div class="base-inner" id="base-red"></div>
+            </div>
+            <div class="base-container yellow-base" style="grid-area: 10 / 10 / 16 / 16;"></div>
         `;
+        
         grid.innerHTML = html;
 
-        // Color Safe Zones & Paths
+        // 3. COLOR THE SPECIFIC CELLS
         safeSpots.forEach(idx => document.getElementById(`c-${pathCoords[idx][0]}-${pathCoords[idx][1]}`).classList.add('safe-zone'));
         redHomePath.slice(0,5).forEach(p => document.getElementById(`c-${p[0]}-${p[1]}`).classList.add('path-red'));
         blueHomePath.slice(0,5).forEach(p => document.getElementById(`c-${p[0]}-${p[1]}`).classList.add('path-blue'));
-        document.getElementById(`c-${pathCoords[0][0]}-${pathCoords[0][1]}`).classList.add('path-red'); // Red Start
-        document.getElementById(`c-${pathCoords[26][0]}-${pathCoords[26][1]}`).classList.add('path-blue'); // Blue Start
+        document.getElementById(`c-${pathCoords[0][0]}-${pathCoords[0][1]}`).classList.add('path-red'); // Red Start Area
+        document.getElementById(`c-${pathCoords[26][0]}-${pathCoords[26][1]}`).classList.add('path-blue'); // Blue Start Area
 
-        // Visual fix for other team safe spots (just for aesthetic)
-        document.getElementById('c-3-9').classList.add('safe-zone'); // Green start
-        document.getElementById('c-13-7').classList.add('safe-zone'); // Yellow start
 
         // --- 2. GAME STATE & TOKENS ---
         let turn = 'red'; 
@@ -204,7 +263,7 @@
         ['red', 'blue'].forEach(color => {
             const base = document.getElementById(`base-${color}`);
             tokens[color].forEach(t => {
-                base.innerHTML += `<div class="base-spot" id="spot-${t.id}"></div>`;
+                base.innerHTML += `<div class="spot" id="spot-${t.id}"></div>`;
                 const goti = document.createElement('div');
                 goti.className = `goti ${color}`;
                 goti.id = t.id;
@@ -258,8 +317,8 @@
             }
         }
 
-        setTimeout(drawBoard, 300);
-        window.addEventListener('resize', drawBoard);
+        setTimeout(drawBoard, 500);
+        window.addEventListener('resize', () => { setTimeout(drawBoard, 100); });
 
         // --- 3. GAME LOGIC ---
         function setStatus(msg) { document.getElementById('status-bar').innerText = msg; }
@@ -284,7 +343,8 @@
                     dice.classList.remove('rolling');
                     currentRoll = Math.floor(Math.random() * 6) + 1;
                     
-                    if(turn === 'blue' && Math.random() > 0.7) currentRoll = 6; 
+                    // Shanvika gets a little lucky sometimes 😉
+                    if(turn === 'blue' && Math.random() > 0.75) currentRoll = 6; 
                     
                     dice.innerText = currentRoll;
                     checkMoves();
@@ -302,7 +362,7 @@
             let validGotis = tokens[turn].filter(t => isValidMove(t, currentRoll, turn));
             
             if(validGotis.length === 0) {
-                setStatus(`No valid moves!`);
+                setStatus(`No moves! Turn passing...`);
                 setTimeout(nextTurn, 1000);
                 return;
             }
